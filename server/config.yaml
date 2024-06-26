@@ -1,0 +1,4 @@
+port: 8920
+host: "0.0.0.0"
+domain: null
+pulseConfigPath: "pulse.yaml"

@@ -1,0 +1,41 @@
+{
+  "name": "dg-lab-streaming-widget",
+  "version": "1.0.0",
+  "description": "郊狼直播小组件",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build-schema": "node cli/build-schema.js",
+    "build": "npm run build-schema && tsc"
+  },
+  "keywords": [
+    "DG-Lab",
+    "obs"
+  ],
+  "author": "Hyperzlib",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/deep-equal": "^1.0.4",
+    "@types/js-yaml": "^4.0.9",
+    "@types/koa": "^2.15.0",
+    "@types/koa-router": "^7.4.8",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.10",
+    "ts-json-schema-generator": "^2.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "deep-equal": "^2.2.3",
+    "js-yaml": "^4.1.0",
+    "koa": "^2.15.3",
+    "koa-router": "^12.0.1",
+    "lru-cache": "^10.2.2",
+    "path-to-regexp": "^7.0.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.17.1"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.8"
+  }
+}

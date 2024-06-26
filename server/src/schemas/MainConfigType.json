@@ -1,0 +1,35 @@
+{
+  "$ref": "#/definitions/MainConfigType",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "MainConfigType": {
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "number"
+        },
+        "proxySSLEnable": {
+          "type": "boolean"
+        },
+        "pulseConfigPath": {
+          "type": "string"
+        },
+        "wsDomain": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "port",
+        "host",
+        "pulseConfigPath"
+      ],
+      "type": "object"
+    }
+  }
+}

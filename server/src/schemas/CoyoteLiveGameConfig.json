@@ -1,0 +1,49 @@
+{
+  "$ref": "#/definitions/CoyoteLiveGameConfig",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "CoyoteLiveGameConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "pulseId": {
+          "type": "string"
+        },
+        "strength": {
+          "$ref": "#/definitions/RandomStrengthConfig"
+        }
+      },
+      "required": [
+        "strength",
+        "pulseId"
+      ],
+      "type": "object"
+    },
+    "RandomStrengthConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "bChannelMultiplier": {
+          "type": "number"
+        },
+        "maxInterval": {
+          "type": "number"
+        },
+        "maxStrength": {
+          "type": "number"
+        },
+        "minInterval": {
+          "type": "number"
+        },
+        "minStrength": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "minStrength",
+        "maxStrength",
+        "minInterval",
+        "maxInterval"
+      ],
+      "type": "object"
+    }
+  }
+}

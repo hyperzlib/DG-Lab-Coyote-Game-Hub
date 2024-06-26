@@ -1,4 +1,4 @@
-import { EventEmitter } from "koa";
+import { EventEmitter } from "events";
 import { asleep } from "./utils";
 
 export class TaskAbortedError extends Error {

@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import deepEqual from 'deep-equal';
+import Ajv from "ajv"
 
 import { Channel } from '../../types/dg';
 import { DGLabWSClient, StrengthInfo } from '../../controllers/ws/DGLabWS';

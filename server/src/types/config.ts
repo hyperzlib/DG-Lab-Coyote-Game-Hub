@@ -2,7 +2,7 @@ export type MainConfigType = {
     port: number;
     host: string;
     proxySSLEnable?: boolean;
-    domain?: string;
-    wsDomain?: string;
+    domain?: string | null;
+    wsDomain?: string | null;
     pulseConfigPath: string;
 };

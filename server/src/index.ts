@@ -12,8 +12,10 @@ import './managers/DGLabWSManager';
 import './managers/CoyoteLiveGameManager';
 import { DGLabPulseService } from './services/DGLabPulse';
 import { LocalIPAddress } from './utils/utils';
+import { validator } from './utils/validator';
 
 async function main() {
+    await validator.initialize();
     await MainConfig.initialize();
     
     await DGLabPulseService.instance.initialize();

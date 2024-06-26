@@ -2,3 +2,5 @@
 node_modules/
 __pycache__/
 .DS_Store
+/server/dist
+/frontend/dist

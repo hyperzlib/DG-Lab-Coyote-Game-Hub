@@ -1,0 +1,1 @@
+declare module "*.json"; // Allow importing JSON files

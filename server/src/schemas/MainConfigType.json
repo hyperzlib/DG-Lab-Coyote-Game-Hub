@@ -6,7 +6,10 @@
       "additionalProperties": false,
       "properties": {
         "domain": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "host": {
           "type": "string"
@@ -21,7 +24,10 @@
           "type": "string"
         },
         "wsDomain": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

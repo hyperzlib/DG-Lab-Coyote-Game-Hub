@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AsyncWebSocket } from '../../utils/WebSocketAsync';
 import { Channel, DGLabMessage, MessageDataHead, MessageType, RetCode, FeedbackButton } from '../../types/dg';
 import { asleep } from '../../utils/utils';
-import { EventEmitter } from 'koa';
+import { EventEmitter } from 'events';
 import { EventStore } from '../../utils/EventStore';
 
 const HEARTBEAT_INTERVAL = 20.0;

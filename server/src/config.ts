@@ -1,6 +1,7 @@
 import yaml from 'js-yaml';
 import * as fs from 'fs';
 import { MainConfigType } from './types/config';
+import { validator } from './utils/validator';
 
 export class Config<ConfigType = any> {
     public value: ConfigType | null = null;
@@ -37,6 +38,12 @@ export class MainConfig {
     public static async initialize() {
         MainConfig.instance = new Config<MainConfigType>('config.yaml');
         await MainConfig.instance.load();
+
+        if (!validator.validateMainConfigType(MainConfig.value)) {
+            console.error('MainConfig validation failed.');
+            console.error(validator.validateMainConfigType.errors);
+            throw new Error(`MainConfig validation failed.`);
+        }
     }
 
     public static get value() {

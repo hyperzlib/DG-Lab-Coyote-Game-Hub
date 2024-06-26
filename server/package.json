@@ -4,7 +4,7 @@
   "description": "郊狼直播小组件",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "tsx src/index.ts",
     "build-schema": "node cli/build-schema.js",
     "build": "npm run build-schema && tsc"
   },
@@ -22,10 +22,11 @@
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
     "ts-json-schema-generator": "^2.3.0",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.15.7",
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "ajv": "^8.16.0",
     "deep-equal": "^2.2.3",
     "js-yaml": "^4.1.0",
     "koa": "^2.15.3",

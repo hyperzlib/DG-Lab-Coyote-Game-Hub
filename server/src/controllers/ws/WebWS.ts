@@ -1,9 +1,11 @@
 import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
 import { AsyncWebSocket } from '../../utils/WebSocketAsync';
 import { EventStore } from '../../utils/EventStore';
 import { DGLabPulseService } from '../../services/DGLabPulse';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
+import { validator } from '../../utils/validator';
 
 export type WebWSPostMessage = {
     event: string;
@@ -105,13 +107,16 @@ export class WebWSClient {
 
         switch (message.action) {
             case 'bindClient':
-                this.handleBindClient(message);
+                await this.handleBindClient(message);
                 break;
             case 'updateConfig':
+                await this.handleUpdateConfig(message);
                 break;
             case 'startGame':
+                await this.handleStartGame(message);
                 break;
             case 'stopGame':
+                await this.handleStopGame(message);
                 break;
         }
     }
@@ -155,7 +160,84 @@ export class WebWSClient {
     }
 
     private async handleUpdateConfig(message: any) {
-        
+        if (!this.gameInstance) {
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: '游戏未连接',
+            });
+            return;
+        }
+
+        if (!message.config) {
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: '数据包错误：config 不存在',
+            });
+            return;
+        } else if (!validator.validateCoyoteLiveGameConfig(message.config)) {
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: '数据包错误：config 格式错误',
+                detail: validator.validateCoyoteLiveGameConfig.errors,
+            });
+            return;
+        }
+
+        this.gameInstance.updateConfig(message.config);
+    }
+
+    private async handleStartGame(message: any) {
+        if (!this.gameInstance) {
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: '游戏未连接',
+            });
+            return;
+        }
+
+        try {
+            await this.gameInstance.startGame();
+
+            await this.sendResponse(message.messageId, {
+                status: 1,
+            });
+        } catch (error: any) {
+            const errId = uuidv4();
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: error.message,
+                detail: error,
+            });
+
+            console.error(`[${errId}] Failed to start game:`, error);
+        }
+    }
+
+    private async handleStopGame(message: any) {
+        if (!this.gameInstance) {
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: '游戏未连接',
+            });
+            return;
+        }
+
+        try {
+            await this.gameInstance.stopGame();
+            
+            await this.sendResponse(message.messageId, {
+                status: 1,
+            });
+        } catch (error: any) {
+            const errId = uuidv4();
+            await this.sendResponse(message.messageId, {
+                status: 0,
+                message: error.message,
+                detail: error,
+            });
+
+            console.error(`[${errId}] Failed to stop game:`, error);
+        }
     }
 
     private async connectToGame(gameInstance: CoyoteLiveGame) {

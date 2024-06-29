@@ -6,11 +6,13 @@ const props = withDefaults(defineProps<{
   valHigh?: number;
   valLimit?: number;
   readonly?: boolean;
+  running?: boolean;
 }>(), {
   valLow: 5,
   valHigh: 10,
   valLimit: 50,
   readonly: false,
+  running: false,
 });
 
 const state = reactive({
@@ -49,14 +51,6 @@ const setValHigh = (val: number) => {
   emitValuesChange();
 };
 
-const setValLimit = (val: number) => {
-  state.valLimit = val;
-  state.valLow = Math.min(state.valLow, val);
-  state.valHigh = Math.min(state.valHigh, val);
-
-  emitValuesChange();
-};
-
 const emitValuesChange = () => {
   emit('update:valLow', state.valLow);
   emit('update:valHigh', state.valHigh);
@@ -74,51 +68,30 @@ watch(() => [props.valLow, props.valHigh, props.valLimit], ([valLow, valHigh, va
 <template>
   <div class="progress">
     <div class="progress__number">
-      <input
-        class="progress__input"
-        style="color: hsl(213, 90%, 55%)"
-        type="number"
-        :read-only="props.readonly"
-        :value="state.valLow"
-        @change="setValLow(($event.target as any).value)"
-      />
+      <input class="progress__input" style="color: hsl(213, 90%, 55%)" type="number" :readonly="props.readonly"
+        :value="state.valLow" @change="setValLow(($event.target as any).value)" />
       <span>-</span>
-      <input
-        class="progress__input"
-        style="color: hsl(33, 90%, 55%)"
-        type="number"
-        :read-only="props.readonly"
-        :value="state.valHigh"
-        @change="setValHigh(($event.target as any).value)"
-      />
+      <input class="progress__input" style="color: hsl(33, 90%, 55%)" type="number" :readonly="props.readonly"
+        :value="state.valHigh" @change="setValHigh(($event.target as any).value)" />
     </div>
     <div class="progress__number">
       <span>MAX:</span>
-      <input
-        id="progress-limit-input"
-        class="progress__input"
-        style="color: hsl(273, 90%, 55%)"
-        type="number"
-        :read-only="props.readonly"
-        :value="state.valLimit"
-        @change="setValLimit(($event.target as any).value)"
-      />
+      <input id="progress-limit-input" class="progress__input" style="color: hsl(273, 90%, 55%)" type="number"
+        :read-only="props.readonly" :value="state.valLimit" readonly />
     </div>
     <div class="progress__icon">
-      <svg
-        t="1718546024843"
-        class="icon"
-        viewBox="0 0 1024 1024"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-        p-id="15408"
-        style="display: block; width: 2rem; height: 2rem; margin: 0 auto"
-      >
+      <svg t="1718546024843" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+        p-id="15408" style="display: block; width: 2rem; height: 2rem; margin: 0 auto" v-if="props.running">
         <path
           d="M341.333333 1024l76.074667-342.314667C422.528 658.773333 407.466667 640 384 640H170.666667L682.666667 0l-76.074667 342.357333c-5.12 22.912 9.941333 41.642667 33.408 41.642667h213.333333L341.333333 1024z"
-          fill="#FFA702"
-          p-id="15409"
-        ></path>
+          fill="#FFA702" p-id="15409"></path>
+      </svg>
+      <svg t="1719514976614" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+        p-id="9374" style="display: block; width: 2rem; height: 2rem; margin: 0 auto" v-else>
+        <path d="M752.113937 512.104171v383.973957h-176.04883V512.104171z" fill="#00C9CA" p-id="9375"></path>
+        <path d="M752.113937 127.921872V512.104171h-176.04883V127.921872z" fill="#00A1A2" p-id="9376"></path>
+        <path d="M447.934893 512.104171v383.973957h-175.840488V512.104171z" fill="#00C9CA" p-id="9377"></path>
+        <path d="M447.934893 127.921872V512.104171h-175.840488V127.921872z" fill="#00A1A2" p-id="9378"></path>
       </svg>
     </div>
     <svg class="progress__rings" width="256" height="256" viewBox="0 0 256 256">
@@ -133,58 +106,18 @@ watch(() => [props.valLow, props.valHigh, props.valLimit], ([valLow, valHigh, va
         </linearGradient>
       </defs>
       <g>
-        <circle
-          class="progress__ring"
-          cx="128"
-          cy="128"
-          r="100"
-          fill="none"
-          opacity="0.1"
-          stroke="url(#pc-yellow)"
-          stroke-width="20"
-        />
-        <circle
-          id="progress-max-ring"
-          class="progress__ring-fill"
-          data-ring="d"
-          cx="128"
-          cy="128"
-          r="100"
-          fill="none"
-          stroke="url(#pc-yellow)"
-          stroke-width="20"
-          stroke-linecap="round"
-          transform="rotate(-90,128,128)"
-          :stroke-dasharray="`${strokeDasharray} ${strokeDasharray}`"
-          :stroke-dashoffset="circleOffset.valHigh"
-        />
+        <circle class="progress__ring" cx="128" cy="128" r="100" fill="none" opacity="0.1" stroke="url(#pc-yellow)"
+          stroke-width="20" />
+        <circle id="progress-max-ring" class="progress__ring-fill" data-ring="d" cx="128" cy="128" r="100" fill="none"
+          stroke="url(#pc-yellow)" stroke-width="20" stroke-linecap="round" transform="rotate(-90,128,128)"
+          :stroke-dasharray="`${strokeDasharray} ${strokeDasharray}`" :stroke-dashoffset="circleOffset.valHigh" />
       </g>
       <g>
-        <circle
-          class="progress__ring"
-          cx="128"
-          cy="128"
-          r="100"
-          fill="none"
-          opacity="0.1"
-          stroke="url(#pc-blue)"
-          stroke-width="20"
-        />
-        <circle
-          id="progress-min-ring"
-          class="progress__ring-fill"
-          data-ring="h"
-          cx="128"
-          cy="128"
-          r="100"
-          fill="none"
-          stroke="url(#pc-blue)"
-          stroke-width="20"
-          stroke-linecap="round"
-          transform="rotate(-90,128,128)"
-          :stroke-dasharray="`${strokeDasharray} ${strokeDasharray}`"
-          :stroke-dashoffset="circleOffset.valLow"
-        />
+        <circle class="progress__ring" cx="128" cy="128" r="100" fill="none" opacity="0.1" stroke="url(#pc-blue)"
+          stroke-width="20" />
+        <circle id="progress-min-ring" class="progress__ring-fill" data-ring="h" cx="128" cy="128" r="100" fill="none"
+          stroke="url(#pc-blue)" stroke-width="20" stroke-linecap="round" transform="rotate(-90,128,128)"
+          :stroke-dasharray="`${strokeDasharray} ${strokeDasharray}`" :stroke-dashoffset="circleOffset.valLow" />
       </g>
     </svg>
   </div>
@@ -259,6 +192,7 @@ watch(() => [props.valLow, props.valHigh, props.valLimit], ([valLow, valHigh, va
   border-radius: 0.5rem;
   background-color: transparent;
   -moz-appearance: textfield;
+  appearance: textfield;
 
   &::-webkit-inner-spin-button,
   &::-webkit-outer-spin-button {
@@ -271,9 +205,11 @@ watch(() => [props.valLow, props.valHigh, props.valLimit], ([valLow, valHigh, va
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.1);
   }
+
   100% {
     transform: scale(1);
   }
@@ -283,9 +219,11 @@ watch(() => [props.valLow, props.valHigh, props.valLimit], ([valLow, valHigh, va
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
+
   100% {
     opacity: 1;
   }

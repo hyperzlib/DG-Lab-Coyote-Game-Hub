@@ -13,6 +13,7 @@ import './managers/CoyoteLiveGameManager';
 import { DGLabPulseService } from './services/DGLabPulse';
 import { LocalIPAddress } from './utils/utils';
 import { validator } from './utils/validator';
+import { CoyoteLiveGameManager } from './managers/CoyoteLiveGameManager';
 
 async function main() {
     await validator.initialize();

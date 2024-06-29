@@ -44,6 +44,10 @@ export class CoyoteLiveGame {
         };
     }
 
+    public get clientId(): string {
+        return this.client.clientId;
+    }
+
     public get clientStrength(): StrengthInfo {
         return this.client.strength;
     }
@@ -114,9 +118,9 @@ export class CoyoteLiveGame {
         });
     }
 
-    public on: CoyoteLiveGameEventsListener = this.events.on;
-    public once: CoyoteLiveGameEventsListener = this.events.once;
-    public off = this.events.off;
+    public on: CoyoteLiveGameEventsListener = this.events.on.bind(this.events);
+    public once: CoyoteLiveGameEventsListener = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
 
     public get enabled() {
         return this.gameTask?.running ?? false;
@@ -155,7 +159,7 @@ export class CoyoteLiveGame {
     }
 
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
-        let nextRandomStrengthTime = randomInt(this.randomStrengthConfig.minInterval, this.randomStrengthConfig.maxInterval);
+        let nextRandomStrengthTime = randomInt(this.randomStrengthConfig.minInterval, this.randomStrengthConfig.maxInterval) * 1000;
 
         let [pulseData, pulseDuration] = DGLabPulseService.instance.buildPulse(this.currentPulse);
 
@@ -242,8 +246,10 @@ export class CoyoteLiveGame {
      * 每次更新配置后都需要重启游戏
      */
     public async restartGame(): Promise<void> {
-        await this.stopGame(true);
-        await this.startGame(true);
+        if (this.gameTask) {
+            await this.stopGame(true);
+            await this.startGame(true);
+        }
     }
 
     public async destroy(): Promise<void> {

@@ -26,11 +26,7 @@ export class CoyoteLiveGameManager {
     constructor() {
         this.games = new Map();
 
-        DGLabWSManager.instance.on('clientConnected', (client) => {
-            this.createGame(client).catch((error) => {
-                console.error('Failed to create game:', error);
-            });
-        });
+        DGLabWSManager.instance.on('clientConnected', (client) => this.handleClientConnected(client));
     }
 
     public static createInstance() {
@@ -44,20 +40,31 @@ export class CoyoteLiveGameManager {
         return this._instance;
     }
 
+    public async handleClientConnected(client: DGLabWSClient) {
+        try {
+            const game = await this.createGame(client);
+            this.events.emit('gameCreated', client.clientId, game);
+        } catch (error) {
+            console.error('Failed to create game:', error);
+        }
+    }
+
     public async createGame(client: DGLabWSClient) {
         const game = new CoyoteLiveGame(client);
         await game.initialize();
 
         this.games.set(client.clientId, game);
+
+        return game;
     }
 
     public getGame(clientId: string) {
         return this.games.get(clientId);
     }
 
-    public on: CoyoteLiveGameManagerEventsListener = this.events.on;
-    public once: CoyoteLiveGameManagerEventsListener = this.events.once;
-    public off = this.events.off;
+    public on: CoyoteLiveGameManagerEventsListener = this.events.on.bind(this.events);
+    public once: CoyoteLiveGameManagerEventsListener = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
 }
 
 CoyoteLiveGameManager.createInstance();

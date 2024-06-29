@@ -1,9 +1,12 @@
 import { createApp } from 'vue'
-import { createWebHistory, createRouter, RouteRecordRaw } from 'vue-router'
+import { createWebHashHistory, createRouter, RouteRecordRaw } from 'vue-router'
 
 import PrimeVue from 'primevue/config';
 import { definePreset } from '@primevue/themes';
 import Aura from '@primevue/themes/aura';
+
+import DialogService from 'primevue/dialogservice';
+import ToastService from 'primevue/toastservice';
 
 import 'virtual:windi.css'
 import 'primeicons/primeicons.css'
@@ -14,11 +17,10 @@ const appName = '战败惩罚';
 
 const routes: RouteRecordRaw[] = [
     { path: '/', component: () => import('./pages/Controller.vue'), name: '控制器' },
-    { path: '/view', component: () => import('./pages/Viewer.vue'), name: '状态' },
 ];
 
 const router = createRouter({
-    history: createWebHistory('/'),
+    history: createWebHashHistory(),
     routes,
 });
 
@@ -53,4 +55,6 @@ createApp(App)
             preset: SeitaPreset,
         },
     })
+    .use(DialogService)
+    .use(ToastService)
     .mount('#app');

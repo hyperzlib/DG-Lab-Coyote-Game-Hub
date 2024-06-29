@@ -1,4 +1,13 @@
 <script lang="ts" setup>
+import { useToast } from 'primevue/usetoast';
+import Toast from 'primevue/toast';
+
+import { CoyoteLiveGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
+import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
+import { handleApiResponse } from '../utils/response';
+
+const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
+
 const state = reactive({
   valLow: 5,
   valHigh: 10,
@@ -9,6 +18,49 @@ const state = reactive({
 
   bChannelEnabled: false,
   bChannelMultiple: 1,
+
+  pulseList: null as PulseItemResponse[] | null,
+  currentPulseId: '',
+
+  clientId: '',
+  clientWsUrlList: null as ClientConnectUrlInfo[] | null,
+
+  clientStatus: 'init' as 'init' | 'waiting' | 'connected',
+
+  gameStarted: false,
+
+  showConnectionDialog: false,
+  showLiveCompDialog: false,
+  showConfigSavePrompt: false,
+});
+
+// 在收到服务器的配置后设置为true，防止触发watch
+let receivedConfig = false;
+
+let oldConfig: CoyoteLiveGameConfig | null = null;
+
+const gameConfig = computed<CoyoteLiveGameConfig>({
+  get: () => {
+    return {
+      strength: {
+        minStrength: state.valLow,
+        maxStrength: state.valHigh,
+        minInterval: state.randomFreqLow,
+        maxInterval: state.randomFreqHigh,
+        bChannelMultiplier: state.bChannelEnabled ? state.bChannelMultiple : undefined,
+      },
+      pulseId: state.currentPulseId,
+    };
+  },
+  set: (value) => {
+    state.valLow = value.strength.minStrength;
+    state.valHigh = value.strength.maxStrength;
+    state.randomFreqLow = value.strength.minInterval;
+    state.randomFreqHigh = value.strength.maxInterval;
+    state.bChannelEnabled = typeof value.strength.bChannelMultiplier === 'number';
+    state.bChannelMultiple = value.strength.bChannelMultiplier ?? 1;
+    state.currentPulseId = value.pulseId;
+  }
 });
 
 const randomFreq = computed({
@@ -20,43 +72,244 @@ const randomFreq = computed({
     state.randomFreqHigh = value[1];
   },
 });
+
+const toast = useToast();
+
+let serverInfo: ServerInfoResData;
+let wsClient: SocketApi;
+let dgClientConnected = false;
+
+const initServerInfo = async () => {
+  try {
+    let serverInfoRes = await webApi.getServerInfo();
+
+    handleApiResponse(serverInfoRes);
+
+    serverInfo = serverInfoRes!;
+    state.clientWsUrlList = serverInfo.server.clientWsUrls;
+  } catch (error: any) {
+    console.error('Cannot get server info:', error);
+    toast.add({ severity: 'error', summary: '获取服务器信息失败', detail: error.message });
+  }
+};
+
+const initWebSocket = async () => {
+  if (wsClient) return;
+
+  wsClient = new SocketApi(serverInfo.server.wsUrl);
+
+  wsClient.on('open', () => {
+    // 此事件在重连时也会触发
+    console.log('WebSocket connected or re-connected');
+    if (state.clientId) { // 重连时重新绑定客户端
+      bindClient();
+    }
+  });
+
+  wsClient.on('pulseListUpdated', (data: PulseItemResponse[]) => {
+    console.log('Pulse list updated:', data);
+    state.pulseList = data;
+  });
+
+  wsClient.on('clientConnected', () => {
+    console.log('DG-Lab client connected');
+
+    state.showConnectionDialog = false; // 关闭连接对话框
+    state.clientStatus = 'connected';
+    dgClientConnected = true;
+
+    toast.add({ severity: 'success', summary: '客户端连接成功', detail: '已连接到客户端', life: 3000 });
+  });
+
+  wsClient.on('clientDisconnected', () => {
+    console.log('DG-Lab client disconnected');
+
+    state.clientStatus = 'waiting';
+    dgClientConnected = false;
+  });
+
+  wsClient.on('gameInitialized', () => {
+    // 游戏初始化完成后，上报当前配置
+    postConfig(true);
+  });
+
+  wsClient.on('strengthChanged', (strength) => {
+    state.valLimit = strength.limit;
+  });
+
+  wsClient.on('configUpdated', (config) => {
+    receivedConfig = true;
+
+    gameConfig.value = config;
+    oldConfig = config;
+
+    // 屏蔽保存提示
+    receivedConfig = true;
+    nextTick(() => {
+      receivedConfig = false;
+    });
+  });
+
+  wsClient.connect();
+};
+
+const initClientConnection = async () => {
+  try {
+    let res = await webApi.getClientConnectInfo();
+    handleApiResponse(res);
+    state.clientId = res!.clientId;
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, state.clientId);
+
+    bindClient();
+  } catch (error: any) {
+    console.error('Cannot get client ws url list:', error);
+    toast.add({ severity: 'error', summary: '获取客户端连接地址失败', detail: error.message });
+  }
+};
+
+const bindClient = async () => {
+  if (!state.clientId) return;
+
+  try {
+    state.clientStatus = 'waiting';
+    let res = await wsClient.bindClient(state.clientId);
+    handleApiResponse(res);
+  } catch (error: any) {
+    console.error('Cannot bind client:', error);
+    toast.add({ severity: 'error', summary: '绑定客户端失败', detail: error.message });
+  }
+};
+
+const showConnectionDialog = () => {
+  state.showConnectionDialog = true;
+
+  if (!state.clientId) {
+    initClientConnection();
+  }
+};
+
+const showLiveCompDialog = () => {
+  state.showLiveCompDialog = true;
+
+  if (!state.clientId) {
+    initClientConnection();
+  }
+};
+
+const handleResetClientId = () => {
+  initClientConnection();
+};
+
+const handleConnSetClientId = (clientId: string) => {
+  state.clientId = clientId;
+  localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
+
+  bindClient();
+
+  // 关闭连接对话框
+  state.showConnectionDialog = false;
+
+  toast.add({ severity: 'success', summary: '设置成功', detail: '正在等待客户端连接', life: 3000 });
+};
+
+const setPulse = (pulseId: string) => {
+  state.currentPulseId = pulseId;
+};
+
+const postConfig = async (autoPost = false) => {
+  if (!dgClientConnected) {
+    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '保存配置需要先连接到客户端' });
+    return;
+  }
+
+  try {
+    let res = await wsClient.updateConfig(gameConfig.value);
+    handleApiResponse(res);
+
+    oldConfig = gameConfig.value;
+
+    if (!autoPost) {
+      toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存' });
+    }
+  } catch (error: any) {
+    console.error('Cannot post config:', error);
+  }
+};
+
+const handleSaveConfig = () => {
+  postConfig();
+  state.showConfigSavePrompt = false;
+};
+
+const handleCancelSaveConfig = () => {
+  if (oldConfig) {
+    gameConfig.value = oldConfig;
+  }
+
+  state.showConfigSavePrompt = false;
+
+  receivedConfig = true;
+  nextTick(() => {
+    receivedConfig = false;
+  });
+};
+
+onMounted(async () => {
+  let storedClientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+  if (storedClientId) {
+    state.clientId = storedClientId;
+  }
+
+  await initServerInfo();
+  await initWebSocket();
+});
+
+watch(gameConfig, () => {
+  if (receivedConfig) { // 收到服务器配置后不触发保存提示
+    receivedConfig = false;
+    return;
+  }
+
+  if (dgClientConnected) { // 已连接时才显示保存提示，未连接时会在初始化完成后自动发送配置
+    state.showConfigSavePrompt = true; // 显示保存提示
+  }
+}, { deep: true });
 </script>
 
 <template>
   <div class="w-full page-container">
+    <Toast></Toast>
+    <Toast></Toast>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
-        <StatusChart />
+        <StatusChart v-model:val-low="state.valLow" v-model:val-high="state.valHigh" :val-limit="state.valLimit" />
       </div>
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">
         <template #header>
           <Toolbar class="controller-toolbar">
             <template #start>
-              <Button
-                icon="pi pi-file-export"
-                class="mr-4"
-                severity="secondary"
-                label="添加到OBS"
-              ></Button>
-              <Button
-                icon="pi pi-qrcode"
-                class="mr-4"
-                severity="secondary"
-                label="连接DG-Lab"
-              ></Button>
-              <span class="text-red-600 block flex items-center gap-1 mr-2">
+              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接DG-Lab"
+                @click="showConnectionDialog()"></Button>
+              <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
                 <i class="pi pi-circle-off"></i>
                 <span>未连接</span>
               </span>
+              <span class="text-green-600 block flex items-center gap-1 mr-2"
+                v-else-if="state.clientStatus === 'connected'">
+                <i class="pi pi-circle-on"></i>
+                <span>已连接</span>
+              </span>
+              <span class="text-yellow-600 block flex items-center gap-1 mr-2" v-else>
+                <i class="pi pi-spin pi-spinner"></i>
+                <span>等待连接</span>
+              </span>
             </template>
             <template #end>
-              <Button
-                icon="pi pi-play"
-                class="mr-2"
-                severity="secondary"
-                label="启动"
-              ></Button>
+              <Button icon="pi pi-file-export" class="mr-4" severity="secondary" label="添加到OBS"
+                @click="showLiveCompDialog()"></Button>
+              <Button icon="pi pi-play" class="mr-2" severity="secondary" label="启动输出" v-if="!state.gameStarted"></Button>
+              <Button icon="pi pi-pause" class="mr-2" severity="secondary" label="暂停输出" v-else></Button>
             </template>
           </Toolbar>
         </template>
@@ -65,50 +318,29 @@ const randomFreq = computed({
           <span class="opacity-80 block mb-4">
             强度请点击仪表盘上的数字进行更改
           </span>
-          <div
-            class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4"
-          >
+          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
             <label class="font-semibold w-30 flex-shrink-0">强度跳变频率</label>
-            <div
-              class="w-full flex-shrink flex gap-2 flex-col lg:items-center lg:flex-row lg:gap-8"
-            >
+            <div class="w-full flex-shrink flex gap-2 flex-col lg:items-center lg:flex-row lg:gap-8">
               <div class="h-6 lg:h-auto flex-grow flex items-center">
                 <Slider class="w-full" v-model="randomFreq" range :max="60" />
               </div>
               <div class="w-40">
                 <InputGroup class="input-small">
-                  <InputNumber
-                    class="input-text-center"
-                    v-model="state.randomFreqLow"
-                  />
+                  <InputNumber class="input-text-center" v-model="state.randomFreqLow" />
                   <InputGroupAddon>-</InputGroupAddon>
-                  <InputNumber
-                    class="input-text-center"
-                    v-model="state.randomFreqHigh"
-                  />
+                  <InputNumber class="input-text-center" v-model="state.randomFreqHigh" />
                 </InputGroup>
               </div>
             </div>
           </div>
           <div class="flex items-center gap-2 lg:gap-8 mb-4 w-full">
             <label class="font-semibold w-30">B通道</label>
-            <ToggleButton
-              v-model="state.bChannelEnabled"
-              onIcon="pi pi-circle-on"
-              onLabel="已启用"
-              offIcon="pi pi-circle-off"
-              offLabel="已禁用"
-            />
+            <ToggleButton v-model="state.bChannelEnabled" onIcon="pi pi-circle-on" onLabel="已启用"
+              offIcon="pi pi-circle-off" offLabel="已禁用" />
           </div>
-          <div
-            class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4"
-          >
+          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
             <label class="font-semibold w-30">B通道强度倍数</label>
-            <InputNumber
-              class="input-small"
-              :disabled="!state.bChannelEnabled"
-              v-model="state.bChannelMultiple"
-            />
+            <InputNumber class="input-small" :disabled="!state.bChannelEnabled" v-model="state.bChannelMultiple" />
             <div class="flex-grow flex-shrink"></div>
           </div>
           <div class="flex gap-8 mb-4 w-full">
@@ -119,20 +351,24 @@ const randomFreq = computed({
           </div>
           <Divider></Divider>
           <h2 class="font-bold text-xl mt-4 mb-2">波形选择</h2>
-          <div class="grid justify-center grid-cols-3 md:grid-cols-5 gap-4">
-            <ToggleButton
-              v-for="i in 12"
-              class="pulse-btn"
-              :model-value="i === 1"
-              :onLabel="`波形${i}`"
-              :offLabel="`波形${i}`"
-              onIcon="pi pi-wave-pulse"
-              offIcon="pi pi-wave-pulse"
-            />
-          </div>
+          <FadeAndSlideTransitionGroup>
+            <div v-if="state.pulseList" class="grid justify-center grid-cols-3 md:grid-cols-5 gap-4">
+              <ToggleButton v-for="pulseInfo in state.pulseList" class="pulse-btn"
+                :model-value="state.currentPulseId === pulseInfo.id" :onLabel="pulseInfo.name"
+                :offLabel="pulseInfo.name" @update:model-value="setPulse(pulseInfo.id)" onIcon="pi pi-wave-pulse"
+                offIcon="pi pi-wave-pulse" />
+            </div>
+            <div v-else class="flex justify-center py-4">
+              <ProgressSpinner />
+            </div>
+          </FadeAndSlideTransitionGroup>
         </template>
       </Card>
     </div>
+    <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList" :client-id="state.clientId"
+      @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId" />
+    <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
+    <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
   </div>
 </template>
 
@@ -156,7 +392,10 @@ $container-max-widths: (
 );
 
 .page-container {
-  margin: 2rem auto;
+  margin-top: 2rem;
+  margin-bottom: 6rem; // 为底部toast留出空间
+  margin-left: auto;
+  margin-right: auto;
   padding: 0 1rem;
   width: 100%;
 }

@@ -13,14 +13,19 @@ export type WebWSPostMessage = {
     data?: any;
 };
 
+export type WebWSClientEventsListener = {
+    (name: 'close', listener: () => void): void;
+};
+
 export class WebWSClient {
     public socket: AsyncWebSocket;
     public clientId: string = '';
 
     private eventStore = new EventStore();
     private gameEventStore = new EventStore();
-    private eventEmitter = new EventEmitter();
+    private events = new EventEmitter();
     private heartbeatTask: NodeJS.Timeout | null = null;
+    private prevHeartbeatTime: number | null = null;
 
     private gameInstance: CoyoteLiveGame | null = null;
 
@@ -32,10 +37,21 @@ export class WebWSClient {
         this.bindEvents();
 
         await this.sendPulseList(); // 发送波形列表
+
+        this.heartbeatTask = setInterval(() => this.taskHeartbeat(), 15000);
     }
 
+    public on: WebWSClientEventsListener = this.events.on.bind(this.events);
+    public once: WebWSClientEventsListener = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+
     public async send(data: WebWSPostMessage): Promise<void> {
-        await this.socket.sendAsync(JSON.stringify(data));
+        try {
+            await this.socket.sendAsync(JSON.stringify(data));
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            this.close();
+        }
     }
 
     public async sendResponse(requestId: string, data: any): Promise<void> {
@@ -70,7 +86,7 @@ export class WebWSClient {
                 return;
             }
 
-            this.connectToGame(gameInstance);
+            this.connectToGame(gameInstance, true);
         });
 
         pulseServiceEvents.on("pulseListUpdated", async () => {
@@ -84,23 +100,22 @@ export class WebWSClient {
 
             const message = JSON.parse(data.toString());
 
-            if (!message.type) {
-                console.log("Invalid message: " + data.toString());
-                return;
-            }
-
             await this.handleMessage(message);
         });
 
+        socketEvents.on("error", (error) => {
+            console.error("WebSocket error:", error);
+        });
+
         socketEvents.on("close", () => {
-            this.eventEmitter.emit("close");
+            this.events.emit("close");
 
             this.destory();
         });
     }
 
     private async handleMessage(message: any) {
-        if (!message.action || !message.messageId) {
+        if (!message.action || !message.requestId) {
             console.log("Invalid message: " + JSON.stringify(message));
             return;
         }
@@ -118,12 +133,15 @@ export class WebWSClient {
             case 'stopGame':
                 await this.handleStopGame(message);
                 break;
+            case 'heartbeat':
+                this.prevHeartbeatTime = Date.now();
+                break;
         }
     }
 
     private async handleBindClient(message: any) {
         if (!message.clientId) {
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '数据包错误：client ID 不存在',
             });
@@ -154,14 +172,14 @@ export class WebWSClient {
             });
         }
 
-        await this.sendResponse(message.messageId, {
+        await this.sendResponse(message.requestId, {
             status: 1,
         });
     }
 
     private async handleUpdateConfig(message: any) {
         if (!this.gameInstance) {
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '游戏未连接',
             });
@@ -169,13 +187,13 @@ export class WebWSClient {
         }
 
         if (!message.config) {
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '数据包错误：config 不存在',
             });
             return;
         } else if (!validator.validateCoyoteLiveGameConfig(message.config)) {
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '数据包错误：config 格式错误',
                 detail: validator.validateCoyoteLiveGameConfig.errors,
@@ -188,7 +206,7 @@ export class WebWSClient {
 
     private async handleStartGame(message: any) {
         if (!this.gameInstance) {
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '游戏未连接',
             });
@@ -198,12 +216,12 @@ export class WebWSClient {
         try {
             await this.gameInstance.startGame();
 
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 1,
             });
         } catch (error: any) {
             const errId = uuidv4();
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: error.message,
                 detail: error,
@@ -215,7 +233,7 @@ export class WebWSClient {
 
     private async handleStopGame(message: any) {
         if (!this.gameInstance) {
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '游戏未连接',
             });
@@ -225,12 +243,12 @@ export class WebWSClient {
         try {
             await this.gameInstance.stopGame();
             
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 1,
             });
         } catch (error: any) {
             const errId = uuidv4();
-            await this.sendResponse(message.messageId, {
+            await this.sendResponse(message.requestId, {
                 status: 0,
                 message: error.message,
                 detail: error,
@@ -240,17 +258,21 @@ export class WebWSClient {
         }
     }
 
-    private async connectToGame(gameInstance: CoyoteLiveGame) {
+    private async connectToGame(gameInstance: CoyoteLiveGame, isInitGame = false) {
         this.disconnectFromGame(); // 断开之前的连接
 
         this.gameInstance = gameInstance;
+
+        await this.send({
+            event: 'clientConnected',
+        });
 
         const gameEvents = this.gameEventStore.wrap(gameInstance);
         gameEvents.on("close", () => {
             this.disconnectFromGame();
 
             this.send({
-                event: 'gameClosed',
+                event: 'clientDisconnected',
             });
         });
 
@@ -279,12 +301,57 @@ export class WebWSClient {
                 data: gameConfig,
             });
         });
+
+        if (isInitGame) {
+            // 如果是初始化游戏，发送初始化事件，此时客户端会上报当前的强度和配置
+            await this.send({
+                event: 'gameInitialized',
+            });
+            
+            await this.send({
+                event: 'strengthChanged',
+                data: gameInstance.clientStrength,
+            });
+        } else {
+            // 如果游戏已经开始，发送游戏开始事件
+            if (this.gameInstance.enabled) {
+                await this.send({
+                    event: 'gameStarted',
+                });
+            }
+
+            // 使用服务器端的强度和配置覆盖客户端的信息
+            await this.send({
+                event: 'strengthChanged',
+                data: gameInstance.clientStrength,
+            });
+
+            await this.send({
+                event: 'configUpdated',
+                data: gameInstance.gameConfig,
+            });
+        }
     }
 
     private async disconnectFromGame() {
         if (this.gameInstance) {
             this.gameEventStore.removeAllListeners();    
             this.gameInstance = null;
+        }
+    }
+
+    private async taskHeartbeat() {
+        if (this.prevHeartbeatTime && Date.now() - this.prevHeartbeatTime > 30000) { // 超过 30s 没有收到心跳包，断开连接
+            this.close();
+            return;
+        }
+
+        try {
+            await this.send({
+                event: 'heartbeat',
+            });
+        } catch (err: any) {
+            console.error('Failed to send heartbeat:', err);
         }
     }
 
@@ -297,7 +364,10 @@ export class WebWSClient {
             clearInterval(this.heartbeatTask);
         }
 
+        this.disconnectFromGame();
         this.eventStore.removeAllListeners();
-        this.eventEmitter.removeAllListeners();
+
+        this.events.emit("close");
+        this.events.removeAllListeners();
     }
 }

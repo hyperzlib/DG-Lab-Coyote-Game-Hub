@@ -7,6 +7,48 @@ import { LocalIPAddress } from '../../utils/utils';
 const DGLAB_WS_PREFIX = 'https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#';
 
 export class WebController {
+    public static async index(ctx: Context): Promise<void> {
+        ctx.body = {
+            status: 1,
+            message: 'Welcome to DG-Lab Live Game Server',
+        };
+    }
+
+    public static async getServerInfo(ctx: Context): Promise<void> {
+        const config = MainConfig.value;
+
+        let wsUrl = '';
+        if (config.wsDomain) {
+            wsUrl = `${config.wsDomain}:${config.port}/ws`;
+        } else {
+            wsUrl = '/ws';
+        }
+
+        let wsDomainList: string[] = [];
+        if (config.wsDomain) {
+            wsDomainList.push(config.wsDomain);
+        } else {
+            wsDomainList = LocalIPAddress.getIPAddrList();
+        }
+
+        let protocol = config.proxySSLEnable ? 'wss' : 'ws';
+
+        let wsUrlList: Record<string, string>[] = wsDomainList.map((domain) => {
+            return {
+                domain: domain,
+                connectUrl: `${DGLAB_WS_PREFIX}${protocol}://${domain}:${config.port}/dglab_ws/{clientId}`,
+            };
+        });
+
+        ctx.body = {
+            status: 1,
+            server: {
+                wsUrl: wsUrl,
+                clientWsUrls: wsUrlList,
+            },
+        };
+    };
+
     public static async getClientConnectInfo(ctx: Context): Promise<void> {
         let clientId: string = '';
         for (let i = 0; i < 10; i++) {
@@ -26,24 +68,9 @@ export class WebController {
             return;
         }
 
-        let wsDomainList: string[] = [];
-        const config = MainConfig.value;
-        if (config.wsDomain) {
-            wsDomainList.push(config.wsDomain);
-        } else {
-            wsDomainList = LocalIPAddress.getIPAddrList();
-        }
-
-        let protocol = config.proxySSLEnable ? 'wss' : 'ws';
-
-        let wsUrlList: string[] = wsDomainList.map((domain) => {
-            return `${DGLAB_WS_PREFIX}${protocol}://${domain}:${config.port}/dglab_ws/${clientId}`;
-        });
-
         ctx.body = {
             status: 1,
             clientId,
-            wsUrls: wsUrlList,
         };
     }
 }

@@ -66,14 +66,14 @@ export class DGLabWSClient {
     }
 
     public async send(messageType: MessageType | string, message: string | number): Promise<void> {
-        if (messageType !== MessageType.HEARTBEAT) {
-            console.log("send:", {
-                type: messageType,
-                clientId: this.clientId,
-                targetId: this.targetId,
-                message: message,
-            });
-        }
+        // if (messageType !== MessageType.HEARTBEAT) {
+        //     console.log("send:", {
+        //         type: messageType,
+        //         clientId: this.clientId,
+        //         targetId: this.targetId,
+        //         message: message,
+        //     });
+        // }
 
         const jsonStr = JSON.stringify({
             type: messageType,
@@ -82,7 +82,12 @@ export class DGLabWSClient {
             message: message,
         });
         
-        await this.socket.sendAsync(jsonStr);
+        try {
+            await this.socket.sendAsync(jsonStr);
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            this.close();
+        }
     }
 
     public async runHeartbeatTask(): Promise<void> {
@@ -157,9 +162,9 @@ export class DGLabWSClient {
             limit: parseInt(strengthData[3]),
         };
 
-        console.log(
-            `Current strength: ${this.strength.strength}/${this.strength.limit}, ${this.strengthChannelB.strength}/${this.strengthChannelB.limit}`
-        );
+        // console.log(
+        //     `Current strength: ${this.strength.strength}/${this.strength.limit}, ${this.strengthChannelB.strength}/${this.strengthChannelB.limit}`
+        // );
 
         this.eventEmitter.emit("strengthChanged", this.strength, this.strengthChannelB);
     }

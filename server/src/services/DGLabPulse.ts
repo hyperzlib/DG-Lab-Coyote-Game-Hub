@@ -103,7 +103,7 @@ export class DGLabPulseService {
         const script = pulse.script;
 
         for (const scriptItem of script) {
-            let repeatTimes = 0;
+            let repeatTimes = 1;
             if (scriptItem.repeat) {
                 if (Array.isArray(scriptItem.repeat)) {
                     repeatTimes = randomInt(scriptItem.repeat[0], scriptItem.repeat[1]);

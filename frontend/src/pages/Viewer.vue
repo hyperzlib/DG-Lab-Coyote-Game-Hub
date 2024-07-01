@@ -49,6 +49,14 @@ const initWebSocket = async () => {
     state.valHigh = config.strength.maxStrength;
   });
 
+  wsClient.on('gameStarted', () => {
+    state.gameStarted = true;
+  });
+
+  wsClient.on('gameStopped', () => {
+    state.gameStarted = false;
+  });
+
   wsClient.connect();
 };
 

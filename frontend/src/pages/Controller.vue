@@ -133,6 +133,14 @@ const initWebSocket = async () => {
     postConfig(true);
   });
 
+  wsClient.on('gameStarted', () => {
+    state.gameStarted = true;
+  });
+
+  wsClient.on('gameStopped', () => {
+    state.gameStarted = false;
+  });
+
   wsClient.on('strengthChanged', (strength) => {
     state.valLimit = strength.limit;
   });
@@ -236,6 +244,34 @@ const postConfig = async (autoPost = false) => {
   }
 };
 
+const handleStartGame = async () => {
+  if (!dgClientConnected) {
+    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '启动输出需要先连接到客户端' });
+    return;
+  }
+
+  try {
+    let res = await wsClient.startGame();
+    handleApiResponse(res);
+  } catch (error: any) {
+    console.error('Cannot start game:', error);
+  }
+};
+
+const handleStopGame = async () => {
+  if (!dgClientConnected) {
+    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '暂停输出需要先连接到客户端' });
+    return;
+  }
+
+  try {
+    let res = await wsClient.stopGame();
+    handleApiResponse(res);
+  } catch (error: any) {
+    console.error('Cannot pause game:', error);
+  }
+};
+
 const handleSaveConfig = () => {
   postConfig();
   state.showConfigSavePrompt = false;
@@ -282,7 +318,7 @@ watch(gameConfig, () => {
     <Toast></Toast>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
-        <StatusChart v-model:val-low="state.valLow" v-model:val-high="state.valHigh" :val-limit="state.valLimit" />
+        <StatusChart v-model:val-low="state.valLow" v-model:val-high="state.valHigh" :val-limit="state.valLimit" :running="state.gameStarted" />
       </div>
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">
@@ -308,8 +344,10 @@ watch(gameConfig, () => {
             <template #end>
               <Button icon="pi pi-file-export" class="mr-4" severity="secondary" label="添加到OBS"
                 @click="showLiveCompDialog()"></Button>
-              <Button icon="pi pi-play" class="mr-2" severity="secondary" label="启动输出" v-if="!state.gameStarted"></Button>
-              <Button icon="pi pi-pause" class="mr-2" severity="secondary" label="暂停输出" v-else></Button>
+              <Button icon="pi pi-play" class="mr-2" severity="secondary" label="启动输出" v-if="!state.gameStarted"
+                @click="handleStartGame()"></Button>
+              <Button icon="pi pi-pause" class="mr-2" severity="secondary" label="暂停输出" v-else
+                @click="handleStopGame()"></Button>
             </template>
           </Toolbar>
         </template>

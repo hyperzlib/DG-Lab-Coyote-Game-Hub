@@ -135,6 +135,13 @@ export class CoyoteLiveGame {
         if (!deepEqual(config.strength, this.randomStrengthConfig)) {
             this.randomStrengthConfig = config.strength;
             configUpdated = true;
+
+            // 如果游戏未开始，且强度小于最低强度，需要更新强度，否则本地强度会被服务端强制更新
+            if (this.client.strength.strength < this.randomStrengthConfig.minStrength && this.gameTask) {
+                this.client.setStrength(Channel.A, this.randomStrengthConfig.minStrength).catch((error) => {
+                    console.error('Failed to set strength:', error);
+                });
+            }
         }
 
         if (config.pulseId !== this.currentPulse.id) {
@@ -161,11 +168,12 @@ export class CoyoteLiveGame {
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
         let nextRandomStrengthTime = randomInt(this.randomStrengthConfig.minInterval, this.randomStrengthConfig.maxInterval) * 1000;
 
-        let [pulseData, pulseDuration] = DGLabPulseService.instance.buildPulse(this.currentPulse);
 
         // 输出脉冲，直到下次随机强度时间
         let totalDuration = 0;
         for (let i = 0; i < 50; i++) {
+            let [pulseData, pulseDuration] = DGLabPulseService.instance.buildPulse(this.currentPulse);
+
             await this.client.sendPulse(Channel.A, pulseData);
             if (this.randomStrengthConfig && this.randomStrengthConfig.bChannelMultiplier) {
                 await this.client.sendPulse(Channel.B, pulseData);
@@ -177,7 +185,11 @@ export class CoyoteLiveGame {
             }
         }
 
-        await asleep(totalDuration + 200, ab);
+        if (totalDuration < nextRandomStrengthTime) {
+            await asleep(nextRandomStrengthTime - totalDuration, ab);
+        } else {
+            await asleep(totalDuration + 200, ab);
+        }
         harvest();
 
         // 随机强度前先清空当前队列，避免强度突变
@@ -233,6 +245,9 @@ export class CoyoteLiveGame {
         if (this.gameTask) {
             await this.gameTask.abort();
             this.gameTask = null;
+
+            await this.client.clearPulse(Channel.A);
+            await this.client.clearPulse(Channel.B);
 
             if (!ignoreEvent) {
                 this.events.emit('gameStopped');

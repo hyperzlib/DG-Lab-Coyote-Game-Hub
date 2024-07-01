@@ -59,6 +59,8 @@ export class SocketApi {
     private socketUrl: string;
     private reconnectAttempts: number = 0;
 
+    private shouldClose = false;
+
     private events = new EventEmitter();
 
     private pendingRequests: Map<string, PendingRequestInfo> = new Map();
@@ -126,30 +128,45 @@ export class SocketApi {
         });
 
         this.socket.addEventListener("close", () => {
-            this.events.emit("close");
+            if (this.shouldClose) return;
 
-            window.removeEventListener("beforeunload", this.handleWindowClose);
+            this.events.emit("error", new Error("Socket closed."));
+
+            this.handleUnexpectedClose();
         });
 
         this.socket.addEventListener("error", (error) => {
-            this.reconnectAttempts ++;
-            let reconnectInterval = 1000;
-            if (this.reconnectAttempts > 5) { // 重连失败5次后，降低重连频率
-                reconnectInterval = 5000;
-            }
-
             console.error("WebSocket error:", error);
-            window.removeEventListener("beforeunload", this.handleWindowClose);
-            // Reconnect
-            setTimeout(() => {
-                this.connect();
-            }, reconnectInterval);
+            this.events.emit("error", error);
         });
     }
 
     private handleWindowClose = () => {
-        this.socket.close();
+        this.close();
     };
+
+    private handleUnexpectedClose() {
+        console.log('Attempt to reconnect to server.');
+        this.reconnectAttempts ++;
+
+        let reconnectInterval = 1000;
+        if (this.reconnectAttempts > 10) { // 重连失败5次后，降低重连频率
+            reconnectInterval = 5000;
+        }
+
+        try {
+            this.socket.close();
+        } catch (err: any) {
+            console.error("Cannot close socket:", err);
+        }
+
+        window.removeEventListener("beforeunload", this.handleWindowClose);
+
+        // Reconnect
+        setTimeout(() => {
+            this.connect();
+        }, reconnectInterval);
+    }
 
     public bindClient(clientId: string) {
         return this.sendRequest({
@@ -178,7 +195,10 @@ export class SocketApi {
     }
 
     private async handleMessage(message: WebSocketServerMessage): Promise<void> {
-        console.log('websocket message', message);
+        if (import.meta.env.DEV && message?.event !== 'heartbeat') { // 调试输出
+            console.log('websocket message', message);
+        }
+
         switch (message.event) {
             case "response":
                 if (message.requestId) {
@@ -228,6 +248,10 @@ export class SocketApi {
     };
 
     public close() {
+        this.shouldClose = true;
         this.socket.close();
-    }
+        window.removeEventListener('beforeunload', this.handleWindowClose);
+
+        this.events.emit('close');
+    };
 }

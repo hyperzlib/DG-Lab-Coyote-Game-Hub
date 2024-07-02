@@ -17,7 +17,7 @@ const visible = defineModel('visible');
 const viewerUrl = computed(() => {
   const baseUrl = location.origin + import.meta.env.BASE_URL.replace(/\/$/, '');
   if (props.clientId) {
-    return `${baseUrl}/viewer?clientId=${props.clientId}`;
+    return `${baseUrl}/viewer.html?clientId=${props.clientId}`;
   } else {
     return '';
   }

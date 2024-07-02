@@ -1,0 +1,11 @@
+{
+    "./src/schemas/RandomStrengthConfig.json": {
+        "fileMd5": "31fb5f1b8d92ddbce21689cfd75e4920"
+    },
+    "./src/schemas/CoyoteLiveGameConfig.json": {
+        "fileMd5": "31fb5f1b8d92ddbce21689cfd75e4920"
+    },
+    "./src/schemas/MainConfigType.json": {
+        "fileMd5": "cbe7896b99a2b9f5f3d1e7cabc1d2ca9"
+    }
+}

@@ -1,12 +1,13 @@
 {
-  "name": "dg-lab-streaming-widget",
+  "name": "dg-lab-streaming-widget-server",
   "version": "1.0.0",
   "description": "郊狼直播小组件",
   "main": "index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
     "build-schema": "node cli/build-schema.js",
-    "build": "npm run build-schema && tsc"
+    "build-ts": "tsc",
+    "build": "npm run build-schema && npm run build-ts"
   },
   "keywords": [
     "DG-Lab",

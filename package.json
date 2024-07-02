@@ -1,0 +1,23 @@
+{
+  "name": "dg-lab-streaming-widget",
+  "version": "1.0.0",
+  "description": "郊狼直播小组件",
+  "main": "index.js",
+  "scripts": {
+    "build:frontend": "cd frontend && npm run build",
+    "build:server": "cd server && npm run build",
+    "build:frontend:file": "shx cp -r frontend/dist/* server/public",
+    "build": "npm run build:frontend && npm run build:server && npm run build:frontend:file",
+    "build:executable": "nexe -i dist/index.js -o dist/index",
+    "start": "cd server && node dist/index.js"
+  },
+  "keywords": [
+    "DG-Lab",
+    "obs"
+  ],
+  "author": "Hyperzlib",
+  "license": "MIT",
+  "devDependencies": {
+    "shx": "^0.3.4"
+  }
+}

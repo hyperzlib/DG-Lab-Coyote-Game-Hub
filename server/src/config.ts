@@ -36,6 +36,11 @@ export class MainConfig {
     public static instance: Config<MainConfigType>;
 
     public static async initialize() {
+        if (!fs.existsSync('config.yaml') && fs.existsSync('config.example.yaml')) {
+            // 如果配置文件不存在，但存在示例配置文件，则复制示例配置文件
+            fs.copyFileSync('config.example.yaml', 'config.yaml');
+        }
+
         MainConfig.instance = new Config<MainConfigType>('config.yaml');
         await MainConfig.instance.load();
 

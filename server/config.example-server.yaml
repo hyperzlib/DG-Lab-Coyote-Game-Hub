@@ -1,0 +1,7 @@
+# 使用服务器搭建服务时的样例配置文件
+port: 8920                    # 服务端口
+host: "0.0.0.0"               # 监听IP地址
+proxySSLEnable: false         # 反向代理服务器是否启用SSL，仅应在Nginx等反向代理服务器中配置SSL后启用
+domain: "www.example.com"     # 前端访问域名
+wsDomain: "ws.example.com"    # WebSocket访问域名
+pulseConfigPath: "pulse.yaml" # 波形配置文件路径

@@ -14,7 +14,6 @@ declare module 'vue' {
     ConnectToClientDialog: typeof import('./components/dialogs/ConnectToClientDialog.vue')['default']
     Dialog: typeof import('primevue/dialog')['default']
     Divider: typeof import('primevue/divider')['default']
-    Dropdown: typeof import('primevue/dropdown')['default']
     FadeAndSlideTransitionGroup: typeof import('./components/transitions/FadeAndSlideTransitionGroup.vue')['default']
     GetLiveCompDialog: typeof import('./components/dialogs/GetLiveCompDialog.vue')['default']
     InputGroup: typeof import('primevue/inputgroup')['default']
@@ -26,7 +25,6 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     Slider: typeof import('primevue/slider')['default']
     StatusChart: typeof import('./components/StatusChart.vue')['default']
-    TabPanel: typeof import('primevue/tabpanel')['default']
     ToggleButton: typeof import('primevue/togglebutton')['default']
     Toolbar: typeof import('primevue/toolbar')['default']
   }

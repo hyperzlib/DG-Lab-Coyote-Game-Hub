@@ -6,6 +6,7 @@ import { WebSocketRouter } from './utils/WebSocketRouter';
 import { setupWebSocketServer } from './utils/websocket';
 import { setupRouter as initRouter } from './router';
 import { MainConfig } from './config';
+import serveStatic from "koa-static";
 
 // 加载Managers
 import './managers/DGLabWSManager';
@@ -13,7 +14,6 @@ import './managers/CoyoteLiveGameManager';
 import { DGLabPulseService } from './services/DGLabPulse';
 import { LocalIPAddress } from './utils/utils';
 import { validator } from './utils/validator';
-import { CoyoteLiveGameManager } from './managers/CoyoteLiveGameManager';
 
 async function main() {
     await validator.initialize();
@@ -23,16 +23,22 @@ async function main() {
 
     const app = new Koa();
     const httpServer = http.createServer(app.callback());
-
-    const wsServer = new WebSocket.Server({ // 同一个端口监听不同的服务
+    
+    // 在HTTP服务器上创建WebSocket服务器
+    const wsServer = new WebSocket.Server({ 
         server: httpServer
     });
+
+    // 静态资源
+    app.use(serveStatic('public'));
 
     const router = new KoaRouter();
     const wsRouter = new WebSocketRouter();
 
+    // 初始化WebSocket路由拦截器
     setupWebSocketServer(wsServer, wsRouter);
 
+    // 加载路由
     initRouter(router, wsRouter);
 
     app.use(router.routes());

@@ -6,7 +6,8 @@
 
 ## 使用方法（二进制发行版）
 
-暂时还没有方案
+1. 从[Github Actions](https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/actions)下载编译后的文件：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/actions)
+2. 解压后运行```dg-lab-streaming-widget-server.exe```启动服务器
 
 ## 使用方法（命令行）
 

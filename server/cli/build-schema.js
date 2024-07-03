@@ -44,15 +44,29 @@ async function buildSchemas() {
 
             // 生成schema
             await new Promise((resolve, reject) => {
-                const child = spawn('npx', [
-                    'ts-json-schema-generator',
-                    '-o',
-                    `${outputDir}/${typeName}.json`,
-                    '--path',
-                    file,
-                    '--type',
-                    typeName
-                ]);
+                let child;
+                if (process.platform.toLocaleLowerCase().includes('win')) {
+                    child = spawn('cmd', [
+                        '/c',
+                        'npx ts-json-schema-generator',
+                        '-o',
+                        `${outputDir}/${typeName}.json`,
+                        '--path',
+                        file,
+                        '--type',
+                        typeName
+                    ]);
+                } else {
+                    child = spawn('npx', [
+                        'ts-json-schema-generator',
+                        '-o',
+                        `${outputDir}/${typeName}.json`,
+                        '--path',
+                        file,
+                        '--type',
+                        typeName
+                    ]);
+                }
 
                 child.stdout.on('data', data => {
                     console.log(`stdout: ${data}`);

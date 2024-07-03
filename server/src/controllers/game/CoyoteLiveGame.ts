@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
-import deepEqual from 'deep-equal';
-import Ajv from "ajv"
+import deepEqual from 'fast-deep-equal';
 
 import { Channel } from '../../types/dg';
 import { DGLabWSClient, StrengthInfo } from '../../controllers/ws/DGLabWS';
@@ -268,7 +267,7 @@ export class CoyoteLiveGame {
     }
 
     public async destroy(): Promise<void> {
-        console.log('Destroying CoyoteLiveGame');
+        // console.log('Destroying CoyoteLiveGame');
 
         if (this.gameTask) {
             await this.gameTask.stop();

@@ -1,4 +1,5 @@
 import { networkInterfaces } from "os";
+import { exec } from "child_process";
 
 export const asleep = (ms: number, abortController?: AbortController) => {
     if (abortController) {
@@ -28,6 +29,11 @@ export const asleep = (ms: number, abortController?: AbortController) => {
 };
 
 export const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+export const openBrowser = (url: string) => {
+    const command = process.platform === 'win32' ? 'start' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+    exec(`${command} ${url}`);
+}
 
 export class LocalIPAddress {
     private static ipAddrList?: string[];

@@ -113,7 +113,7 @@ export class DGLabWSClient {
         });
 
         socketEvents.on("close", () => {
-            console.log("Socket closed");
+            // console.log("Socket closed");
             this.eventEmitter.emit("close");
 
             this.destory();
@@ -137,7 +137,7 @@ export class DGLabWSClient {
             }
         } else if (message.type === MessageType.HEARTBEAT) {
             if (message.message === MessageDataHead.DG_LAB) {
-                console.log(`Heartbeat success`);
+                // console.log(`Heartbeat success`);
             } else {
                 console.log(`Heartbeat failed: ${message.message}`);
             }
@@ -170,7 +170,7 @@ export class DGLabWSClient {
     }
 
     private async handleMsgFeedback(message: string): Promise<void> {
-        console.log(`Feedback: ${message}`);
+        // console.log(`Feedback: ${message}`);
 
         const button = parseInt(message.split("-")[1]);
 

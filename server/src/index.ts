@@ -12,7 +12,7 @@ import serveStatic from "koa-static";
 import './managers/DGLabWSManager';
 import './managers/CoyoteLiveGameManager';
 import { DGLabPulseService } from './services/DGLabPulse';
-import { LocalIPAddress } from './utils/utils';
+import { LocalIPAddress, openBrowser } from './utils/utils';
 import { validator } from './utils/validator';
 
 async function main() {
@@ -62,6 +62,18 @@ async function main() {
         }
 
         console.log(`Server is running at ${serverAddrStr}`);
+        if (serverAddr && typeof serverAddr === 'object') {
+            console.log(`You can access the console via: http://127.0.0.1:${serverAddr.port}`);
+
+            // 自动打开浏览器
+            if (MainConfig.value.openBrowser) {
+                try {
+                    openBrowser(`http://127.0.0.1:${serverAddr.port}`);
+                } catch (err) {
+                    console.error('Cannot open browser:', err);
+                }
+            }
+        }
 
         console.log('Local IP Address List:');
         ipAddrList.forEach((ipAddr) => {

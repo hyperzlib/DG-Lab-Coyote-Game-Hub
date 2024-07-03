@@ -11,3 +11,7 @@ node_modules/
 !/server/public/.gitkeep
 
 /frontend/dist
+/frontend/src/auto-imports.d.ts
+/frontend/src/components.d.ts
+
+/build

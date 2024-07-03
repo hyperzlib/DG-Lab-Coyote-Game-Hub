@@ -5,4 +5,5 @@ export type MainConfigType = {
     domain?: string | null;
     wsDomain?: string | null;
     pulseConfigPath: string;
+    openBrowser?: boolean;
 };

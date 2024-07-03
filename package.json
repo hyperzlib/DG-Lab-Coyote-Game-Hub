@@ -8,7 +8,11 @@
     "build:server": "cd server && npm run build",
     "build:frontend:file": "shx cp -r frontend/dist/* server/public",
     "build": "npm run build:frontend && npm run build:server && npm run build:frontend:file",
-    "build:executable": "nexe -i dist/index.js -o dist/index",
+    "build:pkg:assets": "shx mkdir -p build && shx cp -r server/data build && shx cp -r server/public build && shx cp server/config.example.yaml build",
+    "build:pkg:win": "cd server && pkg . -t node18-win-x64 --out-path=../build",
+    "build:pkg:linux": "cd server && pkg . -t node18-linux-x64 --out-path=../build",
+    "build:pkg:clean": "shx rm -rf build",
+    "build:pkg": "nexe -i dist/index.js -o dist/index",
     "start": "cd server && node dist/index.js"
   },
   "keywords": [
@@ -18,6 +22,7 @@
   "author": "Hyperzlib",
   "license": "MIT",
   "devDependencies": {
+    "pkg": "^5.8.1",
     "shx": "^0.3.4"
   }
 }

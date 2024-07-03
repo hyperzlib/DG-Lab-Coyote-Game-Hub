@@ -40,6 +40,8 @@ jobs:
       working-directory: ./server
     - name: Install root packages
       run: npm ci
+    - name: Migrate files
+      run: npm run build:migrate
     - name: Build Windows executable
       run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:win
     - name: Archive Windows artifact

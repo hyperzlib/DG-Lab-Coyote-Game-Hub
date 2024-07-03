@@ -6,7 +6,7 @@
   "scripts": {
     "build:frontend": "cd frontend && npm run build",
     "build:server": "cd server && npm run build",
-    "build:frontend:file": "shx cp -r frontend/dist/* server/public",
+    "build:migrate": "shx cp -r frontend/dist/* server/public",
     "build": "npm run build:frontend && npm run build:server && npm run build:frontend:file",
     "build:pkg:assets": "shx mkdir -p build && shx cp -r server/data build && shx cp -r server/public build && shx cp server/config.example.yaml build",
     "build:pkg:win": "cd server && pkg . -t node18-win-x64 --out-path=../build",

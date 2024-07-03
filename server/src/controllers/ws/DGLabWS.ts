@@ -216,10 +216,12 @@ export class DGLabWSClient {
     public off = this.eventEmitter.off.bind(this.eventEmitter);
 
     public async close() {
-        try {
-            await this.send(MessageType.BREAK, RetCode.CLIENT_DISCONNECTED);
-        } catch (error) {
-            console.error("Failed to send break message:", error);
+        if (this.socket.readyState === WebSocket.OPEN) {
+            try {
+                await this.send(MessageType.BREAK, RetCode.CLIENT_DISCONNECTED);
+            } catch (error) {
+                console.error("Failed to send break message:", error);
+            }
         }
         this.socket.close();
     }

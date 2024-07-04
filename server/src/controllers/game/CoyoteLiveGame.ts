@@ -1,11 +1,10 @@
 import { EventEmitter } from 'events';
-import deepEqual from 'fast-deep-equal';
 
 import { Channel } from '../../types/dg';
 import { DGLabWSClient, StrengthInfo } from '../../controllers/ws/DGLabWS';
 import { DGLabPulseInfo, DGLabPulseService } from '../../services/DGLabPulse';
 import { Task } from '../../utils/task';
-import { asleep, randomInt } from '../../utils/utils';
+import { asleep, randomInt, simpleObjEqual } from '../../utils/utils';
 import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGameConfig, RandomStrengthConfig } from '../../types/game';
@@ -131,7 +130,8 @@ export class CoyoteLiveGame {
      */
     public updateConfig(config: CoyoteLiveGameConfig): void {
         let configUpdated = false;
-        if (!deepEqual(config.strength, this.randomStrengthConfig)) {
+        
+        if (!simpleObjEqual(config.strength, this.randomStrengthConfig)) {
             this.randomStrengthConfig = config.strength;
             configUpdated = true;
 

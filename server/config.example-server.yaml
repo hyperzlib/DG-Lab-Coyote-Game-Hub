@@ -1,7 +1,8 @@
 # 使用服务器搭建服务时的样例配置文件
-port: 8920                    # 服务端口
-host: "0.0.0.0"               # 监听IP地址
-proxySSLEnable: false         # 反向代理服务器是否启用SSL，仅应在Nginx等反向代理服务器中配置SSL后启用
-domain: "www.example.com"     # 前端访问域名
-wsDomain: "ws.example.com"    # WebSocket访问域名
-pulseConfigPath: "pulse.yaml" # 波形配置文件路径
+port: 8920                          # 服务端口
+host: "0.0.0.0"                     # 监听IP地址
+proxySSLEnable: false               # 反向代理服务器是否启用SSL，仅应在Nginx等反向代理服务器中配置SSL后启用
+domain: "www.example.com"           # 前端访问域名
+clientWsDomain: "ws.example.com"    # 客户端连接的WebSocket域名，在使用低延迟主机转发WebSocket时使用
+pulseConfigPath: "pulse.yaml"       # 波形配置文件路径
+allowBroadcastToClients: false      # 允许向所有已连接的客户端广播消息（搭建公开服务时必须关闭）

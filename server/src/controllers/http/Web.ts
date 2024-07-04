@@ -10,6 +10,7 @@ export class WebController {
     public static async index(ctx: Context): Promise<void> {
         ctx.body = {
             status: 1,
+            code: 'OK',
             message: 'Welcome to DG-Lab Live Game Server',
         };
     }
@@ -18,16 +19,17 @@ export class WebController {
         const config = MainConfig.value;
 
         let wsUrl = '';
-        if (config.wsDomain) {
-            wsUrl = `${config.wsDomain}:${config.port}/ws`;
+        if (config.domain) {
+            wsUrl = `${config.domain}:${config.port}/ws`;
         } else {
             wsUrl = '/ws';
         }
 
         let wsDomainList: string[] = [];
-        if (config.wsDomain) {
-            wsDomainList.push(config.wsDomain);
-        } else {
+        let clientWsDomain = config.clientWsDomain || config.domain || null;
+        if (clientWsDomain) { // 配置文件中指定了客户端连接时的WebSocket地址
+            wsDomainList.push(clientWsDomain);
+        } else { // 使用服务器的IP地址
             wsDomainList = LocalIPAddress.getIPAddrList();
         }
 
@@ -42,6 +44,7 @@ export class WebController {
 
         ctx.body = {
             status: 1,
+            code: 'OK',
             server: {
                 wsUrl: wsUrl,
                 clientWsUrls: wsUrlList,
@@ -63,13 +66,15 @@ export class WebController {
         if (clientId === '') {
             ctx.body = {
                 status: 0,
-                message: 'Failed to create unique client ID',
+                code: 'ERR::CREATE_CLIENT_ID_FAILED',
+                message: '无法创建唯一的客户端ID，请稍后重试',
             };
             return;
         }
 
         ctx.body = {
             status: 1,
+            code: 'OK',
             clientId,
         };
     }

@@ -5,6 +5,17 @@
     "MainConfigType": {
       "additionalProperties": false,
       "properties": {
+        "allowBroadcastToClients": {
+          "description": "允许插件API向所有客户端发送指令",
+          "type": "boolean"
+        },
+        "clientWsDomain": {
+          "description": "单独配置客户端连接时的WebSocket地址",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "domain": {
           "type": [
             "string",
@@ -15,6 +26,7 @@
           "type": "string"
         },
         "openBrowser": {
+          "description": "服务器启动后自动打开浏览器",
           "type": "boolean"
         },
         "port": {
@@ -24,13 +36,8 @@
           "type": "boolean"
         },
         "pulseConfigPath": {
+          "description": "波形配置文件路径",
           "type": "string"
-        },
-        "wsDomain": {
-          "type": [
-            "string",
-            "null"
-          ]
         }
       },
       "required": [

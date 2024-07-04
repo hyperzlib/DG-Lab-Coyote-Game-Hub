@@ -62,6 +62,10 @@ export class CoyoteLiveGameManager {
         return this.games.get(clientId);
     }
 
+    public getGameList(): IterableIterator<CoyoteLiveGame> {
+        return this.games.values();
+    }
+
     public on: CoyoteLiveGameManagerEventsListener = this.events.on.bind(this.events);
     public once: CoyoteLiveGameManagerEventsListener = this.events.once.bind(this.events);
     public off = this.events.off.bind(this.events);

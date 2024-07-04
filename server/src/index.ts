@@ -7,6 +7,7 @@ import { setupWebSocketServer } from './utils/websocket';
 import { setupRouter as initRouter } from './router';
 import { MainConfig } from './config';
 import serveStatic from "koa-static";
+import bodyParser from '@koa/bodyparser';
 
 // 加载Managers
 import './managers/DGLabWSManager';
@@ -31,6 +32,9 @@ async function main() {
 
     // 静态资源
     app.use(serveStatic('public'));
+
+    // 中间件
+    app.use(bodyParser());
 
     const router = new KoaRouter();
     const wsRouter = new WebSocketRouter();

@@ -1,4 +1,17 @@
 <h1 align="center"> 战败惩罚——郊狼OBS组件</h1>
+<div align="center">
+  <a href="https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/actions"><img src="https://img.shields.io/github/actions/workflow/status/hyperzlib/DG-Lab-Coyote-Streaming-Widget/node.js.yml"></a>
+  <a href="https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/releases"><img src="https://img.shields.io/github/release-date/hyperzlib/DG-Lab-Coyote-Streaming-Widget"></a>
+  <a href="https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/commits/main/"><img src="https://img.shields.io/github/last-commit/hyperzlib/DG-Lab-Coyote-Streaming-Widget"></a>
+</div>
+<p></p>
+<div align="center">
+  <a href="https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/actions">下载</a>
+  |
+  <a href="https://www.bilibili.com/video/BV1RW421R7dT/">预览</a>
+  |
+  <a href="docs/api.md">插件API</a>
+</div>
 
 ## 注意事项
 

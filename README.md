@@ -12,6 +12,10 @@
   |
   <a href="docs/api.md">插件API</a>
 </div>
+<p></p>
+<div align="center">
+  <img src="docs/images/screenshot-widget.png" height="200" alt="小组件截图">
+</div>
 
 ## 注意事项
 

@@ -12,7 +12,7 @@ GET /api/game/{clientId}
 
 ### 响应
 
-```json
+```json5
 {
     "status": 1,
     "code": "OK",
@@ -44,7 +44,7 @@ GET /api/game/{clientId}/pulse_list
 
 ### 响应
 
-```json
+```json5
 {
     "status": 1,
     "code": "OK",
@@ -73,7 +73,7 @@ GET /api/game/{clientId}/strength_info
 
 ### 响应
 
-```json
+```json5
 {
     "status": 1,
     "code": "OK",
@@ -123,7 +123,7 @@ type SetStrengthConfigRequest = {
 
 发送请求时，需要发送 JSON POST 请求，例如：
 
-```json
+```json5
 {
     "minStrength": {
         "add": 1
@@ -135,7 +135,7 @@ type SetStrengthConfigRequest = {
 
 ### 响应
 
-```json
+```json5
 {
     "status": 1,
     "code": "OK",
@@ -156,7 +156,7 @@ GET /api/game/{clientId}/pulse_id
 
 ### 响应
 
-```json
+```json5
 {
     "status": 1,
     "code": "OK",
@@ -174,7 +174,7 @@ POST /api/game/{clientId}/pulse_id
 
 如果服务器配置```allowBroadcastToClients: true```，可以将请求地址中的```{clientId}```设置为```all```，将设置到所有客户端。
 
-```json
+```json5
 {
     "pulseId": "pulse-1" // 脉冲ID
 }
@@ -182,7 +182,7 @@ POST /api/game/{clientId}/pulse_id
 
 ### 响应
 
-```json
+```json5
 {
     "status": 1,
     "code": "OK",
@@ -193,7 +193,7 @@ POST /api/game/{clientId}/pulse_id
 
 ## 请求错误响应
 
-```json
+```json5
 {
     "status": 0,
     "code": "ERR::INVALID_REQUEST",

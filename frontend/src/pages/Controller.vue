@@ -148,14 +148,20 @@ const initWebSocket = async () => {
   wsClient.on('configUpdated', (config) => {
     receivedConfig = true;
 
-    gameConfig.value = config;
-    oldConfig = config;
+    if (state.showConfigSavePrompt) {
+      // 当前有配置未保存，不更新配置，只替换旧配置
+      oldConfig = config;
+    } else {
+      // 覆盖本地配置
+      gameConfig.value = config;
+      oldConfig = config;
 
-    // 屏蔽保存提示
-    receivedConfig = true;
-    nextTick(() => {
-      receivedConfig = false;
-    });
+      // 屏蔽保存提示
+      receivedConfig = true;
+      nextTick(() => {
+        receivedConfig = false;
+      });
+    }
   });
 
   wsClient.connect();

@@ -1,33 +1,33 @@
 {
-  "$ref": "#/definitions/RandomStrengthConfig",
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "definitions": {
-    "RandomStrengthConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "bChannelMultiplier": {
-          "type": "number"
-        },
-        "maxInterval": {
-          "type": "number"
-        },
-        "maxStrength": {
-          "type": "number"
-        },
-        "minInterval": {
-          "type": "number"
-        },
-        "minStrength": {
-          "type": "number"
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/RandomStrengthConfig",
+    "definitions": {
+        "RandomStrengthConfig": {
+            "type": "object",
+            "properties": {
+                "minStrength": {
+                    "type": "number"
+                },
+                "maxStrength": {
+                    "type": "number"
+                },
+                "minInterval": {
+                    "type": "number"
+                },
+                "maxInterval": {
+                    "type": "number"
+                },
+                "bChannelMultiplier": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "minStrength",
+                "maxStrength",
+                "minInterval",
+                "maxInterval"
+            ],
+            "additionalProperties": false
         }
-      },
-      "required": [
-        "minStrength",
-        "maxStrength",
-        "minInterval",
-        "maxInterval"
-      ],
-      "type": "object"
     }
-  }
 }

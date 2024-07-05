@@ -1,49 +1,49 @@
 {
-  "$ref": "#/definitions/CoyoteLiveGameConfig",
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "definitions": {
-    "CoyoteLiveGameConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "pulseId": {
-          "type": "string"
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/CoyoteLiveGameConfig",
+    "definitions": {
+        "CoyoteLiveGameConfig": {
+            "type": "object",
+            "properties": {
+                "strength": {
+                    "$ref": "#/definitions/RandomStrengthConfig"
+                },
+                "pulseId": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "strength",
+                "pulseId"
+            ],
+            "additionalProperties": false
         },
-        "strength": {
-          "$ref": "#/definitions/RandomStrengthConfig"
+        "RandomStrengthConfig": {
+            "type": "object",
+            "properties": {
+                "minStrength": {
+                    "type": "number"
+                },
+                "maxStrength": {
+                    "type": "number"
+                },
+                "minInterval": {
+                    "type": "number"
+                },
+                "maxInterval": {
+                    "type": "number"
+                },
+                "bChannelMultiplier": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "minStrength",
+                "maxStrength",
+                "minInterval",
+                "maxInterval"
+            ],
+            "additionalProperties": false
         }
-      },
-      "required": [
-        "strength",
-        "pulseId"
-      ],
-      "type": "object"
-    },
-    "RandomStrengthConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "bChannelMultiplier": {
-          "type": "number"
-        },
-        "maxInterval": {
-          "type": "number"
-        },
-        "maxStrength": {
-          "type": "number"
-        },
-        "minInterval": {
-          "type": "number"
-        },
-        "minStrength": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "minStrength",
-        "maxStrength",
-        "minInterval",
-        "maxInterval"
-      ],
-      "type": "object"
     }
-  }
 }

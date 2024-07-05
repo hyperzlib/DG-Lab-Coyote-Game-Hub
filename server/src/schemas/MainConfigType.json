@@ -1,51 +1,51 @@
 {
-  "$ref": "#/definitions/MainConfigType",
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "definitions": {
-    "MainConfigType": {
-      "additionalProperties": false,
-      "properties": {
-        "allowBroadcastToClients": {
-          "description": "允许插件API向所有客户端发送指令",
-          "type": "boolean"
-        },
-        "clientWsDomain": {
-          "description": "单独配置客户端连接时的WebSocket地址",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "domain": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "host": {
-          "type": "string"
-        },
-        "openBrowser": {
-          "description": "服务器启动后自动打开浏览器",
-          "type": "boolean"
-        },
-        "port": {
-          "type": "number"
-        },
-        "proxySSLEnable": {
-          "type": "boolean"
-        },
-        "pulseConfigPath": {
-          "description": "波形配置文件路径",
-          "type": "string"
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/MainConfigType",
+    "definitions": {
+        "MainConfigType": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "number"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "proxySSLEnable": {
+                    "type": "boolean"
+                },
+                "domain": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "clientWsDomain": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "单独配置客户端连接时的WebSocket地址"
+                },
+                "pulseConfigPath": {
+                    "type": "string",
+                    "description": "波形配置文件路径"
+                },
+                "openBrowser": {
+                    "type": "boolean",
+                    "description": "服务器启动后自动打开浏览器"
+                },
+                "allowBroadcastToClients": {
+                    "type": "boolean",
+                    "description": "允许插件API向所有客户端发送指令"
+                }
+            },
+            "required": [
+                "port",
+                "host",
+                "pulseConfigPath"
+            ],
+            "additionalProperties": false
         }
-      },
-      "required": [
-        "port",
-        "host",
-        "pulseConfigPath"
-      ],
-      "type": "object"
     }
-  }
 }

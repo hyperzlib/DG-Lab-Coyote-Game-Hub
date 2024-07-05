@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const { createHash } = require('crypto');
 const fs = require('fs');
+const tsj = require('ts-json-schema-generator');
 
 async function md5File(file) {
     const fileContent = await fs.promises.readFile(file);
@@ -43,48 +44,13 @@ async function buildSchemas() {
             }
 
             // 生成schema
-            await new Promise((resolve, reject) => {
-                let child;
-                if (process.platform.toLocaleLowerCase().includes('win')) {
-                    child = spawn('cmd', [
-                        '/c',
-                        'npx ts-json-schema-generator',
-                        '-o',
-                        `${outputDir}/${typeName}.json`,
-                        '--path',
-                        file,
-                        '--type',
-                        typeName
-                    ]);
-                } else {
-                    child = spawn('npx', [
-                        'ts-json-schema-generator',
-                        '-o',
-                        `${outputDir}/${typeName}.json`,
-                        '--path',
-                        file,
-                        '--type',
-                        typeName
-                    ]);
-                }
-
-                child.stdout.on('data', data => {
-                    console.log(`stdout: ${data}`);
-                });
-
-                child.stderr.on('data', data => {
-                    console.error(`stderr: ${data}`);
-                });
-
-                child.on('close', code => {
-                    if (code !== 0) {
-                        console.error(`child process exited with code ${code}`);
-                        reject();
-                    }
-
-                    resolve();
-                });
-            });
+            let schemaConfig = {
+                path: file,
+                type: typeName,
+            };
+            let schema = tsj.createGenerator(schemaConfig).createSchema(schemaConfig.type);
+            let schemaJson = JSON.stringify(schema, null, 4);
+            await fs.promises.writeFile(schemaFile, schemaJson);
 
             console.log(`Generated schema for ${typeName}`);
 

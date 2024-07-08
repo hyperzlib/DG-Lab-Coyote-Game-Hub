@@ -28,16 +28,16 @@ export type StrengthInfo = {
     limit: number;
 };
 
-export type RandomStrengthConfig = {
-    minStrength: number;
-    maxStrength: number;
+export type GameStrengthConfig = {
+    strength: number;
+    randomStrength: number;
     minInterval: number;
     maxInterval: number;
     bChannelMultiplier?: number;
 }
 
 export type CoyoteLiveGameConfig = {
-    strength: RandomStrengthConfig;
+    strength: GameStrengthConfig;
     pulseId: string;
 }
 

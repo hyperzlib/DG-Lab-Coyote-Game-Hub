@@ -18,10 +18,11 @@ GET /api/game/{clientId}
     "code": "OK",
     "gameConfig": {
         "strength": {
-            "minStrength": 1, // 最小随机强度
-            "maxStrength": 10, // 最大随机强度
+            "strength": 1, // 基础强度
+            "randomStrength": 10, // 随机强度，最终强度 = 基础强度 + random(0, 随机强度)
             "minInterval": 10, // 最小随机间隔
-            "maxInterval": 15 // 最大随机间隔
+            "maxInterval": 15, // 最大随机间隔
+            "bChannelMultiplier": 1.0, // B通道强度倍数，如果存在此参数，则会启动B通道
         },
         "pulseId": "pulse-1" // 脉冲ID
     },
@@ -78,8 +79,8 @@ GET /api/game/{clientId}/strength_info
     "status": 1,
     "code": "OK",
     "strengthConfig": { // 强度配置，同上
-        "minStrength": 5,
-        "maxStrength": 10,
+        "strength": 5,
+        "randomStrength": 10,
         "minInterval": 10,
         "maxInterval": 15
     }
@@ -101,16 +102,15 @@ POST /api/game/{clientId}/strength_info
 
 ```typescript
 type SetStrengthConfigRequest = {
-    minStrength?: {
-        add?: number; // 增加最低随机强度（基础强度）
+    strength?: {
+        add?: number; // 增加基础强度
         sub?: number; // 减少强度
         set?: number; // 设置强度
     },
-    maxStrength?: {
-        add?: number; // 增加最高随机强度
+    randomStrength?: {
+        add?: number; // 增加随机强度
         sub?: number; // 减少强度
         set?: number; // 设置强度
-        keep?: boolean; // 是否保持最低强度不变，默认会根据最低强度的变化调整最高强度
     },
     minInterval?: {
         set?: number; // 设置最低随机间隔
@@ -125,7 +125,7 @@ type SetStrengthConfigRequest = {
 
 ```json5
 {
-    "minStrength": {
+    "strength": {
         "add": 1
     }
 }

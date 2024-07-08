@@ -6,7 +6,7 @@
             "type": "object",
             "properties": {
                 "strength": {
-                    "$ref": "#/definitions/RandomStrengthConfig"
+                    "$ref": "#/definitions/GameStrengthConfig"
                 },
                 "pulseId": {
                     "type": "string"
@@ -18,13 +18,13 @@
             ],
             "additionalProperties": false
         },
-        "RandomStrengthConfig": {
+        "GameStrengthConfig": {
             "type": "object",
             "properties": {
-                "minStrength": {
+                "strength": {
                     "type": "number"
                 },
-                "maxStrength": {
+                "randomStrength": {
                     "type": "number"
                 },
                 "minInterval": {
@@ -38,8 +38,8 @@
                 }
             },
             "required": [
-                "minStrength",
-                "maxStrength",
+                "strength",
+                "randomStrength",
                 "minInterval",
                 "maxInterval"
             ],

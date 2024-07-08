@@ -9,7 +9,7 @@ class TypeValidator {
 
     public async initialize() {
         this.validators.set('CoyoteLiveGameConfig', this.ajv.compile(await import('../schemas/CoyoteLiveGameConfig.json')));
-        this.validators.set('RandomStrengthConfig', this.ajv.compile(await import('../schemas/RandomStrengthConfig.json')));
+        this.validators.set('GameStrengthConfig', this.ajv.compile(await import('../schemas/GameStrengthConfig.json')));
         this.validators.set('MainConfigType', this.ajv.compile(await import('../schemas/MainConfigType.json')));
     }
 
@@ -26,8 +26,8 @@ class TypeValidator {
         return this.validators.get('CoyoteLiveGameConfig')!;
     }
     
-    public get validateRandomStrengthConfig() {
-        return this.validators.get('RandomStrengthConfig')!;
+    public get validateGameStrengthConfig() {
+        return this.validators.get('GameStrengthConfig')!;
     }
 
     public get validateMainConfigType() {

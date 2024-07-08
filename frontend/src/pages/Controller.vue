@@ -9,9 +9,9 @@ import { handleApiResponse } from '../utils/response';
 const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
 
 const state = reactive({
-  valLow: 5,
-  valHigh: 10,
-  valLimit: 50,
+  strengthVal: 5,
+  randomStrengthVal: 5,
+  strengthLimit: 20,
 
   randomFreqLow: 10,
   randomFreqHigh: 15,
@@ -43,8 +43,8 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
   get: () => {
     return {
       strength: {
-        minStrength: state.valLow,
-        maxStrength: state.valHigh,
+        strength: state.strengthVal,
+        randomStrength: state.randomStrengthVal,
         minInterval: state.randomFreqLow,
         maxInterval: state.randomFreqHigh,
         bChannelMultiplier: state.bChannelEnabled ? state.bChannelMultiple : undefined,
@@ -53,8 +53,8 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
     };
   },
   set: (value) => {
-    state.valLow = value.strength.minStrength;
-    state.valHigh = value.strength.maxStrength;
+    state.strengthVal = value.strength.strength;
+    state.randomStrengthVal = value.strength.randomStrength;
     state.randomFreqLow = value.strength.minInterval;
     state.randomFreqHigh = value.strength.maxInterval;
     state.bChannelEnabled = typeof value.strength.bChannelMultiplier === 'number';
@@ -62,6 +62,12 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
     state.currentPulseId = value.pulseId;
   }
 });
+
+const chartVal = computed(() => ({
+  valLow: state.strengthVal,
+  valHigh: Math.min(state.strengthVal + state.randomStrengthVal, state.strengthLimit),
+  valLimit: state.strengthLimit,
+}))
 
 const randomFreq = computed({
   get: () => {
@@ -142,7 +148,7 @@ const initWebSocket = async () => {
   });
 
   wsClient.on('strengthChanged', (strength) => {
-    state.valLimit = strength.limit;
+    state.strengthLimit = strength.limit;
   });
 
   wsClient.on('configUpdated', (config) => {
@@ -324,7 +330,7 @@ watch(gameConfig, () => {
     <Toast></Toast>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
-        <StatusChart v-model:val-low="state.valLow" v-model:val-high="state.valHigh" :val-limit="state.valLimit" :running="state.gameStarted" />
+        <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh" :val-limit="chartVal.valLimit" :running="state.gameStarted" readonly />
       </div>
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">
@@ -359,11 +365,8 @@ watch(gameConfig, () => {
         </template>
 
         <template #content>
-          <span class="opacity-80 block mb-4">
-            强度请点击仪表盘上的数字进行更改
-          </span>
           <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-            <label class="font-semibold w-30 flex-shrink-0">强度跳变频率</label>
+            <label class="font-semibold w-30 flex-shrink-0">强度变化频率</label>
             <div class="w-full flex-shrink flex gap-2 flex-col lg:items-center lg:flex-row lg:gap-8">
               <div class="h-6 lg:h-auto flex-grow flex items-center">
                 <Slider class="w-full" v-model="randomFreq" range :max="60" />
@@ -375,6 +378,22 @@ watch(gameConfig, () => {
                   <InputNumber class="input-text-center" v-model="state.randomFreqHigh" />
                 </InputGroup>
               </div>
+            </div>
+          </div>
+          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
+            <label class="font-semibold w-30">基础强度</label>
+            <InputNumber class="input-small" v-model="state.strengthVal" />
+            <div class="flex-grow flex-shrink"></div>
+          </div>
+          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
+            <label class="font-semibold w-30">随机强度</label>
+            <InputNumber class="input-small" v-model="state.randomStrengthVal" />
+            <div class="flex-grow flex-shrink"></div>
+          </div>
+          <div class="flex gap-8 mb-4 w-full">
+            <div class="w-30"></div>
+            <div class="opacity-60 text-right">
+              强度范围：{{ state.strengthVal }} - {{ state.strengthVal + state.randomStrengthVal }}，强度上限请在DG-Lab中设置
             </div>
           </div>
           <div class="flex items-center gap-2 lg:gap-8 mb-4 w-full">

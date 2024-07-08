@@ -7,16 +7,15 @@ import { MainConfig } from '../../config';
 import { DGLabPulseService } from '../../services/DGLabPulse';
 
 export type SetStrengthConfigRequest = {
-    minStrength?: {
+    strength?: {
         add?: number;
         sub?: number;
         set?: number;
     },
-    maxStrength?: {
+    randomStrength?: {
         add?: number;
         sub?: number;
         set?: number;
-        keep?: boolean;
     },
     minInterval?: {
         set?: number;
@@ -129,37 +128,31 @@ export class GameApiController {
             const req = ctx.request.body as SetStrengthConfigRequest;
 
             let strengthConfig = { ...game.gameConfig.strength };
-            let autoMaxStrength = !req.maxStrength?.keep;
-
-            if (req.minStrength) {
-                let targetMinStrength = strengthConfig.minStrength;
-                if (typeof req.minStrength.add === 'number') {
-                    targetMinStrength += req.minStrength.add;
-                } else if (typeof req.minStrength.sub === 'number') {
-                    targetMinStrength -= req.minStrength.sub;
-                } else if (typeof req.minStrength.set === 'number') {
-                    targetMinStrength = req.minStrength.set;
+            
+            if (req.strength) {
+                let targetMinStrength = strengthConfig.strength;
+                if (typeof req.strength.add === 'number') {
+                    targetMinStrength += req.strength.add;
+                } else if (typeof req.strength.sub === 'number') {
+                    targetMinStrength -= req.strength.sub;
+                } else if (typeof req.strength.set === 'number') {
+                    targetMinStrength = req.strength.set;
                 }
 
-                if (autoMaxStrength) {
-                    let deltaStrength = targetMinStrength - strengthConfig.minStrength;
-                    strengthConfig.maxStrength += deltaStrength;
-                }
-
-                strengthConfig.minStrength = targetMinStrength;
+                strengthConfig.strength = targetMinStrength;
             }
 
-            if (req.maxStrength) {
-                let targetMaxStrength = strengthConfig.maxStrength;
-                if (typeof req.maxStrength.add === 'number') {
-                    targetMaxStrength += req.maxStrength.add;
-                } else if (typeof req.maxStrength.sub === 'number') {
-                    targetMaxStrength -= req.maxStrength.sub;
-                } else if (typeof req.maxStrength.set === 'number') {
-                    targetMaxStrength = req.maxStrength.set;
+            if (req.randomStrength) {
+                let targetMaxStrength = strengthConfig.randomStrength;
+                if (typeof req.randomStrength.add === 'number') {
+                    targetMaxStrength += req.randomStrength.add;
+                } else if (typeof req.randomStrength.sub === 'number') {
+                    targetMaxStrength -= req.randomStrength.sub;
+                } else if (typeof req.randomStrength.set === 'number') {
+                    targetMaxStrength = req.randomStrength.set;
                 }
 
-                strengthConfig.maxStrength = targetMaxStrength;
+                strengthConfig.randomStrength = targetMaxStrength;
             }
 
             if (typeof req.minInterval?.set === 'number') {
@@ -171,13 +164,10 @@ export class GameApiController {
             }
 
             // 防止强度配置超出范围
-            strengthConfig.minStrength = Math.min(
-                Math.max(0, strengthConfig.minStrength),
-                game.clientStrength.limit);
-
-                strengthConfig.maxStrength = Math.min(
-                Math.max(strengthConfig.minStrength, strengthConfig.maxStrength),
-                game.clientStrength.limit);
+            strengthConfig.strength = Math.min(Math.max(0, strengthConfig.strength), game.clientStrength.limit);
+            strengthConfig.randomStrength = Math.max(0, strengthConfig.randomStrength);
+            strengthConfig.minInterval = Math.max(0, strengthConfig.minInterval);
+            strengthConfig.maxInterval = Math.max(0, strengthConfig.maxInterval);
 
             // 更新游戏配置
             game.updateConfig({

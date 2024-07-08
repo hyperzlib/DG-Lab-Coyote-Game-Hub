@@ -1,12 +1,12 @@
-export interface RandomStrengthConfig {
-    minStrength: number;
-    maxStrength: number;
+export interface GameStrengthConfig {
+    strength: number;
+    randomStrength: number;
     minInterval: number;
     maxInterval: number;
     bChannelMultiplier?: number;
 }
 
 export interface CoyoteLiveGameConfig {
-    strength: RandomStrengthConfig;
+    strength: GameStrengthConfig;
     pulseId: string;
 }

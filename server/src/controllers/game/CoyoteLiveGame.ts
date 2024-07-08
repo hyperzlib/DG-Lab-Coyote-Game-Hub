@@ -7,7 +7,7 @@ import { Task } from '../../utils/task';
 import { asleep, randomInt, simpleObjEqual } from '../../utils/utils';
 import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
-import { CoyoteLiveGameConfig, RandomStrengthConfig } from '../../types/game';
+import { CoyoteLiveGameConfig, GameStrengthConfig } from '../../types/game';
 
 export interface CoyoteLiveGameEventsListener {
     (name: 'close', listener: () => void): void;
@@ -20,9 +20,9 @@ export interface CoyoteLiveGameEventsListener {
 export class CoyoteLiveGame {
     public client: DGLabWSClient;
 
-    public randomStrengthConfig: RandomStrengthConfig = {
-        minStrength: 0,
-        maxStrength: 0,
+    public strengthConfig: GameStrengthConfig = {
+        strength: 0,
+        randomStrength: 0,
         minInterval: 10,
         maxInterval: 20,
         bChannelMultiplier: 0,
@@ -37,7 +37,7 @@ export class CoyoteLiveGame {
 
     public get gameConfig(): CoyoteLiveGameConfig {
         return {
-            strength: this.randomStrengthConfig,
+            strength: this.strengthConfig,
             pulseId: this.currentPulse.id,
         };
     }
@@ -61,9 +61,9 @@ export class CoyoteLiveGame {
         const configCache  = CoyoteLiveGameManager.instance.configCache;
         let hasCachedConfig = false;
 
-        let cachedRandomStrengthConfig = configCache.get(`${configCachePrefix}:strength`);
-        if (cachedRandomStrengthConfig) {
-            this.randomStrengthConfig = cachedRandomStrengthConfig;
+        let cachedGameStrengthConfig = configCache.get(`${configCachePrefix}:strength`);
+        if (cachedGameStrengthConfig) {
+            this.strengthConfig = cachedGameStrengthConfig;
             hasCachedConfig = true;
         }
 
@@ -95,16 +95,8 @@ export class CoyoteLiveGame {
                 this.stopGame().catch((error) => {
                     console.error('Failed to stop CoyoteLiveGame:', error);
                 });
-            } else if (strength.strength < this.randomStrengthConfig.minStrength) { // 强度低于随机强度时降低随机强度
-                const newMinStrength = strength.strength;
-                const deltaStrength = this.randomStrengthConfig.minStrength - newMinStrength;
-                this.randomStrengthConfig.minStrength = newMinStrength;
-                this.randomStrengthConfig.maxStrength -= deltaStrength;
-                configUpdated = true;
-            }
-
-            if (strength.limit < this.randomStrengthConfig.maxStrength) { // 强度上限小于随机强度上限时降低随机强度上限
-                this.randomStrengthConfig.maxStrength = strength.limit;
+            } else if (strength.strength < this.strengthConfig.strength) { // 强度低于随机强度时降低随机强度
+                this.strengthConfig.strength = strength.strength;
                 configUpdated = true;
             }
             
@@ -131,13 +123,13 @@ export class CoyoteLiveGame {
     public updateConfig(config: CoyoteLiveGameConfig): void {
         let configUpdated = false;
         
-        if (!simpleObjEqual(config.strength, this.randomStrengthConfig)) {
-            this.randomStrengthConfig = config.strength;
+        if (!simpleObjEqual(config.strength, this.strengthConfig)) {
+            this.strengthConfig = config.strength;
             configUpdated = true;
 
             // 如果游戏未开始，且强度小于最低强度，需要更新强度，否则本地强度会被服务端强制更新
-            if (this.client.strength.strength < this.randomStrengthConfig.minStrength && this.gameTask) {
-                this.client.setStrength(Channel.A, this.randomStrengthConfig.minStrength).catch((error) => {
+            if (this.client.strength.strength < this.strengthConfig.strength && this.gameTask) {
+                this.client.setStrength(Channel.A, this.strengthConfig.strength).catch((error) => {
                     console.error('Failed to set strength:', error);
                 });
             }
@@ -165,7 +157,7 @@ export class CoyoteLiveGame {
     }
 
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
-        let nextRandomStrengthTime = randomInt(this.randomStrengthConfig.minInterval, this.randomStrengthConfig.maxInterval) * 1000;
+        let nextRandomStrengthTime = randomInt(this.strengthConfig.minInterval, this.strengthConfig.maxInterval) * 1000;
 
 
         // 输出脉冲，直到下次随机强度时间
@@ -174,7 +166,7 @@ export class CoyoteLiveGame {
             let [pulseData, pulseDuration] = DGLabPulseService.instance.buildPulse(this.currentPulse);
 
             await this.client.sendPulse(Channel.A, pulseData);
-            if (this.randomStrengthConfig && this.randomStrengthConfig.bChannelMultiplier) {
+            if (this.strengthConfig && this.strengthConfig.bChannelMultiplier) {
                 await this.client.sendPulse(Channel.B, pulseData);
             }
 
@@ -193,17 +185,22 @@ export class CoyoteLiveGame {
 
         // 随机强度前先清空当前队列，避免强度突变
         await this.client.clearPulse(Channel.A);
-        if (this.randomStrengthConfig.bChannelMultiplier) {
+        if (this.strengthConfig.bChannelMultiplier) {
             await this.client.clearPulse(Channel.B);
         }
 
         harvest();
 
-        // 随机强度
-        let strength = randomInt(this.randomStrengthConfig.minStrength, this.randomStrengthConfig.maxStrength);
+        let strength = this.strengthConfig.strength;
+        if (this.strengthConfig.randomStrength) {
+            // 随机强度
+            strength += randomInt(0, this.strengthConfig.randomStrength);
+            strength = Math.min(strength, this.clientStrength.limit);
+        }
+
         await this.client.setStrength(Channel.A, strength);
-        if (this.randomStrengthConfig.bChannelMultiplier) {
-            await this.client.setStrength(Channel.B, strength * this.randomStrengthConfig.bChannelMultiplier);
+        if (this.strengthConfig.bChannelMultiplier) {
+            await this.client.setStrength(Channel.B, strength * this.strengthConfig.bChannelMultiplier);
         }
     }
 
@@ -214,10 +211,10 @@ export class CoyoteLiveGame {
     public async startGame(ignoreEvent = false): Promise<void> {
         if (!this.gameTask) {
             // 初始化强度和脉冲
-            const minStrength = this.randomStrengthConfig.minStrength;
-            await this.client.setStrength(Channel.A, minStrength);
-            if (this.randomStrengthConfig.bChannelMultiplier) {
-                await this.client.setStrength(Channel.B, minStrength * this.randomStrengthConfig.bChannelMultiplier);
+            const initStrength = this.strengthConfig.strength;
+            await this.client.setStrength(Channel.A, initStrength);
+            if (this.strengthConfig.bChannelMultiplier) {
+                await this.client.setStrength(Channel.B, initStrength * this.strengthConfig.bChannelMultiplier);
             } else {
                 await this.client.setStrength(Channel.B, 0);
             }
@@ -276,7 +273,7 @@ export class CoyoteLiveGame {
         // 保存配置, 以便下次连接时恢复
         const configCachePrefix = `coyoteLiveGameConfig:${this.client.clientId}:`;
         const configCache  = CoyoteLiveGameManager.instance.configCache;
-        configCache.set(`${configCachePrefix}:strength`, this.randomStrengthConfig);
+        configCache.set(`${configCachePrefix}:strength`, this.strengthConfig);
         configCache.set(`${configCachePrefix}:pulseId`, this.currentPulse.id);
 
         this.events.emit('close');

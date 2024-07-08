@@ -45,8 +45,11 @@ const initWebSocket = async () => {
   });
 
   wsClient.on('configUpdated', (config) => {
-    state.valLow = config.strength.minStrength;
-    state.valHigh = config.strength.maxStrength;
+    state.valLow = config.strength.strength;
+    state.valHigh = config.strength.randomStrength;
+    
+    state.valLow = Math.min(state.valLow, state.valLimit);
+    state.valHigh = Math.min(state.valLow + state.valHigh, state.valLimit);
   });
 
   wsClient.on('gameStarted', () => {

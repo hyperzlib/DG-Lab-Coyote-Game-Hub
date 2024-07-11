@@ -184,10 +184,10 @@ export class CoyoteLiveGame {
         harvest();
 
         // 随机强度前先清空当前队列，避免强度突变
-        await this.client.clearPulse(Channel.A);
-        if (this.strengthConfig.bChannelMultiplier) {
-            await this.client.clearPulse(Channel.B);
-        }
+        // await this.client.clearPulse(Channel.A);
+        // if (this.strengthConfig.bChannelMultiplier) {
+        //     await this.client.clearPulse(Channel.B);
+        // }
 
         harvest();
 
@@ -198,10 +198,16 @@ export class CoyoteLiveGame {
             strength = Math.min(strength, this.clientStrength.limit);
         }
 
-        await this.client.setStrength(Channel.A, strength);
-        if (this.strengthConfig.bChannelMultiplier) {
-            await this.client.setStrength(Channel.B, strength * this.strengthConfig.bChannelMultiplier);
-        }
+        setTimeout(async () => {
+            try {
+                await this.client.setStrength(Channel.A, strength);
+                if (this.strengthConfig.bChannelMultiplier) {
+                    await this.client.setStrength(Channel.B, strength * this.strengthConfig.bChannelMultiplier);
+                }
+            } catch (error) {
+                console.error('Failed to set strength:', error);
+            }
+        }, 100);
     }
 
     /**

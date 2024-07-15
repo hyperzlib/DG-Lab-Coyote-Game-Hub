@@ -65,7 +65,7 @@ GET /api/game/{clientId}/pulse_list
 ## 获取游戏强度配置
 
 ```sh
-GET /api/game/{clientId}/strength_info
+GET /api/game/{clientId}/strength_config
 ```
 
 ### 请求参数
@@ -90,7 +90,7 @@ GET /api/game/{clientId}/strength_info
 ## 设置游戏强度配置
 
 ```sh
-POST /api/game/{clientId}/strength_info
+POST /api/game/{clientId}/strength_config
 ```
 
 ### 请求参数

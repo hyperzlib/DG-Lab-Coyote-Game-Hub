@@ -8,7 +8,7 @@
 <div align="center">
   <a href="https://github.com/hyperzlib/DG-Lab-Coyote-Streaming-Widget/actions">下载</a>
   |
-  <a href="https://www.bilibili.com/video/BV1RW421R7dT/">预览</a>
+  <a href="https://www.bilibili.com/video/BV17m421G7fm/">预览</a>
   |
   <a href="docs/api.md">插件API</a>
 </div>

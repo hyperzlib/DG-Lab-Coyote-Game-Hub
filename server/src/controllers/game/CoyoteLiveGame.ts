@@ -91,11 +91,7 @@ export class CoyoteLiveGame {
         // 监听强度上报事件
         clientEvents.on('strengthChanged', (strength, _) => {
             let configUpdated = false;
-            if (strength.strength === 0) { // 强度为0时停止游戏
-                this.stopGame().catch((error) => {
-                    console.error('Failed to stop CoyoteLiveGame:', error);
-                });
-            } else if (strength.strength < this.strengthConfig.strength) { // 强度低于随机强度时降低随机强度
+            if (strength.strength < this.strengthConfig.strength) { // 强度低于随机强度时降低随机强度
                 this.strengthConfig.strength = strength.strength;
                 configUpdated = true;
             }

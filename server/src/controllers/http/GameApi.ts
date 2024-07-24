@@ -50,9 +50,20 @@ export class GameApiController {
     }
 
     public static async gameInfo(ctx: RouterContext): Promise<void> {
-        const game = await GameApiController.requestGameInstance(ctx);
-        if (!game) {
-            return;
+        let game: CoyoteLiveGame | null = null;
+        if (ctx.params.id === 'all') {
+            if (!MainConfig.value.allowBroadcastToClients) {
+                ctx.body = {
+                    status: 0,
+                    code: 'ERR::BROADCAST_NOT_ALLOWED',
+                    message: '当前服务器配置不允许向所有客户端广播指令',
+                };
+                return;
+            }
+            
+            game = CoyoteLiveGameManager.instance.getGameList().next().value;
+        } else {
+            game = await GameApiController.requestGameInstance(ctx);
         }
 
         if (game) {
@@ -66,7 +77,22 @@ export class GameApiController {
     }
 
     public static async getStrengthConfig(ctx: RouterContext): Promise<void> {
-        const game = await GameApiController.requestGameInstance(ctx);
+        let game: CoyoteLiveGame | null = null;
+        if (ctx.params.id === 'all') {
+            if (!MainConfig.value.allowBroadcastToClients) {
+                ctx.body = {
+                    status: 0,
+                    code: 'ERR::BROADCAST_NOT_ALLOWED',
+                    message: '当前服务器配置不允许向所有客户端广播指令',
+                };
+                return;
+            }
+
+            game = CoyoteLiveGameManager.instance.getGameList().next().value;
+        } else {
+            game = await GameApiController.requestGameInstance(ctx);
+        }
+        
         if (!game) {
             return;
         }
@@ -123,7 +149,7 @@ export class GameApiController {
            (gameList as CoyoteLiveGame[]).push(game);
         }
 
-        let successNum = 0;
+        let successClientIds = new Set<string>();
         for (const game of gameList) {
             const req = ctx.request.body as SetStrengthConfigRequest;
 
@@ -175,14 +201,14 @@ export class GameApiController {
                 strength: strengthConfig,
             });
 
-            successNum ++;
+            successClientIds.add(game.clientId);
         }
 
         ctx.body = {
             status: 1,
             code: 'OK',
-            message: `成功设置了 ${successNum} 个游戏的强度配置`,
-            successNum: successNum,
+            message: `成功设置了 ${successClientIds.size} 个游戏的强度配置`,
+            successClientIds: Array.from(successClientIds),
         };
     }
 

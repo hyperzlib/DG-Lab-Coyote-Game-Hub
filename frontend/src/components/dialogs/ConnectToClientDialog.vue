@@ -34,10 +34,18 @@ const state = reactive({
 });
 
 const wsUrlList = computed(() => {
-  return props.clientWsUrlList?.map((item) => ({
+  return (props.clientWsUrlList?.map((item) => ({
     ...item,
     connectUrl: item.connectUrl.replace(/\{clientId\}/g, props.clientId ?? ''),
-  })) ?? [];
+  })) ?? []).sort((a, b) => {
+    if (a.domain.startsWith('192.168.')) {
+      return -1;
+    } else if (b.domain.startsWith('192.168.')) {
+      return 1;
+    } else {
+      return 0;
+    }
+  });
 });
 
 const handleResetClientId = async () => {
@@ -75,9 +83,8 @@ watch(() => props.clientId, (newVal) => {
                   <label class="font-semibold">当前客户端ID</label>
                   <InputGroup>
                     <InputText :value="props.clientId" read-only></InputText>
-                    <Button :icon="state.clientIdResetting ? 'pi pi-spinner pi-spin' : 'pi pi-refresh'"
-                      label="重置" severity="secondary" @click="handleResetClientId"
-                      :disabled="state.clientIdResetting"></Button>
+                    <Button :icon="state.clientIdResetting ? 'pi pi-spinner pi-spin' : 'pi pi-refresh'" label="重置"
+                      severity="secondary" @click="handleResetClientId" :disabled="state.clientIdResetting"></Button>
                   </InputGroup>
                   <span class="block text-sm text-gray-500">将客户端ID复制给他人，可以让他们远程连接到此设备。</span>
                   <span class="block text-sm text-gray-500">若是客户端ID泄露，可以点击“重置”按钮。</span>
@@ -91,7 +98,7 @@ watch(() => props.clientId, (newVal) => {
                 <div class="w-full flex flex-col items-top gap-2">
                   <label class="font-semibold">连接地址</label>
                   <Select v-model="state.selectedWsUrlIndex"
-                    :options="props.clientWsUrlList.map((item, index) => ({ value: index, label: item.domain }))"
+                    :options="wsUrlList.map((item, index) => ({ value: index, label: item.domain }))"
                     optionLabel="label" optionValue="value"></Select>
                 </div>
               </div>

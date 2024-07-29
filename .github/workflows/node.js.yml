@@ -44,17 +44,11 @@ jobs:
       run: npm run build:migrate
     - name: Build Windows executable
       run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:win
+    - name: Move Files to artifact dir
+      run: mkdir -p artifacts && mv build artifacts/coyote-streaming-widget
     - name: Archive Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-amd64-dist
         path: |
-          build
-    - name: Build Linux executable
-      run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:linux
-    - name: Archive Linux artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-amd64-dist
-        path: |
-          build
+          artifacts

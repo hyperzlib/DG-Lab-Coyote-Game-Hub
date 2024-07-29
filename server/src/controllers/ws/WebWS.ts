@@ -6,6 +6,7 @@ import { DGLabPulseService } from '../../services/DGLabPulse';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
 import { validator } from '../../utils/validator';
+import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../../types/event';
 
 export type WebWSPostMessage = {
     event: string;
@@ -13,8 +14,8 @@ export type WebWSPostMessage = {
     data?: any;
 };
 
-export type WebWSClientEventsListener = {
-    (name: 'close', listener: () => void): void;
+export interface WebWSClientEvents extends EventDef {
+    close: [];
 };
 
 export class WebWSClient {
@@ -23,7 +24,7 @@ export class WebWSClient {
 
     private eventStore = new EventStore();
     private gameEventStore = new EventStore();
-    private events = new EventEmitter();
+    private events = new EventEmitter<WebWSClientEvents>();
     private heartbeatTask: NodeJS.Timeout | null = null;
     private prevHeartbeatTime: number | null = null;
 
@@ -40,10 +41,6 @@ export class WebWSClient {
 
         this.heartbeatTask = setInterval(() => this.taskHeartbeat(), 15000);
     }
-
-    public on: WebWSClientEventsListener = this.events.on.bind(this.events);
-    public once: WebWSClientEventsListener = this.events.once.bind(this.events);
-    public off = this.events.off.bind(this.events);
 
     public async send(data: WebWSPostMessage): Promise<void> {
         try {
@@ -370,4 +367,9 @@ export class WebWSClient {
         this.events.emit("close");
         this.events.removeAllListeners();
     }
+
+    public on: EventListenerFunc<WebWSClientEvents> = this.events.on.bind(this.events);
+    public once: EventListenerFunc<WebWSClientEvents> = this.events.once.bind(this.events);
+    public off: EventListenerFunc<WebWSClientEvents> = this.events.off.bind(this.events);
+    public removeAllListeners: EventRemoveAllFunc<WebWSClientEvents> = this.events.removeAllListeners.bind(this.events);
 }

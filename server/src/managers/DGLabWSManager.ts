@@ -5,11 +5,10 @@ import { wrapAsyncWebSocket } from '../utils/WebSocketAsync';
 import { RetCode } from '../types/dg';
 import { DGLabWSClient } from '../controllers/ws/DGLabWS';
 import { OnExit } from '../utils/onExit';
-import { CoyoteLiveGame } from '../controllers/game/CoyoteLiveGame';
-import { EventStore } from '../utils/EventStore';
+import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../types/event';
 
-export type DGLabWSManagerEventsListener = {
-    (name: 'clientConnected', listener: (client: DGLabWSClient) => void): void;
+export interface DGLabWSManagerEventsListener extends EventDef {
+    clientConnected: [client: DGLabWSClient];
 };
 
 export class DGLabWSManager {
@@ -17,7 +16,7 @@ export class DGLabWSManager {
 
     private clientIdToClient: Map<string, DGLabWSClient> = new Map();
 
-    private events: EventEmitter = new EventEmitter();
+    private events = new EventEmitter<DGLabWSManagerEventsListener>();
 
     static createInstance() {
         if (!this._instance) {
@@ -97,9 +96,10 @@ export class DGLabWSManager {
         this.events.removeAllListeners();
     }
 
-    public on: DGLabWSManagerEventsListener = this.events.on.bind(this.events);
-    public once: DGLabWSManagerEventsListener = this.events.once.bind(this.events);
-    public off = this.events.off.bind(this.events);
+    public on: EventListenerFunc<DGLabWSManagerEventsListener> = this.events.on.bind(this.events);
+    public once: EventListenerFunc<DGLabWSManagerEventsListener> = this.events.once.bind(this.events);
+    public off: EventListenerFunc<DGLabWSManagerEventsListener> = this.events.off.bind(this.events);
+    public removeAllListeners: EventRemoveAllFunc<DGLabWSManagerEventsListener> = this.events.removeAllListeners.bind(this.events);
 }
 
 DGLabWSManager.createInstance();

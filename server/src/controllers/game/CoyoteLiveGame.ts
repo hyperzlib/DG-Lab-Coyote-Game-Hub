@@ -8,13 +8,15 @@ import { asleep, randomInt, simpleObjEqual } from '../../utils/utils';
 import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGameConfig, GameStrengthConfig } from '../../types/game';
+import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../../types/event';
 
-export interface CoyoteLiveGameEventsListener {
-    (name: 'close', listener: () => void): void;
-    (name: 'strengthChanged', listener: (strength: StrengthInfo) => void): void;
-    (name: 'configUpdated', listener: (config: CoyoteLiveGameConfig) => void): void;
-    (name: 'gameStarted', listener: () => void): void;
-    (name: 'gameStopped', listener: () => void): void;
+export interface CoyoteLiveGameEvents extends EventDef {
+    close: [];
+    pulseListUpdated: [];
+    strengthChanged: [strength: StrengthInfo];
+    configUpdated: [config: CoyoteLiveGameConfig];
+    gameStarted: [];
+    gameStopped: [];
 }
 
 export class CoyoteLiveGame {
@@ -31,7 +33,7 @@ export class CoyoteLiveGame {
     public currentPulse: DGLabPulseInfo;
 
     private eventStore: EventStore = new EventStore();
-    private events: EventEmitter = new EventEmitter();
+    private events = new EventEmitter<CoyoteLiveGameEvents>();
 
     private gameTask: Task | null = null;
 
@@ -103,10 +105,6 @@ export class CoyoteLiveGame {
             }
         });
     }
-
-    public on: CoyoteLiveGameEventsListener = this.events.on.bind(this.events);
-    public once: CoyoteLiveGameEventsListener = this.events.once.bind(this.events);
-    public off = this.events.off.bind(this.events);
 
     public get enabled() {
         return this.gameTask?.running ?? false;
@@ -280,4 +278,9 @@ export class CoyoteLiveGame {
 
         this.events.emit('close');
     }
+
+    public on: EventListenerFunc<CoyoteLiveGameEvents> = this.events.on.bind(this.events);
+    public once: EventListenerFunc<CoyoteLiveGameEvents> = this.events.once.bind(this.events);
+    public off: EventListenerFunc<CoyoteLiveGameEvents> = this.events.off.bind(this.events);
+    public removeAllListeners: EventRemoveAllFunc<CoyoteLiveGameEvents> = this.events.removeAllListeners.bind(this.events);
 }

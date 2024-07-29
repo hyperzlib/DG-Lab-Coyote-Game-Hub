@@ -3,6 +3,7 @@ import * as path from 'path';
 import yaml from 'js-yaml';
 import { EventEmitter } from 'events';
 import { randomInt } from '../utils/utils';
+import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../types/event';
 
 const PULSE_WINDOW = 100; // 100ms
 
@@ -12,14 +13,17 @@ export interface DGLabPulseScript {
     repeat?: number | number[];
 }
 
-export interface DGLabPulseInfo {
+export interface DGLabPulseBaseInfo {
     id: string;
     name: string;
+}
+
+export interface DGLabPulseInfo extends DGLabPulseBaseInfo {
     script: DGLabPulseScript[];
 }
 
-export interface DGLabPulseServiceEventsListener {
-    (event: 'pulseListUpdated', listener: () => void): void;
+export interface DGLabPulseServiceEvents extends EventDef {
+    pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
 }
 
 export class DGLabPulseService {
@@ -27,7 +31,7 @@ export class DGLabPulseService {
 
     private pulseConfig = 'data/pulse.yaml';
     private fsObserver: fs.FSWatcher | null = null;
-    private events = new EventEmitter();
+    private events = new EventEmitter<DGLabPulseServiceEvents>();
 
     private static _instance: DGLabPulseService;
 
@@ -55,10 +59,6 @@ export class DGLabPulseService {
         this.events.removeAllListeners();
     }
 
-    public on: DGLabPulseServiceEventsListener = this.events.on.bind(this.events);
-    public once: DGLabPulseServiceEventsListener = this.events.once.bind(this.events);
-    public off = this.events.off.bind(this.events);
-
     private async readConfig(): Promise<void> {
         try {
             const fileContent = await fs.promises.readFile(this.pulseConfig, 'utf8');
@@ -80,7 +80,7 @@ export class DGLabPulseService {
         this.fsObserver = fs.watch(pulseConfigDir, async (eventType, filename) => {
             if (eventType === 'change' && filename === path.basename(this.pulseConfig)) {
                 await this.readConfig();
-                this.events.emit('pulseListUpdated');
+                this.events.emit('pulseListUpdated', this.getPulseInfoList());
             }
         });
     }
@@ -91,6 +91,10 @@ export class DGLabPulseService {
             name: 'Default',
             script: [{ wait: 1000 }],
         }
+    }
+
+    public getPulseInfoList(): DGLabPulseBaseInfo[] {
+        return this.pulseList.map(pulse => ({ id: pulse.id, name: pulse.name }));
     }
 
     public getPulse(pulseId: string): DGLabPulseInfo | null {
@@ -137,4 +141,9 @@ export class DGLabPulseService {
 
         return [pulseItems, totalDuration];
     }
+
+    public on: EventListenerFunc<DGLabPulseServiceEvents> = this.events.on.bind(this.events);
+    public once: EventListenerFunc<DGLabPulseServiceEvents> = this.events.once.bind(this.events);
+    public off: EventListenerFunc<DGLabPulseServiceEvents> = this.events.off.bind(this.events);
+    public removeAllListeners: EventRemoveAllFunc<DGLabPulseServiceEvents> = this.events.removeAllListeners.bind(this.events);
 }

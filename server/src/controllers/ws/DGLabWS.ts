@@ -6,6 +6,8 @@ import { Channel, DGLabMessage, MessageDataHead, MessageType, RetCode, FeedbackB
 import { asleep } from '../../utils/utils';
 import { EventEmitter } from 'events';
 import { EventStore } from '../../utils/EventStore';
+import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../../types/event';
+import { DGLabPulseBaseInfo } from '../../services/DGLabPulse';
 
 const HEARTBEAT_INTERVAL = 20.0;
 const HEARTBEAT_TIMEOUT = 20.0;
@@ -15,13 +17,14 @@ export interface StrengthInfo {
     limit: number;
 };
 
-export type DGLabWSEvents = {
-    (name: 'strengthChanged', listener: (strength: StrengthInfo, strength_b: StrengthInfo) => void): void;
-    (name: 'setStrength', listener: (channel: Channel, strength: number) => void): void;
-    (name: 'sendPulse', listener: (channel: Channel, pulse: string[]) => void): void;
-    (name: 'clearPulse', listener: (channel: Channel) => void): void;
-    (name: 'feedback', listener: (button: FeedbackButton) => void): void;
-    (name: 'close', listener: () => void): void;
+export interface DGLabWSEvents extends EventDef {
+    pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
+    strengthChanged: [strength: StrengthInfo, strength_b: StrengthInfo];
+    setStrength: [channel: Channel, strength: number];
+    sendPulse: [channel: Channel, pulse: string[]];
+    clearPulse: [channel: Channel];
+    feedback: [button: FeedbackButton];
+    close: [];
 };
 
 export class DGLabWSClient {
@@ -31,8 +34,10 @@ export class DGLabWSClient {
     public strengthChannelB: StrengthInfo = { strength: 0, limit: 0 };
     public socket: AsyncWebSocket;
 
+    public pulseList: DGLabPulseBaseInfo[] = [];
+
     private eventStore = new EventStore();
-    private eventEmitter = new EventEmitter();
+    private events = new EventEmitter<DGLabWSEvents>();
     private heartbeatTask: NodeJS.Timeout | null = null;
 
     public constructor(socket: AsyncWebSocket, client_id: string | null) {
@@ -115,7 +120,7 @@ export class DGLabWSClient {
 
         socketEvents.on("close", () => {
             // console.log("Socket closed");
-            this.eventEmitter.emit("close");
+            this.events.emit("close");
 
             this.destory();
         });
@@ -167,7 +172,7 @@ export class DGLabWSClient {
         //     `Current strength: ${this.strength.strength}/${this.strength.limit}, ${this.strengthChannelB.strength}/${this.strengthChannelB.limit}`
         // );
 
-        this.eventEmitter.emit("strengthChanged", this.strength, this.strengthChannelB);
+        this.events.emit("strengthChanged", this.strength, this.strengthChannelB);
     }
 
     private async handleMsgFeedback(message: string): Promise<void> {
@@ -175,7 +180,7 @@ export class DGLabWSClient {
 
         const button = parseInt(message.split("-")[1]);
 
-        this.eventEmitter.emit("feedback", button);
+        this.events.emit("feedback", button);
     }
 
     public async setStrength(channel: Channel, strength: number): Promise<void> {
@@ -191,7 +196,7 @@ export class DGLabWSClient {
 
         await this.send(MessageType.MSG, `${MessageDataHead.STRENGTH}-${channel}+2+${strength}`);
 
-        this.eventEmitter.emit("setStrength", channel, strength);
+        this.events.emit("setStrength", channel, strength);
     }
 
     public async sendPulse(channel: Channel, pulse: string[]): Promise<void> {
@@ -201,7 +206,7 @@ export class DGLabWSClient {
 
         await this.send(MessageType.MSG, `${MessageDataHead.PULSE}-${channel_id}:${pulse_str}`);
 
-        this.eventEmitter.emit("sendPulse", channel, pulse);
+        this.events.emit("sendPulse", channel, pulse);
     }
 
     public async clearPulse(channel: Channel): Promise<void> {
@@ -209,12 +214,8 @@ export class DGLabWSClient {
 
         await this.send(MessageType.MSG, `${MessageDataHead.CLEAR}-${channel_id}`);
 
-        this.eventEmitter.emit("clearPulse", channel);
+        this.events.emit("clearPulse", channel);
     }
-
-    public on: DGLabWSEvents = this.eventEmitter.on.bind(this.eventEmitter);
-    public once: DGLabWSEvents = this.eventEmitter.once.bind(this.eventEmitter);
-    public off = this.eventEmitter.off.bind(this.eventEmitter);
 
     public async close() {
         if (this.socket.readyState === WebSocket.OPEN) {
@@ -233,6 +234,11 @@ export class DGLabWSClient {
         }
 
         this.eventStore.removeAllListeners();
-        this.eventEmitter.removeAllListeners();
+        this.events.removeAllListeners();
     }
+
+    public on: EventListenerFunc<DGLabWSEvents> = this.events.on.bind(this.events);
+    public once: EventListenerFunc<DGLabWSEvents> = this.events.once.bind(this.events);
+    public off: EventListenerFunc<DGLabWSEvents> = this.events.off.bind(this.events);
+    public removeAllListeners: EventRemoveAllFunc<DGLabWSEvents> = this.events.removeAllListeners.bind(this.events);
 }

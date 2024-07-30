@@ -10,6 +10,7 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
     router.get('/api/server_info', WebController.getServerInfo);
     router.get('/api/client/connect', WebController.getClientConnectInfo);
 
+    router.get('/api/game', GameApiController.gameApiInfo);
     router.get('/api/game/:id', GameApiController.gameInfo);
     router.get('/api/game/:id/strength_config', GameApiController.getStrengthConfig);
     router.post('/api/game/:id/strength_config', GameApiController.setStrengthConfig);
@@ -17,6 +18,8 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
     router.post('/api/game/:id/pulse_id', GameApiController.setPulseId);
 
     router.get('/api/game/:id/pulse_list', GameApiController.getPulseList);
+
+    router.post('/api/game/:id/fire', GameApiController.fire);
 
     wsRouter.get('/ws', async (ws, req) => {
         WebWSManager.instance.handleWebSocket(ws, req);

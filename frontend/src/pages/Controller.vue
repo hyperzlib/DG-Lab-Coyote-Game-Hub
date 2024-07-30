@@ -22,7 +22,7 @@ const state = reactive({
   pulseList: null as PulseItemResponse[] | null,
   currentPulseId: '',
 
-  clientType: 'unknown' as 'unknown' | 'dglab' | 'dghelper',
+  clientType: 'dglab' as 'unknown' | 'dglab' | 'dghelper',
   clientId: '',
   clientWsUrlList: null as ClientConnectUrlInfo[] | null,
 
@@ -133,7 +133,7 @@ const initWebSocket = async () => {
 
     state.clientStatus = 'waiting';
     state.gameStarted = false;
-    
+
     dgClientConnected = false;
   });
 
@@ -340,7 +340,7 @@ watch(gameConfig, () => {
         <template #header>
           <Toolbar class="controller-toolbar">
             <template #start>
-              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接"
+              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接控制器"
                 @click="showConnectionDialog()"></Button>
               <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
                 <i class="pi pi-circle-off"></i>
@@ -431,6 +431,23 @@ watch(gameConfig, () => {
               <ProgressSpinner />
             </div>
           </FadeAndSlideTransitionGroup>
+
+          <!-- 自定义按钮 -->
+          <!-- <FadeAndSlideTransitionGroup>
+            <div v-if="state.clientStatus === 'connected' && state.clientType === 'dglab'">
+              <Divider></Divider>
+              <h2 class="font-bold text-xl mt-4 mb-2">自定义按钮功能</h2>
+              <h3 class="font-semibold text-lg mb-2">A通道按钮</h3>
+
+              <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
+                <label class="font-semibold w-30"><i class="pi pi-circle"></i></label>
+                <InputNumber class="input-small" v-model="state.strengthVal" />
+                <div class="flex-grow flex-shrink"></div>
+              </div>
+
+            </div>
+            <div v-else></div>
+          </FadeAndSlideTransitionGroup> -->
         </template>
       </Card>
     </div>

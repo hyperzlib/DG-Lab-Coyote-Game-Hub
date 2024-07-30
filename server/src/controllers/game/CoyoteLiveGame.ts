@@ -8,6 +8,7 @@ import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGameConfig, GameStrengthConfig } from '../../types/game';
 import { DGLabPulseBaseInfo } from '../../services/DGLabPulse';
+import { str } from 'ajv';
 
 export interface CoyoteLiveGameEvents {
     close: [];
@@ -30,6 +31,12 @@ export class CoyoteLiveGame {
         maxInterval: 20,
         bChannelMultiplier: 0,
     };
+
+    /** 一键开火强度 */
+    public fireStrength: number = 0;
+
+    /** 一键开火结束时间 */
+    public fireEndTimestamp: number = 0;
 
     public currentPulseId: string = '';
 
@@ -57,7 +64,6 @@ export class CoyoteLiveGame {
         this.client = client;
         
         if (this.client.pulseList.length > 0) { // 默认使用第一个脉冲
-            console.log('Selecting default pulse:', this.client.pulseList[0].id);
             this.currentPulseId = this.client.pulseList[0].id;
         }
     }
@@ -154,38 +160,80 @@ export class CoyoteLiveGame {
         }
     }
 
+    /**
+     * 一键开火
+     * @param strength 强度
+     * @param duration 持续时间（毫秒）
+     */
+    public async fire(strength: number, duration: number) {
+        if (!this.fireStrength) {
+            this.fireStrength = strength;
+            this.fireEndTimestamp = Date.now() + duration;
+
+            this.restartGame().catch((err: any) => {
+                console.error('Failed to restart game:', err);
+            }); // 一键开火时需要重启游戏Task
+        } else {
+            // 已经在一键开火状态，使用最大的强度，持续时间增加
+            this.fireStrength = Math.max(this.fireStrength, strength);
+            this.fireEndTimestamp += duration;
+        }
+    }
+
     private handleConfigUpdated(): void {
         this.events.emit('configUpdated', this.gameConfig);
     }
 
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
-        let nextRandomStrengthTime = randomInt(this.strengthConfig.minInterval, this.strengthConfig.maxInterval) * 1000;
+        let outputTime = 0;
+        if (this.fireStrength) {
+            if (Date.now() > this.fireEndTimestamp) { // 一键开火结束
+                this.fireStrength = 0;
+                this.fireEndTimestamp = 0;
+            } else {
+                outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
+            }
+        } else { // 随机强度
+            outputTime = randomInt(this.strengthConfig.minInterval, this.strengthConfig.maxInterval) * 1000;
+        }
 
         // 输出脉冲，直到下次随机强度时间
-        await this.client.outputPulse(this.currentPulseId, nextRandomStrengthTime, {
+        await this.client.outputPulse(this.currentPulseId, outputTime, {
             abortController: ab,
             bChannel: !!(this.strengthConfig && this.strengthConfig.bChannelMultiplier),
         });
 
         harvest();
 
-        let strength = this.strengthConfig.strength;
-        if (this.strengthConfig.randomStrength) {
-            // 随机强度
-            strength += randomInt(0, this.strengthConfig.randomStrength);
-            strength = Math.min(strength, this.clientStrength.limit);
+        let nextStrength: number | null = null;
+        if (this.fireStrength) {
+            if (Date.now() > this.fireEndTimestamp) { // 一键开火结束
+                this.fireStrength = 0;
+                this.fireEndTimestamp = 0;
+
+                nextStrength = this.strengthConfig.strength; // 一键开火结束后恢复到初始强度
+            }
+        } else {
+            if (this.strengthConfig.randomStrength) {
+                // 随机强度
+                nextStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
+                nextStrength += randomInt(0, this.strengthConfig.randomStrength);
+                nextStrength = Math.min(nextStrength, this.clientStrength.limit);
+            }
         }
 
-        setTimeout(async () => {
-            try {
-                await this.client.setStrength(Channel.A, strength);
-                if (this.strengthConfig.bChannelMultiplier) {
-                    await this.client.setStrength(Channel.B, strength * this.strengthConfig.bChannelMultiplier);
+        if (nextStrength) {
+            setTimeout(async () => {
+                try {
+                    await this.client.setStrength(Channel.A, nextStrength);
+                    if (this.strengthConfig.bChannelMultiplier) {
+                        await this.client.setStrength(Channel.B, nextStrength * this.strengthConfig.bChannelMultiplier);
+                    }
+                } catch (error) {
+                    console.error('Failed to set strength:', error);
                 }
-            } catch (error) {
-                console.error('Failed to set strength:', error);
-            }
-        }, 50);
+            }, 50);
+        }
     }
 
     /**
@@ -197,7 +245,13 @@ export class CoyoteLiveGame {
             // 初始化强度和脉冲
             await this.client.reset();
 
-            const initStrength = this.strengthConfig.strength;
+            let initStrength = this.strengthConfig.strength;
+
+            if (this.fireStrength) { // 一键开火时，增加初始强度
+                initStrength += this.fireStrength;
+            }
+
+            // 设置初始强度
             await this.client.setStrength(Channel.A, initStrength);
             if (this.strengthConfig.bChannelMultiplier) {
                 await this.client.setStrength(Channel.B, initStrength * this.strengthConfig.bChannelMultiplier);
@@ -205,6 +259,7 @@ export class CoyoteLiveGame {
                 await this.client.setStrength(Channel.B, 0);
             }
 
+            // 启动游戏任务
             this.gameTask = new Task((ab, harvest) => this.runGameTask(ab, harvest));
             this.gameTask.on('error', (error) => {
                 console.error('Game task error:', error);

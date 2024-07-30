@@ -5,9 +5,8 @@ import { WebSocket } from 'ws';
 import { OnExit } from '../utils/onExit';
 import { WebWSClient } from '../controllers/ws/WebWS';
 import { wrapAsyncWebSocket } from '../utils/WebSocketAsync';
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../types/event';
 
-export interface WebWSManagerEventsListener extends EventDef {
+export interface WebWSManagerEventsListener {
     clientConnected: [client: WebWSClient];
 }
 
@@ -68,8 +67,8 @@ export class WebWSManager {
         this.events.removeAllListeners();
     }
     
-    public on: EventListenerFunc<WebWSManagerEventsListener> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<WebWSManagerEventsListener> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<WebWSManagerEventsListener> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<WebWSManagerEventsListener> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListener = this.events.removeAllListeners.bind(this.events);
 }

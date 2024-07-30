@@ -87,4 +87,5 @@ createApp(App)
     })
     .use(DialogService)
     .use(ToastService)
+    .directive('ripple', {}) // Bypass PrimeVue's ripple directive
     .mount('#app');

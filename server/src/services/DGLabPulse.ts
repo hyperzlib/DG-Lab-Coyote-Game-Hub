@@ -3,7 +3,6 @@ import * as path from 'path';
 import yaml from 'js-yaml';
 import { EventEmitter } from 'events';
 import { randomInt } from '../utils/utils';
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../types/event';
 
 const PULSE_WINDOW = 100; // 100ms
 
@@ -22,7 +21,7 @@ export interface DGLabPulseInfo extends DGLabPulseBaseInfo {
     script: DGLabPulseScript[];
 }
 
-export interface DGLabPulseServiceEvents extends EventDef {
+export interface DGLabPulseServiceEvents {
     pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
 }
 
@@ -142,8 +141,8 @@ export class DGLabPulseService {
         return [pulseItems, totalDuration];
     }
 
-    public on: EventListenerFunc<DGLabPulseServiceEvents> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<DGLabPulseServiceEvents> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<DGLabPulseServiceEvents> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<DGLabPulseServiceEvents> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }

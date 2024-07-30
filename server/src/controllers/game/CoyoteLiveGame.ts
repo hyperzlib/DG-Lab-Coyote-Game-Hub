@@ -2,17 +2,16 @@ import { EventEmitter } from 'events';
 
 import { Channel } from '../../types/dg';
 import { DGLabWSClient, StrengthInfo } from '../../controllers/ws/DGLabWS';
-import { DGLabPulseInfo, DGLabPulseService } from '../../services/DGLabPulse';
 import { Task } from '../../utils/task';
-import { asleep, randomInt, simpleObjEqual } from '../../utils/utils';
+import { randomInt, simpleObjEqual } from '../../utils/utils';
 import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGameConfig, GameStrengthConfig } from '../../types/game';
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../../types/event';
+import { DGLabPulseBaseInfo } from '../../services/DGLabPulse';
 
-export interface CoyoteLiveGameEvents extends EventDef {
+export interface CoyoteLiveGameEvents {
     close: [];
-    pulseListUpdated: [];
+    pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
     strengthChanged: [strength: StrengthInfo];
     configUpdated: [config: CoyoteLiveGameConfig];
     gameStarted: [];
@@ -20,6 +19,8 @@ export interface CoyoteLiveGameEvents extends EventDef {
 }
 
 export class CoyoteLiveGame {
+    public clientType = 'dglab';
+
     public client: DGLabWSClient;
 
     public strengthConfig: GameStrengthConfig = {
@@ -30,7 +31,7 @@ export class CoyoteLiveGame {
         bChannelMultiplier: 0,
     };
 
-    public currentPulse: DGLabPulseInfo;
+    public currentPulseId: string = '';
 
     private eventStore: EventStore = new EventStore();
     private events = new EventEmitter<CoyoteLiveGameEvents>();
@@ -40,7 +41,7 @@ export class CoyoteLiveGame {
     public get gameConfig(): CoyoteLiveGameConfig {
         return {
             strength: this.strengthConfig,
-            pulseId: this.currentPulse.id,
+            pulseId: this.currentPulseId,
         };
     }
 
@@ -54,7 +55,11 @@ export class CoyoteLiveGame {
 
     constructor(client: DGLabWSClient) {
         this.client = client;
-        this.currentPulse = DGLabPulseService.instance.getDefaultPulse();
+        
+        if (this.client.pulseList.length > 0) { // 默认使用第一个脉冲
+            console.log('Selecting default pulse:', this.client.pulseList[0].id);
+            this.currentPulseId = this.client.pulseList[0].id;
+        }
     }
 
     async initialize(): Promise<void> {
@@ -71,11 +76,8 @@ export class CoyoteLiveGame {
 
         let cachedPulseId = configCache.get(`${configCachePrefix}:pulseId`);
         if (cachedPulseId) {
-            let cachedPulse = DGLabPulseService.instance.getPulse(cachedPulseId);
-            if (cachedPulse) {
-                this.currentPulse = cachedPulse;
-                hasCachedConfig = true;
-            }
+            this.currentPulseId = cachedPulseId;
+            hasCachedConfig = true;
         }
 
         if (hasCachedConfig) { // 有缓存配置时需要通知客户端
@@ -88,6 +90,15 @@ export class CoyoteLiveGame {
             this.destroy().catch((error) => {
                 console.error('Failed to destroy CoyoteLiveGame:', error);
             });
+        });
+
+        // 监听波形列表更新事件
+        clientEvents.on('pulseListUpdated', (pulseList) => {
+            this.events.emit('pulseListUpdated', pulseList);
+
+            if (!this.currentPulseId && pulseList.length > 0) {
+                this.handleConfigUpdated();
+            }
         });
 
         // 监听强度上报事件
@@ -129,12 +140,9 @@ export class CoyoteLiveGame {
             }
         }
 
-        if (config.pulseId !== this.currentPulse.id) {
-            let pulse = DGLabPulseService.instance.getPulse(config.pulseId);
-            if (pulse) {
-                this.currentPulse = pulse;
-                configUpdated = true;
-            }
+        if (config.pulseId && config.pulseId !== this.currentPulseId) {
+            this.currentPulseId = config.pulseId;
+            configUpdated = true;
         }
 
         if (configUpdated) {
@@ -153,35 +161,11 @@ export class CoyoteLiveGame {
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
         let nextRandomStrengthTime = randomInt(this.strengthConfig.minInterval, this.strengthConfig.maxInterval) * 1000;
 
-
         // 输出脉冲，直到下次随机强度时间
-        let totalDuration = 0;
-        for (let i = 0; i < 50; i++) {
-            let [pulseData, pulseDuration] = DGLabPulseService.instance.buildPulse(this.currentPulse);
-
-            await this.client.sendPulse(Channel.A, pulseData);
-            if (this.strengthConfig && this.strengthConfig.bChannelMultiplier) {
-                await this.client.sendPulse(Channel.B, pulseData);
-            }
-
-            totalDuration += pulseDuration;
-            if (totalDuration > nextRandomStrengthTime) {
-                break;
-            }
-        }
-
-        if (totalDuration < nextRandomStrengthTime) {
-            await asleep(nextRandomStrengthTime - totalDuration, ab);
-        } else {
-            await asleep(totalDuration + 200, ab);
-        }
-        harvest();
-
-        // 随机强度前先清空当前队列，避免强度突变
-        // await this.client.clearPulse(Channel.A);
-        // if (this.strengthConfig.bChannelMultiplier) {
-        //     await this.client.clearPulse(Channel.B);
-        // }
+        await this.client.outputPulse(this.currentPulseId, nextRandomStrengthTime, {
+            abortController: ab,
+            bChannel: !!(this.strengthConfig && this.strengthConfig.bChannelMultiplier),
+        });
 
         harvest();
 
@@ -201,7 +185,7 @@ export class CoyoteLiveGame {
             } catch (error) {
                 console.error('Failed to set strength:', error);
             }
-        }, 100);
+        }, 50);
     }
 
     /**
@@ -211,6 +195,8 @@ export class CoyoteLiveGame {
     public async startGame(ignoreEvent = false): Promise<void> {
         if (!this.gameTask) {
             // 初始化强度和脉冲
+            await this.client.reset();
+
             const initStrength = this.strengthConfig.strength;
             await this.client.setStrength(Channel.A, initStrength);
             if (this.strengthConfig.bChannelMultiplier) {
@@ -218,9 +204,6 @@ export class CoyoteLiveGame {
             } else {
                 await this.client.setStrength(Channel.B, 0);
             }
-
-            await this.client.clearPulse(Channel.A);
-            await this.client.clearPulse(Channel.B);
 
             this.gameTask = new Task((ab, harvest) => this.runGameTask(ab, harvest));
             this.gameTask.on('error', (error) => {
@@ -242,8 +225,7 @@ export class CoyoteLiveGame {
             await this.gameTask.abort();
             this.gameTask = null;
 
-            await this.client.clearPulse(Channel.A);
-            await this.client.clearPulse(Channel.B);
+            await this.client.reset();
 
             if (!ignoreEvent) {
                 this.events.emit('gameStopped');
@@ -274,13 +256,13 @@ export class CoyoteLiveGame {
         const configCachePrefix = `coyoteLiveGameConfig:${this.client.clientId}:`;
         const configCache  = CoyoteLiveGameManager.instance.configCache;
         configCache.set(`${configCachePrefix}:strength`, this.strengthConfig);
-        configCache.set(`${configCachePrefix}:pulseId`, this.currentPulse.id);
+        configCache.set(`${configCachePrefix}:pulseId`, this.currentPulseId);
 
         this.events.emit('close');
     }
 
-    public on: EventListenerFunc<CoyoteLiveGameEvents> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<CoyoteLiveGameEvents> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<CoyoteLiveGameEvents> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<CoyoteLiveGameEvents> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }

@@ -6,8 +6,7 @@ import { Channel, DGLabMessage, MessageDataHead, MessageType, RetCode, FeedbackB
 import { asleep } from '../../utils/utils';
 import { EventEmitter } from 'events';
 import { EventStore } from '../../utils/EventStore';
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../../types/event';
-import { DGLabPulseBaseInfo } from '../../services/DGLabPulse';
+import { DGLabPulseBaseInfo, DGLabPulseService } from '../../services/DGLabPulse';
 
 const HEARTBEAT_INTERVAL = 20.0;
 const HEARTBEAT_TIMEOUT = 20.0;
@@ -17,7 +16,12 @@ export interface StrengthInfo {
     limit: number;
 };
 
-export interface DGLabWSEvents extends EventDef {
+export interface OutputPulseOptions {
+    abortController?: AbortController;
+    bChannel?: boolean;
+}
+
+export interface DGLabWSEvents {
     pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
     strengthChanged: [strength: StrengthInfo, strength_b: StrengthInfo];
     setStrength: [channel: Channel, strength: number];
@@ -61,14 +65,17 @@ export class DGLabWSClient {
             }
         }
 
-        await this.clearPulse(Channel.A);
-        await this.clearPulse(Channel.B);
+        await this.reset();
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         this.heartbeatTask = setInterval(
             () => this.runHeartbeatTask(),
             HEARTBEAT_INTERVAL * 1000
         );
+
+        const pulseService = DGLabPulseService.instance;
+        this.pulseList = pulseService.pulseList;
+        this.events.emit("pulseListUpdated", this.pulseList);
     }
 
     public async send(messageType: MessageType | string, message: string | number): Promise<void> {
@@ -102,6 +109,7 @@ export class DGLabWSClient {
 
     public bindEvents() {
         const socketEvents = this.eventStore.wrap(this.socket);
+        const pulseServiceEvents = this.eventStore.wrap(DGLabPulseService.instance);
 
         socketEvents.on("message", async (data, isBinary) => {
             if (isBinary) {
@@ -123,6 +131,11 @@ export class DGLabWSClient {
             this.events.emit("close");
 
             this.destory();
+        });
+
+        pulseServiceEvents.on('pulseListUpdated', (pulseList) => {
+            this.pulseList = pulseList;
+            this.events.emit("pulseListUpdated", pulseList);
         });
     }
 
@@ -199,7 +212,7 @@ export class DGLabWSClient {
         this.events.emit("setStrength", channel, strength);
     }
 
-    public async sendPulse(channel: Channel, pulse: string[]): Promise<void> {
+    private async sendPulse(channel: Channel, pulse: string[]): Promise<void> {
         const pulse_str = JSON.stringify(pulse);
 
         const channel_id = channel === Channel.A ? "A" : "B";
@@ -209,12 +222,56 @@ export class DGLabWSClient {
         this.events.emit("sendPulse", channel, pulse);
     }
 
-    public async clearPulse(channel: Channel): Promise<void> {
+    private async clearPulse(channel: Channel): Promise<void> {
         const channel_id = channel === Channel.A ? "1" : "2";
 
         await this.send(MessageType.MSG, `${MessageDataHead.CLEAR}-${channel_id}`);
 
         this.events.emit("clearPulse", channel);
+    }
+
+    public async outputPulse(pulseId: string, time: number, options: OutputPulseOptions = {}) {
+        // 输出脉冲，直到下次随机强度时间
+        let totalDuration = 0;
+        const pulseService = DGLabPulseService.instance;
+        const currentPulseInfo = pulseService.getPulse(pulseId) ?? pulseService.getDefaultPulse();
+
+        let startTime = Date.now();
+
+        for (let i = 0; i < 50; i++) {
+            let [pulseData, pulseDuration] = pulseService.buildPulse(currentPulseInfo);
+
+            await this.sendPulse(Channel.A, pulseData);
+            if (options.bChannel) {
+                await this.sendPulse(Channel.B, pulseData);
+            }
+
+            totalDuration += pulseDuration;
+            if (totalDuration > time) {
+                break;
+            }
+        }
+
+        let netDuration = Date.now() - startTime;
+
+        let finished = true;
+        if (totalDuration < time) {
+            finished = await asleep(time - totalDuration - netDuration, options.abortController);
+        } else {
+            finished = await asleep(totalDuration + 200 - netDuration, options.abortController);
+        }
+
+        if (!finished) {
+            await this.clearPulse(Channel.A);
+            if (options.bChannel) {
+                await this.clearPulse(Channel.B);
+            }
+        }
+    }
+
+    public async reset() {
+        await this.clearPulse(Channel.A);
+        await this.clearPulse(Channel.B);
     }
 
     public async close() {
@@ -237,8 +294,8 @@ export class DGLabWSClient {
         this.events.removeAllListeners();
     }
 
-    public on: EventListenerFunc<DGLabWSEvents> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<DGLabWSEvents> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<DGLabWSEvents> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<DGLabWSEvents> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }

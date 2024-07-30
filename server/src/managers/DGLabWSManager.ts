@@ -5,9 +5,8 @@ import { wrapAsyncWebSocket } from '../utils/WebSocketAsync';
 import { RetCode } from '../types/dg';
 import { DGLabWSClient } from '../controllers/ws/DGLabWS';
 import { OnExit } from '../utils/onExit';
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../types/event';
 
-export interface DGLabWSManagerEventsListener extends EventDef {
+export interface DGLabWSManagerEventsListener {
     clientConnected: [client: DGLabWSClient];
 };
 
@@ -96,10 +95,10 @@ export class DGLabWSManager {
         this.events.removeAllListeners();
     }
 
-    public on: EventListenerFunc<DGLabWSManagerEventsListener> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<DGLabWSManagerEventsListener> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<DGLabWSManagerEventsListener> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<DGLabWSManagerEventsListener> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }
 
 DGLabWSManager.createInstance();

@@ -3,9 +3,8 @@ import { CoyoteLiveGame } from "../controllers/game/CoyoteLiveGame";
 import { DGLabWSClient } from "../controllers/ws/DGLabWS";
 import { DGLabWSManager } from "./DGLabWSManager";
 import { LRUCache } from "lru-cache";
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from "../types/event";
 
-export interface CoyoteLiveGameManagerEvents extends EventDef {
+export interface CoyoteLiveGameManagerEvents {
     gameCreated: [clientId: string, game: CoyoteLiveGame];
 }
 
@@ -67,10 +66,10 @@ export class CoyoteLiveGameManager {
         return this.games.values();
     }
 
-    public on: EventListenerFunc<CoyoteLiveGameManagerEvents> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<CoyoteLiveGameManagerEvents> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<CoyoteLiveGameManagerEvents> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<CoyoteLiveGameManagerEvents> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }
 
 CoyoteLiveGameManager.createInstance();

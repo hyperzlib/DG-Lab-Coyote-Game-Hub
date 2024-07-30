@@ -3,20 +3,20 @@ import { exec } from "child_process";
 
 export const asleep = (ms: number, abortController?: AbortController) => {
     if (abortController) {
-        const promise = new Promise<void>((resolve) => {
+        const promise = new Promise<boolean>((resolve) => {
             let resolved = false;
 
             const onAbort = () => {
                 if (!resolved) {
                     clearTimeout(tid);
-                    resolve();
+                    resolve(false);
                 }
             };
 
             abortController.signal.addEventListener('abort', onAbort, { once: true });
 
             const tid = setTimeout(() => {
-                resolve();
+                resolve(true);
                 resolved = true;
                 abortController.signal.removeEventListener('abort', onAbort);
             }, ms);
@@ -24,7 +24,7 @@ export const asleep = (ms: number, abortController?: AbortController) => {
 
         return promise;
     } else {
-        return new Promise<void>((resolve) => setTimeout(resolve, ms));
+        return new Promise<boolean>((resolve) => setTimeout(() => resolve(true), ms));
     }
 };
 

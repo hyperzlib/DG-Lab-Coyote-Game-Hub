@@ -22,6 +22,7 @@ const state = reactive({
   pulseList: null as PulseItemResponse[] | null,
   currentPulseId: '',
 
+  clientType: 'unknown' as 'unknown' | 'dglab' | 'dghelper',
   clientId: '',
   clientWsUrlList: null as ClientConnectUrlInfo[] | null,
 
@@ -131,6 +132,8 @@ const initWebSocket = async () => {
     console.log('DG-Lab client disconnected');
 
     state.clientStatus = 'waiting';
+    state.gameStarted = false;
+    
     dgClientConnected = false;
   });
 
@@ -337,7 +340,7 @@ watch(gameConfig, () => {
         <template #header>
           <Toolbar class="controller-toolbar">
             <template #start>
-              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接DG-Lab"
+              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接"
                 @click="showConnectionDialog()"></Button>
               <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
                 <i class="pi pi-circle-off"></i>
@@ -415,7 +418,10 @@ watch(gameConfig, () => {
           <Divider></Divider>
           <h2 class="font-bold text-xl mt-4 mb-2">波形选择</h2>
           <FadeAndSlideTransitionGroup>
-            <div v-if="state.pulseList" class="grid justify-center grid-cols-3 md:grid-cols-5 gap-4">
+            <div v-if="state.clientStatus !== 'connected'" class="flex justify-center py-4">
+              <div class="opacity-60">请先连接到客户端</div>
+            </div>
+            <div v-else-if="state.pulseList" class="grid justify-center grid-cols-3 md:grid-cols-5 gap-4">
               <ToggleButton v-for="pulseInfo in state.pulseList" class="pulse-btn"
                 :model-value="state.currentPulseId === pulseInfo.id" :onLabel="pulseInfo.name"
                 :offLabel="pulseInfo.name" @update:model-value="setPulse(pulseInfo.id)" onIcon="pi pi-wave-pulse"

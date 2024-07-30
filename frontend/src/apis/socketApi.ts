@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { EventEmitter } from "eventemitter3";
+import { EventDef, EventAddListenerFunc, EventRemoveListenerFunc } from "../utils/event";
 
 export type WebSocketMessage = {
     action: string;
@@ -41,17 +42,17 @@ export type CoyoteLiveGameConfig = {
     pulseId: string;
 }
 
-export interface SocketApiEventListeners {
-    (event: 'error', listener: (error: any) => void): void;
-    (event: 'open', listener: () => void): void;
-    (event: 'pulseListUpdated', listener: (pulseList: PulseItemResponse[]) => void): void;
-    (event: 'clientConnected', listener: () => void): void;
-    (event: 'clientDisconnected', listener: () => void): void;
-    (event: 'gameInitialized', listener: () => void): void;
-    (event: 'gameStarted', listener: () => void): void;
-    (event: 'gameStopped', listener: () => void): void;
-    (event: 'strengthChanged', listener: (strength: StrengthInfo) => void): void;
-    (event: 'configUpdated', listener: (config: CoyoteLiveGameConfig) => void): void;
+export interface SocketApiEventListeners extends EventDef {
+    error: [error: any];
+    open: [];
+    pulseListUpdated: [pulseList: PulseItemResponse[]];
+    clientConnected: [clientType: string];
+    clientDisconnected: [];
+    gameInitialized: [];
+    gameStarted: [];
+    gameStopped: [];
+    strengthChanged: [strength: StrengthInfo];
+    configUpdated: [config: CoyoteLiveGameConfig];
 }
 
 export class SocketApi {
@@ -78,9 +79,9 @@ export class SocketApi {
         this.init();
     }
 
-    public on: SocketApiEventListeners = this.events.on.bind(this.events);
-    public once: SocketApiEventListeners = this.events.once.bind(this.events);
-    public off = this.events.off.bind(this.events);
+    public on: EventAddListenerFunc<SocketApiEventListeners> = this.events.on.bind(this.events);
+    public once: EventAddListenerFunc<SocketApiEventListeners> = this.events.once.bind(this.events);
+    public off: EventRemoveListenerFunc<SocketApiEventListeners> = this.events.off.bind(this.events);
 
     public async send(data: WebSocketMessage): Promise<string> {
         data.requestId = uuidv4();

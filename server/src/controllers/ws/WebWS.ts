@@ -2,11 +2,9 @@ import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { AsyncWebSocket } from '../../utils/WebSocketAsync';
 import { EventStore } from '../../utils/EventStore';
-import { DGLabPulseService } from '../../services/DGLabPulse';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
 import { validator } from '../../utils/validator';
-import { EventDef, EventListenerFunc, EventRemoveAllFunc } from '../../types/event';
 
 export type WebWSPostMessage = {
     event: string;
@@ -14,7 +12,7 @@ export type WebWSPostMessage = {
     data?: any;
 };
 
-export interface WebWSClientEvents extends EventDef {
+export interface WebWSClientEvents {
     close: [];
 };
 
@@ -37,8 +35,6 @@ export class WebWSClient {
     public async initialize(): Promise<void> {
         this.bindEvents();
 
-        await this.sendPulseList(); // 发送波形列表
-
         this.heartbeatTask = setInterval(() => this.taskHeartbeat(), 15000);
     }
 
@@ -59,23 +55,8 @@ export class WebWSClient {
         });
     }
 
-    public async sendPulseList(): Promise<void> {
-        const pulseList = DGLabPulseService.instance.pulseList.map((pulse) => {
-            return {
-                id: pulse.id,
-                name: pulse.name,
-            };
-        });
-
-        await this.send({
-            event: 'pulseListUpdated',
-            data: pulseList,
-        });
-    }
-
     public bindEvents() {
         const gameManagerEvents = this.eventStore.wrap(CoyoteLiveGameManager.instance);
-        const pulseServiceEvents = this.eventStore.wrap(DGLabPulseService.instance);
         const socketEvents = this.eventStore.wrap(this.socket);
 
         gameManagerEvents.on("gameCreated", async (clientId, gameInstance) => {
@@ -84,10 +65,6 @@ export class WebWSClient {
             }
 
             this.connectToGame(gameInstance, true);
-        });
-
-        pulseServiceEvents.on("pulseListUpdated", async () => {
-            await this.sendPulseList();
         });
 
         socketEvents.on("message", async (data, isBinary) => {
@@ -260,9 +237,19 @@ export class WebWSClient {
 
         this.gameInstance = gameInstance;
 
+        // 发送连接事件
         await this.send({
             event: 'clientConnected',
+            data: {
+                clientType: gameInstance.clientType,
+            }
         });
+
+        // 发送波形列表
+        await this.send({
+            event: 'pulseListUpdated',
+            data: gameInstance.client.pulseList,
+        })
 
         const gameEvents = this.gameEventStore.wrap(gameInstance);
         gameEvents.on("close", () => {
@@ -270,6 +257,13 @@ export class WebWSClient {
 
             this.send({
                 event: 'clientDisconnected',
+            });
+        });
+
+        gameEvents.on("pulseListUpdated", async (pulseList) => {
+            await this.send({
+                event: 'pulseListUpdated',
+                data: pulseList,
             });
         });
 
@@ -368,8 +362,8 @@ export class WebWSClient {
         this.events.removeAllListeners();
     }
 
-    public on: EventListenerFunc<WebWSClientEvents> = this.events.on.bind(this.events);
-    public once: EventListenerFunc<WebWSClientEvents> = this.events.once.bind(this.events);
-    public off: EventListenerFunc<WebWSClientEvents> = this.events.off.bind(this.events);
-    public removeAllListeners: EventRemoveAllFunc<WebWSClientEvents> = this.events.removeAllListeners.bind(this.events);
+    public on = this.events.on.bind(this.events);
+    public once = this.events.once.bind(this.events);
+    public off = this.events.off.bind(this.events);
+    public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }

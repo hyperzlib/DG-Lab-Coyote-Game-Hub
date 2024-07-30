@@ -217,7 +217,6 @@ export class CoyoteLiveGame {
             if (this.strengthConfig.randomStrength) {
                 // 随机强度
                 nextStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
-                nextStrength += randomInt(0, this.strengthConfig.randomStrength);
                 nextStrength = Math.min(nextStrength, this.clientStrength.limit);
             }
         }

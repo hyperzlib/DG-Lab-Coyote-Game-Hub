@@ -406,5 +406,12 @@ export class GameApiController {
 
             successClientIds.add(game.clientId);
         }
+
+        ctx.body = {
+            status: 1,
+            code: 'OK',
+            message: `成功向 ${successClientIds.size} 个游戏发送了一键开火指令`,
+            successClientIds: Array.from(successClientIds),
+        };
     }
 }

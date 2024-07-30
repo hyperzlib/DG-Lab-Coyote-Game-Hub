@@ -27,7 +27,7 @@ export type SetStrengthConfigRequest = {
 
 export type FireRequest = {
     strength: number;
-    time: number;
+    time?: number;
 };
 
 export class GameApiController {
@@ -85,8 +85,15 @@ export class GameApiController {
             ctx.body = {
                 status: 1,
                 code: 'OK',
+                clientType: game.clientType,
                 gameConfig: game.gameConfig,
                 clientStrength: game.clientStrength,
+            };
+        } else {
+            ctx.body = {
+                status: 0,
+                code: 'ERR::GAME_NOT_FOUND',
+                message: '游戏进程不存在，可能是客户端未连接',
             };
         }
     }
@@ -337,11 +344,32 @@ export class GameApiController {
         }
 
         const req = ctx.request.body as FireRequest;
+
+        if (typeof req.strength !== 'number') {
+            ctx.body = {
+                status: 0,
+                code: 'ERR::INVALID_REQUEST',
+                message: '无效的请求，需要 "strength" 参数',
+            };
+            return;
+        }
+
         if (req.strength > 30) {
             ctx.body = {
                 status: 0,
                 code: 'ERR::INVALID_STRENGTH',
-                message: '一键开火强度值不得超过 30',
+                message: '一键开火强度值不能超过 30',
+            };
+            return;
+        }
+
+        const fireTime = req.time ?? 5000;
+
+        if (fireTime > 30000) {
+            ctx.body = {
+                status: 0,
+                code: 'ERR::INVALID_TIME',
+                message: '一键开火时间不能超过 30000ms',
             };
             return;
         }
@@ -374,7 +402,7 @@ export class GameApiController {
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
-            game.fire(req.strength, req.time);
+            game.fire(req.strength, fireTime);
 
             successClientIds.add(game.clientId);
         }

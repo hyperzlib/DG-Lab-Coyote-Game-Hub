@@ -238,6 +238,21 @@ POST /api/game/{clientId}/fire
 }
 ```
 
+使用JSON POST格式发送请求的Post Body：
+
+```json5
+{
+    "strength": 20,
+    "time": 5000
+}
+```
+
+使用x-www-form-urlencoded格式发送请求的Post Body：
+
+```html
+strength=20&time=5000
+```
+
 强度配置在服务端已做限制，不会超出范围。
 
 ### 响应

@@ -46,7 +46,7 @@ jobs:
     - name: Migrate files
       run: npm run build:migrate
     - name: Build nodejs release
-      run: npm run build:pkg:clean && npm run build:pkg:assets && build:pkg:nodejs
+      run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:nodejs
     - name: Move Files to artifact dir
       run: mkdir -p artifacts && mv build artifacts/coyote-streaming-widget
     - name: Archive nodejs artifact

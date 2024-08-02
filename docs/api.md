@@ -121,7 +121,7 @@ type SetStrengthConfigRequest = {
 }
 ```
 
-发送请求时，需要发送 JSON POST 请求，例如：
+使用JSON POST格式发送请求的Post Body：
 
 ```json5
 {
@@ -129,6 +129,12 @@ type SetStrengthConfigRequest = {
         "add": 1
     }
 }
+```
+
+使用x-www-form-urlencoded格式发送请求的Post Body：
+
+```html
+strength.add=1
 ```
 
 强度配置在服务端已做限制，不会超出范围。插件可以随意发送请求，不需要担心超出范围。
@@ -174,10 +180,18 @@ POST /api/game/{clientId}/pulse_id
 
 如果服务器配置```allowBroadcastToClients: true```，可以将请求地址中的```{clientId}```设置为```all```，将设置到所有客户端。
 
+使用JSON POST格式发送请求的Post Body：
+
 ```json5
 {
     "pulseId": "pulse-1" // 脉冲ID
 }
+```
+
+使用x-www-form-urlencoded格式发送请求的Post Body：
+
+```html
+pulseId=pulse-1
 ```
 
 ### 响应

@@ -145,6 +145,18 @@ export class GameApiController {
             return;
         }
 
+        // fix for x-www-form-urlencoded
+        const postBody = ctx.request.body;
+        for (const key1 in postBody) {
+            if (typeof postBody[key1] === 'object') {
+                for (const key2 in postBody[key1]) {
+                    if (postBody[key1][key2]) {
+                        postBody[key1][key2] = parseInt(postBody[key1][key2]);
+                    }
+                }
+            }
+        }
+
         let gameList: Iterable<CoyoteLiveGame> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
@@ -173,13 +185,13 @@ export class GameApiController {
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
-            const req = ctx.request.body as SetStrengthConfigRequest;
+            const req = postBody as SetStrengthConfigRequest;
 
             let strengthConfig = { ...game.gameConfig.strength };
             
             if (req.strength) {
                 let targetMinStrength = strengthConfig.strength;
-                if (typeof req.strength.add === 'number') {
+                if (typeof req.strength.add === 'number' || typeof req.strength.add === 'string') {
                     targetMinStrength += req.strength.add;
                 } else if (typeof req.strength.sub === 'number') {
                     targetMinStrength -= req.strength.sub;
@@ -343,7 +355,15 @@ export class GameApiController {
             return;
         }
 
-        const req = ctx.request.body as FireRequest;
+        // fix for x-www-form-urlencoded
+        const postBody = ctx.request.body;
+        for (const key in postBody) {
+            if (postBody[key]) {
+                postBody[key] = parseInt(postBody[key]);
+            }
+        }
+
+        const req = postBody as FireRequest;
 
         if (typeof req.strength !== 'number') {
             ctx.body = {

@@ -1,0 +1,10 @@
+{
+    "repo": "hyperzlib/DG-Lab-Coyote-Streaming-Widget",
+    "version": "0.4.0",
+    "description": "1. 增加更新检测功能\n2. GameAPI增加application/x-www-form-urlencoded支持",
+    "releaseFile": {
+        "windows": "coyote-streaming-widget-windows-amd64-dist.zip",
+        "linux": "coyote-streaming-widget-nodejs-server.zip",
+        "mac": "coyote-streaming-widget-nodejs-server.zip"
+    }
+}

@@ -146,7 +146,9 @@ strength.add=1
     "status": 1,
     "code": "OK",
     "message": "成功设置了 1 个游戏的强度配置",
-    "successNum": 1
+    "successClientIds": [
+        "3ab0773d-69d0-41af-b74b-9c6ce6507f65"
+    ]
 }
 ```
 
@@ -212,5 +214,41 @@ pulseId=pulse-1
     "status": 0,
     "code": "ERR::INVALID_REQUEST",
     "message": "请求参数不正确"
+}
+```
+
+
+## 一键开火
+
+```sh
+POST /api/game/{clientId}/fire
+```
+
+### 请求参数
+
+如果服务器配置```allowBroadcastToClients: true```，可以将请求地址中的```{clientId}```设置为```all```，将设置到所有客户端。
+
+
+以下是请求参数的类型定义：
+
+```json5
+{
+    "strength": 20, // 一键开火强度，最高30
+    "time": 5000 // 一键开火时间，单位：毫秒，默认为5000，最高30000（30秒）
+}
+```
+
+强度配置在服务端已做限制，不会超出范围。
+
+### 响应
+
+```json5
+{
+    "status": 1,
+    "code": "OK",
+    "message": "成功向 1 个游戏发送了一键开火指令",
+    "successClientIds": [
+        "3ab0773d-69d0-41af-b74b-9c6ce6507f65"
+    ]
 }
 ```

@@ -21,7 +21,7 @@ let serverInfo: ServerInfoResData;
 let wsClient: SocketApi;
 
 const chartVal = computed(() => ({
-  valLow: state.strength + state.tempStrength,
+  valLow: Math.min(state.strength + state.tempStrength, state.strengthLimit),
   valHigh: Math.min(state.strength + state.tempStrength + state.randomStrength, state.strengthLimit),
   valLimit: state.strengthLimit,
 }))

@@ -67,7 +67,7 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
 });
 
 const chartVal = computed(() => ({
-  valLow: state.strengthVal + state.tempStrength,
+  valLow: Math.min(state.strengthVal + state.tempStrength, state.strengthLimit),
   valHigh: Math.min(state.strengthVal + state.tempStrength + state.randomStrengthVal, state.strengthLimit),
   valLimit: state.strengthLimit,
 }))

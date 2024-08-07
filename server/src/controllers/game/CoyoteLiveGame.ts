@@ -268,6 +268,7 @@ export class CoyoteLiveGame {
             if (this.fireStrength) { // 一键开火时，增加初始强度
                 initStrength += this.fireStrength;
             }
+            initStrength = Math.min(initStrength, this.clientStrength.limit); // 限制初始强度不超过限制
 
             // 设置初始强度
             await this.client.setStrength(Channel.A, initStrength);

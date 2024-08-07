@@ -13,6 +13,8 @@ const state = reactive({
   randomStrengthVal: 5,
   strengthLimit: 20,
 
+  tempStrength: 0,
+
   randomFreqLow: 10,
   randomFreqHigh: 15,
 
@@ -65,8 +67,8 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
 });
 
 const chartVal = computed(() => ({
-  valLow: state.strengthVal,
-  valHigh: Math.min(state.strengthVal + state.randomStrengthVal, state.strengthLimit),
+  valLow: state.strengthVal + state.tempStrength,
+  valHigh: Math.min(state.strengthVal + state.tempStrength + state.randomStrengthVal, state.strengthLimit),
   valLimit: state.strengthLimit,
 }))
 
@@ -152,6 +154,7 @@ const initWebSocket = async () => {
 
   wsClient.on('strengthChanged', (strength) => {
     state.strengthLimit = strength.limit;
+    state.tempStrength = strength.tempStrength;
   });
 
   wsClient.on('configUpdated', (config) => {

@@ -4,9 +4,11 @@ import { ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
 
 const state = reactive({
-    valLow: 0,
-    valHigh: 0,
-    valLimit: 50,
+    strength: 0,
+    randomStrength: 0,
+    strengthLimit: 50,
+
+    tempStrength: 0,
 
     clientId: '',
 
@@ -17,6 +19,12 @@ const state = reactive({
 
 let serverInfo: ServerInfoResData;
 let wsClient: SocketApi;
+
+const chartVal = computed(() => ({
+  valLow: state.strength + state.tempStrength,
+  valHigh: Math.min(state.strength + state.tempStrength + state.randomStrength, state.strengthLimit),
+  valLimit: state.strengthLimit,
+}))
 
 const initServerInfo = async () => {
   try {
@@ -41,15 +49,15 @@ const initWebSocket = async () => {
   });
 
   wsClient.on('strengthChanged', (strength) => {
-    state.valLimit = strength.limit;
+    state.strengthLimit = strength.limit;
+    state.tempStrength = strength.tempStrength;
   });
 
   wsClient.on('configUpdated', (config) => {
-    state.valLow = config.strength.strength;
-    state.valHigh = config.strength.randomStrength;
+    state.strength = config.strength.strength;
+    state.randomStrength = config.strength.randomStrength;
     
-    state.valLow = Math.min(state.valLow, state.valLimit);
-    state.valHigh = Math.min(state.valLow + state.valHigh, state.valLimit);
+    state.strength = Math.min(state.strength, state.strengthLimit); // 限制当前值不超过上限
   });
 
   wsClient.on('gameStarted', () => {
@@ -89,9 +97,9 @@ onMounted(async () => {
 <template>
     <div class="w-full h-full">
         <StatusChart
-            :val-low="state.valLow"
-            :val-high="state.valHigh"
-            :val-limit="state.valLimit"
+            :val-low="chartVal.valLow"
+            :val-high="chartVal.valHigh"
+            :val-limit="chartVal.valLimit"
             :running="state.gameStarted"
             readonly
         />

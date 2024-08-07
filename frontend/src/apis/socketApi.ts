@@ -24,9 +24,10 @@ export type PulseItemResponse = {
     name: string;
 };
 
-export type StrengthInfo = {
+export type GameStrengthInfo = {
     strength: number;
     limit: number;
+    tempStrength: number;
 };
 
 export type GameStrengthConfig = {
@@ -51,7 +52,7 @@ export interface SocketApiEventListeners extends EventDef {
     gameInitialized: [];
     gameStarted: [];
     gameStopped: [];
-    strengthChanged: [strength: StrengthInfo];
+    strengthChanged: [strength: GameStrengthInfo];
     configUpdated: [config: CoyoteLiveGameConfig];
 }
 

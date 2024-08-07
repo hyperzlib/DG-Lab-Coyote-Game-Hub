@@ -8,12 +8,15 @@ import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGameConfig, GameStrengthConfig } from '../../types/game';
 import { DGLabPulseBaseInfo } from '../../services/DGLabPulse';
-import { str } from 'ajv';
+
+export type GameStrengthInfo = StrengthInfo & {
+    tempStrength: number;
+};
 
 export interface CoyoteLiveGameEvents {
     close: [];
     pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
-    strengthChanged: [strength: StrengthInfo];
+    strengthChanged: [strength: GameStrengthInfo];
     configUpdated: [config: CoyoteLiveGameConfig];
     gameStarted: [];
     gameStopped: [];
@@ -58,6 +61,13 @@ export class CoyoteLiveGame {
 
     public get clientStrength(): StrengthInfo {
         return this.client.strength;
+    }
+
+    public get gameStrength(): GameStrengthInfo {
+        return {
+            ...this.client.strength,
+            tempStrength: this.fireStrength,
+        };
     }
 
     constructor(client: DGLabWSClient) {
@@ -115,7 +125,7 @@ export class CoyoteLiveGame {
                 configUpdated = true;
             }
             
-            this.events.emit('strengthChanged', strength);
+            this.events.emit('strengthChanged', this.gameStrength);
 
             if (configUpdated) {
                 this.handleConfigUpdated();
@@ -170,6 +180,9 @@ export class CoyoteLiveGame {
             this.fireStrength = strength;
             this.fireEndTimestamp = Date.now() + duration;
 
+            // 通知强度变化
+            this.events.emit('strengthChanged', this.gameStrength);
+
             this.restartGame().catch((err: any) => {
                 console.error('Failed to restart game:', err);
             }); // 一键开火时需要重启游戏Task
@@ -178,6 +191,14 @@ export class CoyoteLiveGame {
             this.fireStrength = Math.max(this.fireStrength, strength);
             this.fireEndTimestamp += duration;
         }
+    }
+
+    private onFireEnd() {
+        this.fireStrength = 0;
+        this.fireEndTimestamp = 0;
+
+        // 通知强度变化
+        this.events.emit('strengthChanged', this.gameStrength);
     }
 
     private handleConfigUpdated(): void {
@@ -208,9 +229,7 @@ export class CoyoteLiveGame {
         let nextStrength: number | null = null;
         if (this.fireStrength) {
             if (Date.now() > this.fireEndTimestamp) { // 一键开火结束
-                this.fireStrength = 0;
-                this.fireEndTimestamp = 0;
-
+                this.onFireEnd();
                 nextStrength = this.strengthConfig.strength; // 一键开火结束后恢复到初始强度
             }
         } else {

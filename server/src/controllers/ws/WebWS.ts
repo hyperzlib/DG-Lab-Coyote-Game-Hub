@@ -137,7 +137,7 @@ export class WebWSClient {
 
             await this.send({
                 event: 'strengthChanged',
-                data: gameInstance.clientStrength,
+                data: gameInstance.gameStrength,
             });
 
             await this.send({
@@ -301,7 +301,7 @@ export class WebWSClient {
             
             await this.send({
                 event: 'strengthChanged',
-                data: gameInstance.clientStrength,
+                data: gameInstance.gameStrength,
             });
         } else {
             // 如果游戏已经开始，发送游戏开始事件
@@ -314,7 +314,7 @@ export class WebWSClient {
             // 使用服务器端的强度和配置覆盖客户端的信息
             await this.send({
                 event: 'strengthChanged',
-                data: gameInstance.clientStrength,
+                data: gameInstance.gameStrength,
             });
 
             await this.send({

@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Streaming-Widget",
-    "version": "0.4.1",
-    "description": "1. 修复一键开火超过上限时出现问题",
+    "version": "0.4.2",
+    "description": "1. 修复强度为0时一键开火不结束的问题",
     "releaseFile": {
         "windows": "coyote-streaming-widget-windows-amd64-dist.zip",
         "linux": "coyote-streaming-widget-nodejs-server.zip",

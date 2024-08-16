@@ -1,7 +1,7 @@
 {
-  "name": "dg-lab-streaming-widget-server",
+  "name": "coyote-game-hub-server",
   "version": "1.0.0",
-  "description": "郊狼直播小组件",
+  "description": "战败惩罚——郊狼游戏控制器",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx src/index.ts",

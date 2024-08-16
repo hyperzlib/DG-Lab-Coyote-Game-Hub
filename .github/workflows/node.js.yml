@@ -49,20 +49,20 @@ jobs:
     - name: Build nodejs release
       run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:nodejs
     - name: Move Files to artifact dir
-      run: mkdir -p artifacts && mv build artifacts/coyote-streaming-widget
+      run: mkdir -p artifacts && mv build artifacts/coyote-game-hub
     - name: Archive nodejs artifact
       uses: actions/upload-artifact@v4
       with:
-        name: coyote-streaming-widget-nodejs-server
+        name: coyote-game-hub-nodejs-server
         path: |
           artifacts
     - name: Build Windows executable
       run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:win
     - name: Move Files to artifact dir
-      run: mkdir -p artifacts && mv build artifacts/coyote-streaming-widget
+      run: mkdir -p artifacts && mv build artifacts/coyote-game-hub
     - name: Archive Windows artifact
       uses: actions/upload-artifact@v4
       with:
-        name: coyote-streaming-widget-windows-amd64-dist
+        name: coyote-game-hub-windows-amd64-dist
         path: |
           artifacts

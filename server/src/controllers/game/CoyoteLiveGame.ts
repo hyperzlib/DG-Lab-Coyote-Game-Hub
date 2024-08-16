@@ -240,7 +240,7 @@ export class CoyoteLiveGame {
             }
         }
 
-        if (nextStrength) {
+        if (nextStrength !== null) {
             setTimeout(async () => {
                 try {
                     await this.client.setStrength(Channel.A, nextStrength);

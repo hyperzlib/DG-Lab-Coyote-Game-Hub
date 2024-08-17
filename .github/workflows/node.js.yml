@@ -56,6 +56,8 @@ jobs:
         name: coyote-game-hub-nodejs-server
         path: |
           artifacts
+    - name: Clean up
+      run: rm -rf artifacts
     - name: Build Windows executable
       run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:win
     - name: Move Files to artifact dir

@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "0.4.2",
-    "description": "1. 修复强度为0时一键开火不结束的问题",
+    "version": "0.5.0",
+    "description": "1. 修改波形配置文件格式\n2. 添加DG-Lab自带波形",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

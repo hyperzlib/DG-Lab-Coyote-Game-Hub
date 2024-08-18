@@ -1,16 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import yaml from 'js-yaml';
+import JSON5 from 'json5';
+import { v4 as uuid4 } from 'uuid';
 import { EventEmitter } from 'events';
-import { randomInt } from '../utils/utils';
+import { ReactiveConfig } from '@hyperzlib/node-reactive-config';
 
-const PULSE_WINDOW = 100; // 100ms
-
-export interface DGLabPulseScript {
-    pulse?: string[];
-    wait?: number | number[];
-    repeat?: number | number[];
-}
+ReactiveConfig.addParser('json5', {
+    parse: JSON5.parse,
+    stringify: (value) => JSON5.stringify(value, null, 4),
+});
 
 export interface DGLabPulseBaseInfo {
     id: string;
@@ -18,21 +16,31 @@ export interface DGLabPulseBaseInfo {
 }
 
 export interface DGLabPulseInfo extends DGLabPulseBaseInfo {
-    script: DGLabPulseScript[];
+    pulseData: string[];
 }
 
 export interface DGLabPulseServiceEvents {
     pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
 }
 
+export const PULSE_WINDOW = 100;
+
 export class DGLabPulseService {
     public pulseList: DGLabPulseInfo[] = [];
+    private pulseConfig: ReactiveConfig<DGLabPulseInfo[]>;
 
-    private pulseConfig = 'data/pulse.yaml';
-    private fsObserver: fs.FSWatcher | null = null;
+    private pulseQRDir = 'data/pulse-qrcode';
+    private pulseConfigPath = 'data/pulse.json5';
+
     private events = new EventEmitter<DGLabPulseServiceEvents>();
 
     private static _instance: DGLabPulseService;
+
+    constructor() {
+        this.pulseConfig = new ReactiveConfig<DGLabPulseInfo[]>(this.pulseConfigPath, [], {
+            autoInit: false,
+        });
+    }
 
     public static createInstance() {
         if (!this._instance) {
@@ -46,50 +54,27 @@ export class DGLabPulseService {
     }
 
     public async initialize(): Promise<void> {
-        await this.readConfig();
-        await this.watchConfig();
+        this.pulseConfig.on('data', (value) => {
+            console.log('Pulse list updated.');
+            this.pulseList = value;
+            this.events.emit('pulseListUpdated', this.getPulseInfoList());
+        });
+
+        await this.pulseConfig.initialize();
     }
 
     public async destroy(): Promise<void> {
-        if (this.fsObserver) {
-            this.fsObserver.close();
-        }
+        this.pulseConfig.destroy();
 
         this.events.removeAllListeners();
     }
 
-    private async readConfig(): Promise<void> {
-        try {
-            const fileContent = await fs.promises.readFile(this.pulseConfig, 'utf8');
-            this.pulseList = yaml.load(fileContent) as DGLabPulseInfo[];
-        } catch (error: any) {
-            if (error.code !== 'ENOENT') {
-                console.error('Failed to read pulse config:', error);
-            }
-        }
-
-        if (!Array.isArray(this.pulseList)) {
-            this.pulseList = [];
-        }
-    }
-
-    private async watchConfig(): Promise<void> {
-        const pulseConfigDir = path.dirname(this.pulseConfig);
-
-        this.fsObserver = fs.watch(pulseConfigDir, async (eventType, filename) => {
-            if (eventType === 'change' && filename === path.basename(this.pulseConfig)) {
-                await this.readConfig();
-                this.events.emit('pulseListUpdated', this.getPulseInfoList());
-            }
-        });
-    }
-
     public getDefaultPulse(): DGLabPulseInfo {
         return this.pulseList[0] ?? {
-            id: 'default',
-            name: 'Default',
-            script: [{ wait: 1000 }],
-        }
+            id: 'empty',
+            name: 'Empty',
+            pulseData: ['0A0A0A0A00000000'],
+        };
     }
 
     public getPulseInfoList(): DGLabPulseBaseInfo[] {
@@ -100,45 +85,9 @@ export class DGLabPulseService {
         return this.pulseList.find(pulse => pulse.id === pulseId) ?? null;
     }
 
-    public buildPulse(pulse: DGLabPulseInfo): [string[], number] {
-        let totalDuration = 0;
-        const pulseItems: string[] = [];
-        const script = pulse.script;
-
-        for (const scriptItem of script) {
-            let repeatTimes = 1;
-            if (scriptItem.repeat) {
-                if (Array.isArray(scriptItem.repeat)) {
-                    repeatTimes = randomInt(scriptItem.repeat[0], scriptItem.repeat[1]);
-                } else {
-                    repeatTimes = scriptItem.repeat;
-                }
-            }
-
-            for (let i = 0; i < repeatTimes; i ++) {
-                if (scriptItem.pulse) {
-                    const pulseTime = PULSE_WINDOW * scriptItem.pulse.length;
-                    pulseItems.push(...scriptItem.pulse);
-                    totalDuration += pulseTime;
-                }
-
-                if (scriptItem.wait) {
-                    let waitTime: number;
-                    if (Array.isArray(scriptItem.wait)) {
-                        waitTime = randomInt(scriptItem.wait[0], scriptItem.wait[1]);
-                    } else {
-                        waitTime = scriptItem.wait;
-                    }
-                    const waitFrames = Math.ceil(waitTime / PULSE_WINDOW);
-                    for (let i = 0; i < waitFrames; i++) {
-                        pulseItems.push('0000000000000000');
-                    }
-                    totalDuration += waitFrames * PULSE_WINDOW;
-                }
-            }
-        }
-
-        return [pulseItems, totalDuration];
+    public getPulseHexData(pulse: DGLabPulseInfo): [string[], number] {
+        let totalDuration = pulse.pulseData.length * PULSE_WINDOW;
+        return [pulse.pulseData, totalDuration];
     }
 
     public on = this.events.on.bind(this.events);

@@ -29,12 +29,12 @@
     "@types/koa-static": "^4.0.4",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
-    "nexe": "^4.0.0-rc.6",
     "ts-json-schema-generator": "^2.3.0",
     "tsx": "^4.15.7",
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@hyperzlib/node-reactive-config": "^1.1.1",
     "@koa/bodyparser": "^5.1.1",
     "ajv": "^8.16.0",
     "es-get-iterator": "^1.1.3",

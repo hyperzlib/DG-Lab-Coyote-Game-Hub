@@ -239,7 +239,7 @@ export class DGLabWSClient {
         let startTime = Date.now();
 
         for (let i = 0; i < 50; i++) {
-            let [pulseData, pulseDuration] = pulseService.buildPulse(currentPulseInfo);
+            let [pulseData, pulseDuration] = pulseService.getPulseHexData(currentPulseInfo);
 
             await this.sendPulse(Channel.A, pulseData);
             if (options.bChannel) {

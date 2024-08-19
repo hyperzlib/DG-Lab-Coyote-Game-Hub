@@ -28,6 +28,7 @@ export type SetStrengthConfigRequest = {
 export type FireRequest = {
     strength: number;
     time?: number;
+    pulseId?: string;
 };
 
 export class GameApiController {
@@ -322,12 +323,22 @@ export class GameApiController {
             };
             return;
         }
+        
+        // 是否获取完整的波形信息
+        let isFullMode = ctx.request.query?.type === 'full';
 
         // 暂且只从配置文件中获取脉冲列表
-        const pulseList = DGLabPulseService.instance.pulseList.map((pulse) => ({
-            id: pulse.id,
-            name: pulse.name,
-        }));
+        let pulseList: any[] = [];
+
+        if (isFullMode) {
+            pulseList = DGLabPulseService.instance.pulseList;
+        } else {
+            // 只返回基本信息
+            DGLabPulseService.instance.pulseList.map((pulse) => ({
+                id: pulse.id,
+                name: pulse.name,
+            }));
+        }
 
         ctx.body = {
             status: 1,
@@ -358,7 +369,7 @@ export class GameApiController {
         // fix for x-www-form-urlencoded
         const postBody = ctx.request.body;
         for (const key in postBody) {
-            if (postBody[key]) {
+            if (['strength', 'time'].includes(key) && postBody[key]) {
                 postBody[key] = parseInt(postBody[key]);
             }
         }
@@ -394,6 +405,8 @@ export class GameApiController {
             return;
         }
 
+        const pulseId = req.pulseId ?? undefined;
+
         let gameList: Iterable<CoyoteLiveGame> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
@@ -422,7 +435,7 @@ export class GameApiController {
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
-            game.fire(req.strength, fireTime);
+            game.fire(req.strength, fireTime, pulseId);
 
             successClientIds.add(game.clientId);
         }

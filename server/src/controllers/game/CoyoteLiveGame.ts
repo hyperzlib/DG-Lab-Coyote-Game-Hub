@@ -41,6 +41,9 @@ export class CoyoteLiveGame {
     /** 一键开火结束时间 */
     public fireEndTimestamp: number = 0;
 
+    /** 一键开火波形 */
+    public firePulseId: string = '';
+
     public currentPulseId: string = '';
 
     private eventStore: EventStore = new EventStore();
@@ -174,11 +177,13 @@ export class CoyoteLiveGame {
      * 一键开火
      * @param strength 强度
      * @param duration 持续时间（毫秒）
+     * @param pulseId 一键开火使用的脉冲ID（可选）
      */
-    public async fire(strength: number, duration: number) {
+    public async fire(strength: number, duration: number, pulseId?: string): Promise<void> {
         if (!this.fireStrength) {
             this.fireStrength = strength;
             this.fireEndTimestamp = Date.now() + duration;
+            this.firePulseId = pulseId || '';
 
             // 通知强度变化
             this.events.emit('strengthChanged', this.gameStrength);
@@ -190,6 +195,7 @@ export class CoyoteLiveGame {
             // 已经在一键开火状态，使用最大的强度，持续时间增加
             this.fireStrength = Math.max(this.fireStrength, strength);
             this.fireEndTimestamp += duration;
+            this.firePulseId = pulseId || '';
         }
     }
 
@@ -218,6 +224,7 @@ export class CoyoteLiveGame {
 
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
         let outputTime = 0;
+        let pulseId = this.currentPulseId;
         if (this.fireStrength) {
             if (Date.now() > this.fireEndTimestamp) { // 一键开火结束
                 this.fireStrength = 0;
@@ -225,12 +232,16 @@ export class CoyoteLiveGame {
             } else {
                 outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
             }
+
+            if (this.firePulseId) {
+                pulseId = this.firePulseId;
+            }
         } else { // 随机强度
             outputTime = randomInt(this.strengthConfig.minInterval, this.strengthConfig.maxInterval) * 1000;
         }
 
         // 输出脉冲，直到下次随机强度时间
-        await this.client.outputPulse(this.currentPulseId, outputTime, {
+        await this.client.outputPulse(pulseId, outputTime, {
             abortController: ab,
             bChannel: !!(this.strengthConfig && this.strengthConfig.bChannelMultiplier),
             onTimeEnd: () => {

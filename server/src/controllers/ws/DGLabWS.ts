@@ -19,6 +19,7 @@ export interface StrengthInfo {
 export interface OutputPulseOptions {
     abortController?: AbortController;
     bChannel?: boolean;
+    onTimeEnd?: () => void;
 }
 
 export interface DGLabWSEvents {
@@ -37,6 +38,7 @@ export class DGLabWSClient {
     public strength: StrengthInfo = { strength: 0, limit: 0 };
     public strengthChannelB: StrengthInfo = { strength: 0, limit: 0 };
     public socket: AsyncWebSocket;
+    public active: boolean = true;
 
     public pulseList: DGLabPulseBaseInfo[] = [];
 
@@ -254,11 +256,16 @@ export class DGLabWSClient {
 
         let netDuration = Date.now() - startTime;
 
+        await asleep(time, options.abortController); // 等待时间到达
+
+        startTime = Date.now();
+        options.onTimeEnd?.(); // 时间到达后的回调
+        let onTimeEndDuration = Date.now() - startTime;
+
         let finished = true;
-        if (totalDuration < time) {
-            finished = await asleep(time - totalDuration - netDuration, options.abortController);
-        } else {
-            finished = await asleep(totalDuration + 200 - netDuration, options.abortController);
+        if (totalDuration > time) {
+            const waitTime = totalDuration - time - onTimeEndDuration - netDuration + 200;
+            finished = await asleep(waitTime, options.abortController);
         }
 
         if (!finished) {
@@ -275,6 +282,7 @@ export class DGLabWSClient {
     }
 
     public async close() {
+        this.active = false;
         if (this.socket.readyState === WebSocket.OPEN) {
             try {
                 await this.send(MessageType.BREAK, RetCode.CLIENT_DISCONNECTED);

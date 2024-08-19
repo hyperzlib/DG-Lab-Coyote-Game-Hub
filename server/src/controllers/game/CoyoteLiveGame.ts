@@ -205,6 +205,17 @@ export class CoyoteLiveGame {
         this.events.emit('configUpdated', this.gameConfig);
     }
 
+    private async setClientStrength(strength: number): Promise<void> {
+        if (!this.client.active) {
+            return;
+        }
+
+        await this.client.setStrength(Channel.A, strength);
+        if (this.strengthConfig.bChannelMultiplier) {
+            await this.client.setStrength(Channel.B, strength * this.strengthConfig.bChannelMultiplier);
+        }
+    }
+
     private async runGameTask(ab: AbortController, harvest: () => void): Promise<void> {
         let outputTime = 0;
         if (this.fireStrength) {
@@ -222,31 +233,30 @@ export class CoyoteLiveGame {
         await this.client.outputPulse(this.currentPulseId, outputTime, {
             abortController: ab,
             bChannel: !!(this.strengthConfig && this.strengthConfig.bChannelMultiplier),
+            onTimeEnd: () => {
+                if (this.fireStrength && Date.now() > this.fireEndTimestamp) { // 一键开火结束
+                    this.onFireEnd();
+                    // 提前降低强度
+                    this.setClientStrength(this.strengthConfig.strength).catch((error) => {
+                        console.error('Failed to set strength:', error);
+                    });
+                }
+            }
         });
 
         harvest();
 
         let nextStrength: number | null = null;
-        if (this.fireStrength) {
-            if (Date.now() > this.fireEndTimestamp) { // 一键开火结束
-                this.onFireEnd();
-                nextStrength = this.strengthConfig.strength; // 一键开火结束后恢复到初始强度
-            }
-        } else {
-            if (this.strengthConfig.randomStrength) {
-                // 随机强度
-                nextStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
-                nextStrength = Math.min(nextStrength, this.clientStrength.limit);
-            }
+        if (this.strengthConfig.randomStrength) {
+            // 随机强度
+            nextStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
+            nextStrength = Math.min(nextStrength, this.clientStrength.limit);
         }
 
         if (nextStrength !== null) {
             setTimeout(async () => {
                 try {
-                    await this.client.setStrength(Channel.A, nextStrength);
-                    if (this.strengthConfig.bChannelMultiplier) {
-                        await this.client.setStrength(Channel.B, nextStrength * this.strengthConfig.bChannelMultiplier);
-                    }
+                    await this.setClientStrength(nextStrength);
                 } catch (error) {
                     console.error('Failed to set strength:', error);
                 }

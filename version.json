@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "0.5.0",
-    "description": "1. 修改波形配置文件格式\n2. 添加DG-Lab自带波形",
+    "version": "0.5.1",
+    "description": "1. 将一键开火的结束时间改为准确时间\n2. 一键开火支持自定义波形",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

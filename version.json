@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "0.5.1",
-    "description": "1. 将一键开火的结束时间改为准确时间\n2. 一键开火支持自定义波形",
+    "version": "0.6.1",
+    "description": "1. 增加小组件皮肤选择功能\n2. 增加默认皮肤的暗色模式\n3. 增加进度条皮肤\n4. 增加HP条皮肤",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

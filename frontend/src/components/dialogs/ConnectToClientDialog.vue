@@ -8,7 +8,7 @@ import TabPanels from 'primevue/tabpanels';
 
 import { ClientConnectUrlInfo } from '../../apis/webApi';
 
-defineExpose({
+defineOptions({
   name: 'ConnectToClientDialog',
 });
 

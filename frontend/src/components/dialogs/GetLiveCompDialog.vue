@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import Toast from 'primevue/toast';
+import Select from 'primevue/select';
 import { useToast } from 'primevue/usetoast';
+import { chartRoutes } from '../../charts/chartRoutes';
 
-defineExpose({
+defineOptions({
   name: 'GetLiveCompDialog',
 });
 
@@ -14,10 +16,24 @@ const props = defineProps<{
 
 const visible = defineModel('visible');
 
+const state = reactive({
+  theme: 'default',
+});
+
+const themeOptions = computed(() => {
+  return chartRoutes.map((route) => {
+    return {
+      label: route.name,
+      value: route.path.replace(/^\//, '') || 'default',
+    };
+  })
+});
+
 const viewerUrl = computed(() => {
   const baseUrl = location.origin + import.meta.env.BASE_URL.replace(/\/$/, '');
   if (props.clientId) {
-    return `${baseUrl}/viewer.html?clientId=${props.clientId}`;
+    const theme = state.theme === 'default' ? '' : state.theme;
+    return `${baseUrl}/viewer.html?clientId=${props.clientId}#/${theme}`;
   } else {
     return '';
   }
@@ -41,6 +57,17 @@ const copyUrl = () => {
       <div v-if="props.clientId">
         <!-- Preview -->
         <iframe :src="viewerUrl" class="w-full h-[20rem] mb-2"></iframe>
+        <div class="flex flex-col items-start mt-4">
+          <span class="block font-semibold mb-2">选择主题：</span>
+          <Select
+            v-model="state.theme"
+            :options="themeOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="请选择主题"
+            class="w-full"
+          ></Select>
+        </div>
         <div class="flex flex-col items-start mt-4">
           <span class="block font-semibold mb-2">请使用以下URL添加浏览器源：</span>
           <InputGroup>

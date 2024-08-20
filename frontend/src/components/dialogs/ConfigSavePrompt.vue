@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-defineExpose({
+defineOptions({
   name: 'ConfigSavePrompt',
 });
 

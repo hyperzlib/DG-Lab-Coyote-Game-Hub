@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { SocketApi } from '../apis/socketApi';
-import { ServerInfoResData, webApi } from '../apis/webApi';
-import { handleApiResponse } from '../utils/response';
+import { SocketApi } from './apis/socketApi';
+import { ServerInfoResData, webApi } from './apis/webApi';
+import { handleApiResponse } from './utils/response';
 
 const state = reactive({
     strength: 0,
@@ -96,13 +96,28 @@ onMounted(async () => {
 
 <template>
     <div class="w-full h-full">
-        <StatusChart
+        <!-- <StatusChart
             :val-low="chartVal.valLow"
             :val-high="chartVal.valHigh"
             :val-limit="chartVal.valLimit"
             :running="state.gameStarted"
             readonly
-        />
+        /> -->
+        <RouterView>
+            <template #default="{ Component }">
+                <Component
+                    :is="Component"
+                    :valLimit="chartVal.valLimit"
+                    :valLow="chartVal.valLow"
+                    :valHigh="chartVal.valHigh"
+                    :strength="state.strength"
+                    :randomStrength="state.randomStrength"
+                    :tempStrength="state.tempStrength"
+                    :strengthLimit="state.strengthLimit"
+                    :running="state.gameStarted"
+                />
+            </template>
+        </RouterView>
         <Transition name="fade">
             <div class="fixed w-full h-full left-0 top-0 error-cover" v-if="state.error">
                 <div class="flex flex-col items-center justify-center h-full">

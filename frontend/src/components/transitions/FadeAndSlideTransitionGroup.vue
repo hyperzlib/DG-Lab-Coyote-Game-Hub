@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { TransitionGroup } from 'vue';
 
-defineExpose({
+defineOptions({
     name: 'FadeAndSlideTransitionGroup',
 });
 

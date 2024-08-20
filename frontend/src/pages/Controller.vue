@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
+import StatusChart from '../charts/Circle1.vue';
 
 import { CoyoteLiveGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';

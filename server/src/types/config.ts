@@ -2,7 +2,7 @@ export type MainConfigType = {
     port: number;
     host: string;
     /** 是否使用反向代理，开启后会使用反向代理的配置 */
-    reverseProxy: boolean;
+    reverseProxy?: boolean;
     /** 作为服务部署时，配置控制台的Base URL，格式：http://www.example.com:1234或https://www.example.com */
     webBaseUrl?: string;
     /** 网页控制台的WebSocket Base URL，需要包含协议类型 */

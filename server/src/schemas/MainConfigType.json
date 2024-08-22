@@ -49,8 +49,7 @@
             "required": [
                 "host",
                 "port",
-                "pulseConfigPath",
-                "reverseProxy"
+                "pulseConfigPath"
             ]
         }
     }

@@ -11,21 +11,27 @@
                 "host": {
                     "type": "string"
                 },
-                "proxySSLEnable": {
-                    "type": "boolean"
+                "reverseProxy": {
+                    "type": "boolean",
+                    "description": "是否使用反向代理，开启后会使用反向代理的配置"
                 },
-                "domain": {
-                    "type": [
-                        "string",
-                        "null"
-                    ]
+                "webBaseUrl": {
+                    "type": "string",
+                    "description": "作为服务部署时，配置控制台的Base URL，格式：http://www.example.com:1234或https://www.example.com"
                 },
-                "clientWsDomain": {
+                "webWsBaseUrl": {
                     "type": [
                         "string",
                         "null"
                     ],
-                    "description": "单独配置客户端连接时的WebSocket地址"
+                    "description": "网页控制台的WebSocket Base URL，需要包含协议类型"
+                },
+                "clientWsBaseUrl": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "DG-Lab客户端连接时的WebSocket URL"
                 },
                 "pulseConfigPath": {
                     "type": "string",
@@ -41,11 +47,11 @@
                 }
             },
             "required": [
-                "port",
                 "host",
-                "pulseConfigPath"
-            ],
-            "additionalProperties": false
+                "port",
+                "pulseConfigPath",
+                "reverseProxy"
+            ]
         }
     }
 }

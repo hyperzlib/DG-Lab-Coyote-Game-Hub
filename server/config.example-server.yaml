@@ -1,8 +1,9 @@
 # 使用服务器搭建服务时的样例配置文件
-port: 8920                          # 服务端口
-host: "0.0.0.0"                     # 监听IP地址
-proxySSLEnable: false               # 反向代理服务器是否启用SSL，仅应在Nginx等反向代理服务器中配置SSL后启用
-domain: "www.example.com"           # 前端访问域名
-clientWsDomain: "ws.example.com"    # 客户端连接的WebSocket域名，在使用低延迟主机转发WebSocket时使用
-pulseConfigPath: "pulse.yaml"       # 波形配置文件路径
-allowBroadcastToClients: false      # 允许向所有已连接的客户端广播消息（搭建公开服务时必须关闭）
+port: 8920                                  # 服务端口
+host: "0.0.0.0"                             # 监听IP地址
+reverseProxy: true                          # 是否使用反向代理，开启后会使用反向代理给出的客户端IP地址
+webBaseUrl: "https://www.example.com"       # 作为服务部署时，配置控制台的Base URL，格式：http://www.example.com:1234或https://www.example.com
+webWsBaseUrl: "wss://ws.example.com"        # 网页控制台的WebSocket Base URL，需要包含协议类型
+clientWsBaseUrl: "wss://ws.example.com"     # 客户端连接的WebSocket Base URL，需要包含协议类型
+pulseConfigPath: "pulse.yaml"               # 波形配置文件路径
+allowBroadcastToClients: false              # 允许向所有已连接的客户端广播消息（搭建公开服务时必须关闭）

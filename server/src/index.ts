@@ -49,7 +49,7 @@ async function main() {
 
     httpServer.listen({
         port: MainConfig.value?.port ?? 8920,
-        host: MainConfig.value?.host ?? 'localhost'
+        host: MainConfig.value?.host ?? 'localhost',
     }, () => {
         const serverAddr = httpServer.address();
         let serverAddrStr = '';

@@ -19,28 +19,31 @@ export class WebController {
         const config = MainConfig.value;
 
         let wsUrl = '';
-        if (config.domain) {
-            wsUrl = `${config.domain}:${config.port}/ws`;
+        if (config.webWsBaseUrl) {
+            wsUrl = `${config.webWsBaseUrl}/ws`;
         } else {
             wsUrl = '/ws';
         }
 
-        let wsDomainList: string[] = [];
-        let clientWsDomain = config.clientWsDomain || config.domain || null;
+        let clientWsDomain = config.clientWsBaseUrl || config.webWsBaseUrl;
+        let wsUrlList: Record<string, string>[] = [];
         if (clientWsDomain) { // 配置文件中指定了客户端连接时的WebSocket地址
-            wsDomainList.push(clientWsDomain);
-        } else { // 使用服务器的IP地址
-            wsDomainList = LocalIPAddress.getIPAddrList();
+            let url = new URL(clientWsDomain);
+            let domain = url.hostname;
+            wsUrlList.push({
+                domain,
+                connectUrl: `${DGLAB_WS_PREFIX}${clientWsDomain}/dglab_ws/{clientId}`,
+            });
+        } else { // 未指定客户端连接时的WebSocket地址，使用本机IP地址
+            let ipList = LocalIPAddress.getIPAddrList();
+
+            wsUrlList = ipList.map((ip) => {
+                return {
+                    domain: ip,
+                    connectUrl: `${DGLAB_WS_PREFIX}ws://${ip}:${config.port}/dglab_ws/{clientId}`,
+                };
+            });
         }
-
-        let protocol = config.proxySSLEnable ? 'wss' : 'ws';
-
-        let wsUrlList: Record<string, string>[] = wsDomainList.map((domain) => {
-            return {
-                domain: domain,
-                connectUrl: `${DGLAB_WS_PREFIX}${protocol}://${domain}:${config.port}/dglab_ws/{clientId}`,
-            };
-        });
 
         ctx.body = {
             status: 1,

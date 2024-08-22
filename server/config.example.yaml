@@ -1,7 +1,6 @@
 # 本机使用时的样例配置文件
 port: 8920                      # 服务器端口
 host: "0.0.0.0"                 # 监听地址
-domain: null                    # 服务器域名
 pulseConfigPath: "pulse.yaml"   # 波形配置文件路径
 openBrowser: true               # 启动完成后自动打开浏览器
 allowBroadcastToClients: true   # 允许向所有已连接的客户端广播消息

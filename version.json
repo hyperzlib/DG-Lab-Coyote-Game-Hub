@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "0.6.1",
-    "description": "1. 增加小组件皮肤选择功能\n2. 增加默认皮肤的暗色模式\n3. 增加进度条皮肤\n4. 增加HP条皮肤",
+    "version": "0.7.0",
+    "description": "1. 增加小组件皮肤详细配置\n2. 增加拟物电池皮肤\n3. 修复反向代理配置的问题",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

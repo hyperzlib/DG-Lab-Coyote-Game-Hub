@@ -35,18 +35,23 @@ export const openBrowser = (url: string) => {
     exec(`${command} ${url}`);
 }
 
-export const simpleObjEqual = (obj1: any, obj2: any) => {
+export const simpleObjDiff = (obj1: any, obj2: any) => {
     if (!obj1 || !obj2) {
-        return false;
+        return [];
     }
 
+    let differentKeys: string[] = [];
     for (let key in obj1) {
         if (obj1[key] !== obj2[key]) {
-            return false;
+            differentKeys.push(key);
         }
     }
 
-    return true;
+    if (differentKeys.length > 0) {
+        return differentKeys;
+    } else {
+        return false;
+    }
 }
 export class LocalIPAddress {
     private static ipAddrList?: string[];

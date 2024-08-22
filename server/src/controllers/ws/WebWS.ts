@@ -175,7 +175,7 @@ export class WebWSClient {
             return;
         }
 
-        this.gameInstance.updateConfig(message.config);
+        await this.gameInstance.updateConfig(message.config);
     }
 
     private async handleStartGame(message: any) {

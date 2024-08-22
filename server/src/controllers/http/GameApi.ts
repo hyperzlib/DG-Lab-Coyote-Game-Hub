@@ -5,6 +5,7 @@ import { CoyoteLiveGameConfig } from '../../types/game';
 import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
 import { MainConfig } from '../../config';
 import { DGLabPulseService } from '../../services/DGLabPulse';
+import { asleep } from '../../utils/utils';
 
 export type SetStrengthConfigRequest = {
     strength?: {
@@ -30,6 +31,108 @@ export type FireRequest = {
     time?: number;
     pulseId?: string;
 };
+
+export class GameStrengthUpdateQueue {
+    private queuedUpdates: Map<string, SetStrengthConfigRequest[]> = new Map();
+    private runningQueue: Set<string> = new Set();
+
+    public pushUpdate(clientId: string, update: SetStrengthConfigRequest) {
+        if (!this.queuedUpdates.has(clientId)) {
+            this.queuedUpdates.set(clientId, [
+                update,
+            ]);
+        } else {
+            this.queuedUpdates.get(clientId)!.push(update);
+        }
+
+        // 开始处理更新
+        this.run(clientId);
+    }
+
+    public async run(clientId: string) {
+        if (this.runningQueue.has(clientId)) {
+            return;
+        }
+
+        this.runningQueue.add(clientId);
+        let randomId = Math.random().toString(36).substring(6);
+        while (this.queuedUpdates.get(clientId)) {
+            // Merge updates
+            const game = CoyoteLiveGameManager.instance.getGame(clientId);
+            if (!game) { // 游戏不存在，可能是客户端断开连接
+                this.queuedUpdates.delete(clientId);
+                break;
+            }
+
+            let strengthConfig = { ...game.gameConfig.strength };
+            const updates = this.queuedUpdates.get(clientId)!;
+
+            let handledUpdateNum = 0;
+            for (const update of updates) { // 遍历更新队列
+                if (update.strength) {
+                    let targetMinStrength = strengthConfig.strength;
+                    if (typeof update.strength.add === 'number' || typeof update.strength.add === 'string') {
+                        targetMinStrength += update.strength.add;
+                    } else if (typeof update.strength.sub === 'number') {
+                        targetMinStrength -= update.strength.sub;
+                    } else if (typeof update.strength.set === 'number') {
+                        targetMinStrength = update.strength.set;
+                    }
+
+                    strengthConfig.strength = targetMinStrength;
+                }
+
+                if (update.randomStrength) {
+                    let targetMaxStrength = strengthConfig.randomStrength;
+                    if (typeof update.randomStrength.add === 'number') {
+                        targetMaxStrength += update.randomStrength.add;
+                    } else if (typeof update.randomStrength.sub === 'number') {
+                        targetMaxStrength -= update.randomStrength.sub;
+                    } else if (typeof update.randomStrength.set === 'number') {
+                        targetMaxStrength = update.randomStrength.set;
+                    }
+
+                    strengthConfig.randomStrength = targetMaxStrength;
+                }
+
+                if (typeof update.minInterval?.set === 'number') {
+                    strengthConfig.minInterval = update.minInterval.set;
+                }
+
+                if (typeof update.maxInterval?.set === 'number') {
+                    strengthConfig.maxInterval = update.maxInterval.set;
+                }
+
+                handledUpdateNum++;
+            }
+
+            updates.splice(0, handledUpdateNum); // 移除已处理的更新
+
+            // 防止强度配置超出范围
+            strengthConfig.strength = Math.min(Math.max(0, strengthConfig.strength), game.clientStrength.limit);
+            strengthConfig.randomStrength = Math.max(0, strengthConfig.randomStrength);
+            strengthConfig.minInterval = Math.max(0, strengthConfig.minInterval);
+            strengthConfig.maxInterval = Math.max(0, strengthConfig.maxInterval);
+
+            // 更新游戏配置
+            await game.updateConfig({
+                ...game.gameConfig,
+                strength: strengthConfig,
+            });
+
+            if (updates.length === 0) {
+                // 如果队列为空，移除该客户端的更新队列
+                this.queuedUpdates.delete(clientId);
+            }
+
+            await asleep(50); // 防止回跳
+        }
+
+        this.runningQueue.delete(clientId);
+    }
+}
+
+const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
 export class GameApiController {
     private static async requestGameInstance(ctx: RouterContext): Promise<CoyoteLiveGame | null> {
@@ -188,53 +291,8 @@ export class GameApiController {
         for (const game of gameList) {
             const req = postBody as SetStrengthConfigRequest;
 
-            let strengthConfig = { ...game.gameConfig.strength };
-            
-            if (req.strength) {
-                let targetMinStrength = strengthConfig.strength;
-                if (typeof req.strength.add === 'number' || typeof req.strength.add === 'string') {
-                    targetMinStrength += req.strength.add;
-                } else if (typeof req.strength.sub === 'number') {
-                    targetMinStrength -= req.strength.sub;
-                } else if (typeof req.strength.set === 'number') {
-                    targetMinStrength = req.strength.set;
-                }
-
-                strengthConfig.strength = targetMinStrength;
-            }
-
-            if (req.randomStrength) {
-                let targetMaxStrength = strengthConfig.randomStrength;
-                if (typeof req.randomStrength.add === 'number') {
-                    targetMaxStrength += req.randomStrength.add;
-                } else if (typeof req.randomStrength.sub === 'number') {
-                    targetMaxStrength -= req.randomStrength.sub;
-                } else if (typeof req.randomStrength.set === 'number') {
-                    targetMaxStrength = req.randomStrength.set;
-                }
-
-                strengthConfig.randomStrength = targetMaxStrength;
-            }
-
-            if (typeof req.minInterval?.set === 'number') {
-                strengthConfig.minInterval = req.minInterval.set;
-            }
-
-            if (typeof req.maxInterval?.set === 'number') {
-                strengthConfig.maxInterval = req.maxInterval.set;
-            }
-
-            // 防止强度配置超出范围
-            strengthConfig.strength = Math.min(Math.max(0, strengthConfig.strength), game.clientStrength.limit);
-            strengthConfig.randomStrength = Math.max(0, strengthConfig.randomStrength);
-            strengthConfig.minInterval = Math.max(0, strengthConfig.minInterval);
-            strengthConfig.maxInterval = Math.max(0, strengthConfig.maxInterval);
-
-            // 更新游戏配置
-            game.updateConfig({
-                ...game.gameConfig,
-                strength: strengthConfig,
-            });
+            // 加入更新队列
+            gameStrengthUpdateQueue.pushUpdate(game.clientId, req);
 
             successClientIds.add(game.clientId);
         }
@@ -314,14 +372,20 @@ export class GameApiController {
 
     public static async getPulseList(ctx: RouterContext): Promise<void> {
         // 关于为什么脉冲列表要根据游戏获取，是为了在将来适配DG Helper的情况下，用于获取DG-Lab内置的脉冲列表
-        let game = await GameApiController.requestGameInstance(ctx); // 用于检查游戏是否存在
-        if (!game) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            };
-            return;
+        let game: CoyoteLiveGame | null = null;
+        if (ctx.params.id === 'all') {
+            if (!MainConfig.value.allowBroadcastToClients) {
+                ctx.body = {
+                    status: 0,
+                    code: 'ERR::BROADCAST_NOT_ALLOWED',
+                    message: '当前服务器配置不允许向所有客户端广播指令',
+                };
+                return;
+            }
+
+            game = CoyoteLiveGameManager.instance.getGameList().next().value;
+        } else {
+            game = await GameApiController.requestGameInstance(ctx);
         }
         
         // 是否获取完整的波形信息

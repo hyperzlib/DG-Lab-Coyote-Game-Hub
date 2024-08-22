@@ -1,5 +1,5 @@
 export class OnExit {
-    private static callbacks: Array<() => void> = [];
+    private static callbacks: Array<() => void | Promise<void>> = [];
 
     public static init() {
         process.on('SIGINT', async () => {
@@ -8,6 +8,10 @@ export class OnExit {
 
         process.on('SIGTERM', async () => {
             await OnExit.run();
+        });
+
+        process.on('uncaughtException', async (err) => {
+            console.error('Uncaught exception:', err);
         });
     }
 

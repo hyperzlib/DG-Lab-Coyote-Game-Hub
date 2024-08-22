@@ -5,6 +5,7 @@ import { wrapAsyncWebSocket } from '../utils/WebSocketAsync';
 import { RetCode } from '../types/dg';
 import { DGLabWSClient } from '../controllers/ws/DGLabWS';
 import { OnExit } from '../utils/onExit';
+import { Config, MainConfig } from '../config';
 
 export interface DGLabWSManagerEventsListener {
     clientConnected: [client: DGLabWSClient];
@@ -59,6 +60,18 @@ export class DGLabWSManager {
             }));
             ws.close();
             return;
+        }
+
+        if (MainConfig.value.allowBroadcastToClients && this.clientIdToClient.size > 10) {
+            // 单机模式下，只允许连接10个客户端
+            await ws.sendAsync(JSON.stringify({
+                type: 'error',
+                clientId: clientId,
+                targetId: '',
+                message: RetCode.ID_ALREADY_BOUND,
+            }));
+            console.log('Too many clients connected, reject client:', clientId);
+            console.log('If you are running this program as a public server, please set allowBroadcastToClients to false in config.yaml');
         }
         
         const client = new DGLabWSClient(ws, clientId);

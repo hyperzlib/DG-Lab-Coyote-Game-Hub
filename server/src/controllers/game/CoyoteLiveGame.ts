@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { Channel } from '../../types/dg';
 import { DGLabWSClient, StrengthInfo } from '../../controllers/ws/DGLabWS';
 import { Task } from '../../utils/task';
-import { randomInt, simpleObjEqual } from '../../utils/utils';
+import { randomInt, simpleObjDiff } from '../../utils/utils';
 import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGameConfig, GameStrengthConfig } from '../../types/game';
@@ -34,6 +34,8 @@ export class CoyoteLiveGame {
         maxInterval: 20,
         bChannelMultiplier: 0,
     };
+
+    public strengthConfigModified: number = 0;
 
     /** 一键开火强度 */
     public fireStrength: number = 0;
@@ -90,6 +92,7 @@ export class CoyoteLiveGame {
         let cachedGameStrengthConfig = configCache.get(`${configCachePrefix}:strength`);
         if (cachedGameStrengthConfig) {
             this.strengthConfig = cachedGameStrengthConfig;
+            this.strengthConfigModified = Date.now();
             hasCachedConfig = true;
         }
 
@@ -123,7 +126,8 @@ export class CoyoteLiveGame {
         // 监听强度上报事件
         clientEvents.on('strengthChanged', (strength, _) => {
             let configUpdated = false;
-            if (strength.strength < this.strengthConfig.strength) { // 强度低于随机强度时降低随机强度
+            if (strength.strength < this.strengthConfig.strength && Date.now() - this.strengthConfigModified > 500) {
+                // 强度低于随机强度，且500ms内没有更新强度配置时降低随机强度
                 this.strengthConfig.strength = strength.strength;
                 configUpdated = true;
             }
@@ -144,18 +148,23 @@ export class CoyoteLiveGame {
      * 更新游戏配置
      * @param config 
      */
-    public updateConfig(config: CoyoteLiveGameConfig): void {
+    public async updateConfig(config: CoyoteLiveGameConfig): Promise<void> {
         let configUpdated = false;
+        let onlyStrengthUpdated = false;
+        let deltaStrength = 0;
         
-        if (!simpleObjEqual(config.strength, this.strengthConfig)) {
+        let diffKeys = simpleObjDiff(config.strength, this.strengthConfig);
+        if (diffKeys) {
             this.strengthConfig = config.strength;
+            this.strengthConfigModified = Date.now();
             configUpdated = true;
+
+            onlyStrengthUpdated = diffKeys.every((key) => key === 'strength' || key === 'randomStrength');
+            deltaStrength = this.strengthConfig.strength - this.client.strength.strength;
 
             // 如果游戏未开始，且强度小于最低强度，需要更新强度，否则本地强度会被服务端强制更新
             if (this.client.strength.strength < this.strengthConfig.strength && this.gameTask) {
-                this.client.setStrength(Channel.A, this.strengthConfig.strength).catch((error) => {
-                    console.error('Failed to set strength:', error);
-                });
+                await this.client.setStrength(Channel.A, this.strengthConfig.strength);
             }
         }
 
@@ -167,9 +176,14 @@ export class CoyoteLiveGame {
         if (configUpdated) {
             this.handleConfigUpdated();
 
-            this.restartGame().catch((error) => {
-                console.error('Failed to restart CoyoteLiveGame:', error);
-            });
+            if (onlyStrengthUpdated && deltaStrength <= 5) {
+                // 如果只更新了强度，且强度增加不超过5，则直接设置强度
+                // 在GameApi连续加减时，这么做可以防止波形大量中断
+                await this.setClientStrength(this.strengthConfig.strength);
+            } else {
+                // 重启波形输出
+                await this.restartGame();
+            }
         }
     }
 
@@ -266,10 +280,12 @@ export class CoyoteLiveGame {
 
         if (nextStrength !== null) {
             setTimeout(async () => {
-                try {
-                    await this.setClientStrength(nextStrength);
-                } catch (error) {
-                    console.error('Failed to set strength:', error);
+                if (Date.now() - this.strengthConfigModified > 51) { // 防止重复设置强度
+                    try {
+                        await this.setClientStrength(nextStrength);
+                    } catch (error) {
+                        console.error('Failed to set strength:', error);
+                    }
                 }
             }, 50);
         }

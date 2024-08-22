@@ -1,4 +1,9 @@
 <script lang="ts" setup>
+defineOptions({
+    name: 'Bar1',
+    inheritAttrs: false,
+});
+
 const pillsNum = 40;
 const pillWidth = 5;
 const pillOffset = 4;
@@ -7,14 +12,11 @@ const props = withDefaults(defineProps<{
     valLow?: number;
     valHigh?: number;
     valLimit?: number;
-    readonly?: boolean;
     running?: boolean;
-    darkMode?: boolean;
 }>(), {
     valLow: 5,
     valHigh: 10,
     valLimit: 50,
-    readonly: false,
     running: false,
 });
 
@@ -68,7 +70,7 @@ const progressWidth = computed(() => {
             <div class="flex gap-2 items-center">
                 <span class="color-low">{{ props.valLow }}</span> - <span class="color-high">{{ props.valHigh }}</span>
 
-                <svg t="1719514976614" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                <svg t="1719514976614" class="icon animation-pulse" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                     p-id="9374" style="display: block; width: 2rem; height: 2rem; margin: 0 auto" v-if="!props.running">
                     <path d="M752.113937 512.104171v383.973957h-176.04883V512.104171z" fill="#00C9CA" p-id="9375"></path>
                     <path d="M752.113937 127.921872V512.104171h-176.04883V127.921872z" fill="#00A1A2" p-id="9376"></path>
@@ -148,23 +150,5 @@ const progressWidth = computed(() => {
 
 .color-max {
     color: #9725f4;
-}
-
-@keyframes pulse {
-    0% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-
-    100% {
-        opacity: 1;
-    }
-}
-
-.icon {
-    animation: pulse 1.5s infinite;
 }
 </style>

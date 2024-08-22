@@ -337,7 +337,8 @@ watch(gameConfig, () => {
     <Toast></Toast>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
-        <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh" :val-limit="chartVal.valLimit" :running="state.gameStarted" readonly />
+        <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh"
+          :val-limit="chartVal.valLimit" :running="state.gameStarted" readonly />
       </div>
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">
@@ -455,8 +456,8 @@ watch(gameConfig, () => {
         </template>
       </Card>
     </div>
-    <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList" :client-id="state.clientId"
-      @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId" />
+    <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
+      :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
   </div>

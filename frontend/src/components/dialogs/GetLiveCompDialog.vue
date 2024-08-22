@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import Toast from 'primevue/toast';
 import Select from 'primevue/select';
+import ToggleSwitch from 'primevue/toggleswitch';
+
 import { useToast } from 'primevue/usetoast';
 import { chartRoutes } from '../../charts/chartRoutes';
 
@@ -18,22 +20,56 @@ const visible = defineModel('visible');
 
 const state = reactive({
   theme: 'default',
+  chartParams: {} as Record<string, string>,
 });
+
+const getThemeNameFromPath = (path: string) => {
+  return path.replace(/^\//, '') || 'default';
+}
 
 const themeOptions = computed(() => {
   return chartRoutes.map((route) => {
     return {
       label: route.name,
-      value: route.path.replace(/^\//, '') || 'default',
+      value: getThemeNameFromPath(route.path),
+      params: route.meta?.params ?? [],
     };
   })
+});
+
+const buildChartParams = (params: Record<string, any>) => {
+  const chartParams: Record<string, string> = {};
+  for (let [key, value] of Object.entries(params)) {
+    if (typeof value === 'string') {
+      if (value !== '') {
+        chartParams[key] = value;
+      }
+    } else if (typeof value === 'boolean') {
+      if (value) {
+        chartParams[key] = 'true';
+      }
+    } else {
+      if (value !== null && value !== undefined) {
+        chartParams[key] = value.toString();
+      }
+    }
+  }
+  return chartParams;
+};
+
+const chartParamsDef = computed(() => {
+  return themeOptions.value.find((theme) => theme.value === state.theme)?.params ?? [];
 });
 
 const viewerUrl = computed(() => {
   const baseUrl = location.origin + import.meta.env.BASE_URL.replace(/\/$/, '');
   if (props.clientId) {
     const theme = state.theme === 'default' ? '' : state.theme;
-    return `${baseUrl}/viewer.html?clientId=${props.clientId}#/${theme}`;
+    let url = `${baseUrl}/viewer.html?clientId=${props.clientId}#/${theme}`;
+    if (Object.keys(state.chartParams).length) {
+      url += '?' + new URLSearchParams(buildChartParams(state.chartParams)).toString();
+    }
+    return url;
   } else {
     return '';
   }
@@ -68,6 +104,31 @@ const copyUrl = () => {
             class="w-full"
           ></Select>
         </div>
+        <template v-for="paramDef in chartParamsDef" :key="paramDef.name">
+          <div v-if="paramDef.type === 'boolean'" class="flex justify-start gap-4 items-center mt-4">
+            <span class="block font-semibold">{{ paramDef.name }}：</span>
+            <ToggleSwitch v-model="state.chartParams[paramDef.prop]" class="w-[4rem]"></ToggleSwitch>
+          </div>
+          <div v-else-if="paramDef.type === 'string'" class="flex flex-col items-start mt-4">
+            <span class="block font-semibold mb-2">{{ paramDef.name }}：</span>
+            <InputText v-model="state.chartParams[paramDef.prop]" class="w-full"></InputText>
+          </div>
+          <div v-else-if="paramDef.type === 'int' || paramDef.type === 'float'" class="flex flex-col items-start mt-4">
+            <span class="block font-semibold mb-2">{{ paramDef.name }}：</span>
+            <InputNumber v-if="paramDef.type === 'int'" v-model="state.chartParams[paramDef.prop]" class="w-full" showButtons></InputNumber>
+            <InputNumber v-else v-model="state.chartParams[paramDef.prop]" class="w-full" showButtons :minFractionDigits="1" :maxFractionDigits="6"></InputNumber>
+          </div>
+          <div v-else-if="paramDef.type === 'select' && Array.isArray(paramDef.options)" class="flex flex-col items-start mt-4">
+            <span class="block font-semibold mb-2">{{ paramDef.name }}：</span>
+            <Select
+              v-model="state.chartParams[paramDef.prop]"
+              :options="paramDef.options"
+              optionLabel="label"
+              optionValue="value"
+              class="w-full"
+            ></Select>
+          </div>
+        </template>
         <div class="flex flex-col items-start mt-4">
           <span class="block font-semibold mb-2">请使用以下URL添加浏览器源：</span>
           <InputGroup>

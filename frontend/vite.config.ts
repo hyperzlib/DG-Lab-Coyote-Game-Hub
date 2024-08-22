@@ -14,6 +14,11 @@ export default defineConfig({
         index: resolve('./index.html'),
         viewer: resolve('./viewer.html'),
       },
+      output: {
+        manualChunks: {
+          'chartRoutes': ['./src/charts/chartRoutes.ts'],
+        }
+      }
     },
   },
   server: {

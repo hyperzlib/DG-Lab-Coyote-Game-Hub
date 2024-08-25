@@ -59,11 +59,17 @@ end
 
 -- 一键开火
 -- @param strength number 强度值
-local function coyote_fire(strength, time)
+-- @param time number 持续时间，单位秒
+-- @param overrideTime boolean 是否覆盖时间
+local function coyote_fire(strength, time, overrideTime)
+    overrideTime = overrideTime or false
     time = time or 5
     time = time * 1000
     local http = getInternet()
     local param_str = "strength=" .. strength .. "&time=" .. time
+    if overrideTime then
+        param_str = param_str .. "&override=1"
+    end
     local api_url = coyote_controller_url .. "api/game/" .. coyote_target_client_id .. "/fire"
     local response = http.postURL(api_url, param_str)
     return response

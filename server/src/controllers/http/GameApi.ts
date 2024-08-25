@@ -29,6 +29,7 @@ export type SetStrengthConfigRequest = {
 export type FireRequest = {
     strength: number;
     time?: number;
+    override?: boolean;
     pulseId?: string;
 };
 
@@ -115,10 +116,14 @@ export class GameStrengthUpdateQueue {
             strengthConfig.maxInterval = Math.max(0, strengthConfig.maxInterval);
 
             // 更新游戏配置
-            await game.updateConfig({
-                ...game.gameConfig,
-                strength: strengthConfig,
-            });
+            try {
+                await game.updateConfig({
+                    ...game.gameConfig,
+                    strength: strengthConfig,
+                });
+            } catch (err: any) {
+                console.error(`[GameStrengthUpdateQueue] Error while updating game config: ${err.message}`);
+            }
 
             if (updates.length === 0) {
                 // 如果队列为空，移除该客户端的更新队列
@@ -435,6 +440,9 @@ export class GameApiController {
         for (const key in postBody) {
             if (['strength', 'time'].includes(key) && postBody[key]) {
                 postBody[key] = parseInt(postBody[key]);
+            } else if (['override'].includes(key) && postBody[key]) {
+                const val = postBody[key];
+                postBody[key] = val === 'true' || val === '1';
             }
         }
 
@@ -470,6 +478,7 @@ export class GameApiController {
         }
 
         const pulseId = req.pulseId ?? undefined;
+        const overrideTime = req.override ?? false;
 
         let gameList: Iterable<CoyoteLiveGame> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
@@ -499,7 +508,7 @@ export class GameApiController {
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
-            game.fire(req.strength, fireTime, pulseId);
+            game.fire(req.strength, fireTime, pulseId, overrideTime);
 
             successClientIds.add(game.clientId);
         }

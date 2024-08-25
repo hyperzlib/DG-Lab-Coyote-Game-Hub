@@ -192,8 +192,9 @@ export class CoyoteLiveGame {
      * @param strength 强度
      * @param duration 持续时间（毫秒）
      * @param pulseId 一键开火使用的脉冲ID（可选）
+     * @param override 是否覆盖当前一键开火时间，false则增加持续时间
      */
-    public async fire(strength: number, duration: number, pulseId?: string): Promise<void> {
+    public async fire(strength: number, duration: number, pulseId?: string, override?: boolean): Promise<void> {
         if (!this.fireStrength) {
             this.fireStrength = strength;
             this.fireEndTimestamp = Date.now() + duration;
@@ -208,7 +209,11 @@ export class CoyoteLiveGame {
         } else {
             // 已经在一键开火状态，使用最大的强度，持续时间增加
             this.fireStrength = Math.max(this.fireStrength, strength);
-            this.fireEndTimestamp += duration;
+            if (override) {
+                this.fireEndTimestamp = Date.now() + duration;
+            } else {
+                this.fireEndTimestamp += duration;
+            }
             this.firePulseId = pulseId || '';
         }
     }

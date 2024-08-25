@@ -52,13 +52,18 @@ CoyoteSetRandomStrength(value)
     return CoyoteUpdateGameConfig("randomStrength.set=" . value)
 }
 
-CoyoteFire(strength, time)
+CoyoteFire(strength, time, overrideTime := false)
 {
     global CoyoteControllerURL, CoyoteTargetClientId
 
     timeMs := time * 1000
     url := CoyoteControllerURL . "/api/game/" . CoyoteTargetClientId . "/fire"
-    return HttpPost(url, "strength=" . strength . "&time=" . timeMs)
+    params := "strength=" . strength . "&time=" . timeMs
+    if (overrideTime)
+    {
+        params .= "&override=1"
+    }
+    return HttpPost(url, params)
 }
 
 ; Example usage:

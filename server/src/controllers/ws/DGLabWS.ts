@@ -80,7 +80,7 @@ export class DGLabWSClient {
         this.events.emit("pulseListUpdated", this.pulseList);
     }
 
-    public async send(messageType: MessageType | string, message: string | number): Promise<void> {
+    public async send(messageType: MessageType | string, message: string | number): Promise<boolean> {
         // if (messageType !== MessageType.HEARTBEAT) {
         //     console.log("send:", {
         //         type: messageType,
@@ -99,9 +99,18 @@ export class DGLabWSClient {
         
         try {
             await this.socket.sendAsync(jsonStr);
-        } catch (error) {
+            return true;
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                if (error.message === "WebSocket is not open: readyState 3 (CLOSED)") {
+                    // 连接断开时不处理
+                    this.close();
+                    return false;
+                }
+            }
             console.error("Failed to send message:", error);
             this.close();
+            return false;
         }
     }
 
@@ -198,7 +207,7 @@ export class DGLabWSClient {
         this.events.emit("feedback", button);
     }
 
-    public async setStrength(channel: Channel, strength: number): Promise<void> {
+    public async setStrength(channel: Channel, strength: number): Promise<boolean> {
         if (channel === Channel.A) {
             if (strength > this.strength.limit) {
                 throw new Error("Strength out of limit");
@@ -209,27 +218,33 @@ export class DGLabWSClient {
             }
         }
 
-        await this.send(MessageType.MSG, `${MessageDataHead.STRENGTH}-${channel}+2+${strength}`);
+        let ret = await this.send(MessageType.MSG, `${MessageDataHead.STRENGTH}-${channel}+2+${strength}`);
 
         this.events.emit("setStrength", channel, strength);
+
+        return ret;
     }
 
-    private async sendPulse(channel: Channel, pulse: string[]): Promise<void> {
+    private async sendPulse(channel: Channel, pulse: string[]): Promise<boolean> {
         const pulse_str = JSON.stringify(pulse);
 
         const channel_id = channel === Channel.A ? "A" : "B";
 
-        await this.send(MessageType.MSG, `${MessageDataHead.PULSE}-${channel_id}:${pulse_str}`);
+        let ret = await this.send(MessageType.MSG, `${MessageDataHead.PULSE}-${channel_id}:${pulse_str}`);
 
         this.events.emit("sendPulse", channel, pulse);
+
+        return ret;
     }
 
-    private async clearPulse(channel: Channel): Promise<void> {
+    private async clearPulse(channel: Channel): Promise<boolean> {
         const channel_id = channel === Channel.A ? "1" : "2";
 
-        await this.send(MessageType.MSG, `${MessageDataHead.CLEAR}-${channel_id}`);
+        let ret = await this.send(MessageType.MSG, `${MessageDataHead.CLEAR}-${channel_id}`);
 
         this.events.emit("clearPulse", channel);
+
+        return ret;
     }
 
     public async outputPulse(pulseId: string, time: number, options: OutputPulseOptions = {}) {

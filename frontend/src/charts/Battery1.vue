@@ -26,7 +26,7 @@ const batteryPercent = computed(() => {
     if (props.strengthLimit === 0) {
         return 0;
     } else {
-        return Math.min(100, props.realStrength * 100 / props.strengthLimit);
+        return Math.min(100, Math.round(props.realStrength * 100 / props.strengthLimit));
     }
 });
 

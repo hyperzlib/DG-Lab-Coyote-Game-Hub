@@ -457,24 +457,21 @@ export class GameApiController {
             return;
         }
 
+        let warnings: { code: string, message: string }[] = [];
         if (req.strength > 30) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_STRENGTH',
+            warnings.push({
+                code: 'WARN::INVALID_STRENGTH',
                 message: '一键开火强度值不能超过 30',
-            };
-            return;
+            });
         }
 
         const fireTime = req.time ?? 5000;
 
         if (fireTime > 30000) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_TIME',
+            warnings.push({
+                code: 'WARN::INVALID_TIME',
                 message: '一键开火时间不能超过 30000ms',
-            };
-            return;
+            });
         }
 
         const pulseId = req.pulseId ?? undefined;
@@ -518,6 +515,7 @@ export class GameApiController {
             code: 'OK',
             message: `成功向 ${successClientIds.size} 个游戏发送了一键开火指令`,
             successClientIds: Array.from(successClientIds),
+            warnings,
         };
     }
 }

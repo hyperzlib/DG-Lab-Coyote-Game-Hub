@@ -195,6 +195,14 @@ export class CoyoteLiveGame {
      * @param override 是否覆盖当前一键开火时间，false则增加持续时间
      */
     public async fire(strength: number, duration: number, pulseId?: string, override?: boolean): Promise<void> {
+        // 限制强度和持续时间
+        if (strength > 30) {
+            strength = 30;
+        }
+        if (duration > 30000) {
+            duration = 30000;
+        }
+        
         if (!this.fireStrength) {
             this.fireStrength = strength;
             this.fireEndTimestamp = Date.now() + duration;

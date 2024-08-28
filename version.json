@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "0.8.1",
-    "description": "1. 增加小组件皮肤详细配置\n2. 增加拟物电池皮肤\n3. 修复反向代理配置的问题\n4. 修复短时间内重复增加电量会发生强度跳回的问题\n5. 删除不必要的配置项",
+    "version": "0.8.2",
+    "description": "1. 更改一键开火的累计限制，现在累计时间最多30秒",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

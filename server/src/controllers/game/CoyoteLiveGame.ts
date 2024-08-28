@@ -22,6 +22,8 @@ export interface CoyoteLiveGameEvents {
     gameStopped: [];
 }
 
+export const FIRE_MAX_DURATION = 30000;
+
 export class CoyoteLiveGame {
     public clientType = 'dglab';
 
@@ -213,6 +215,9 @@ export class CoyoteLiveGame {
                 this.fireEndTimestamp = Date.now() + duration;
             } else {
                 this.fireEndTimestamp += duration;
+                if (this.fireEndTimestamp > Date.now() + FIRE_MAX_DURATION) { // 最多持续30秒
+                    this.fireEndTimestamp = Date.now() + FIRE_MAX_DURATION;
+                }
             }
             this.firePulseId = pulseId || '';
         }
@@ -249,7 +254,7 @@ export class CoyoteLiveGame {
                 this.fireStrength = 0;
                 this.fireEndTimestamp = 0;
             } else {
-                outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
+                outputTime = Math.min(this.fireEndTimestamp - Date.now(), FIRE_MAX_DURATION); // 单次最多输出30秒
             }
 
             if (this.firePulseId) {
@@ -277,7 +282,7 @@ export class CoyoteLiveGame {
         harvest();
 
         let nextStrength: number | null = null;
-        if (this.strengthConfig.randomStrength) {
+        if (!this.fireStrength && this.strengthConfig.randomStrength) { // 非一键开火状态，且有随机强度
             // 随机强度
             nextStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
             nextStrength = Math.min(nextStrength, this.clientStrength.limit);

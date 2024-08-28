@@ -8,6 +8,7 @@ import { setupRouter as initRouter } from './router';
 import { MainConfig } from './config';
 import serveStatic from "koa-static";
 import bodyParser from '@koa/bodyparser';
+import blocked from 'blocked-at';
 
 // 加载Managers
 import './managers/DGLabWSManager';
@@ -17,16 +18,20 @@ import { LocalIPAddress, openBrowser } from './utils/utils';
 import { validator } from './utils/validator';
 
 async function main() {
+    blocked((time, stack) => {
+        console.log(`Blocked for ${time}ms, operation started here:`, stack)
+    });
+
     await validator.initialize();
     await MainConfig.initialize();
-    
+
     await DGLabPulseService.instance.initialize();
 
     const app = new Koa();
     const httpServer = http.createServer(app.callback());
-    
+
     // 在HTTP服务器上创建WebSocket服务器
-    const wsServer = new WebSocket.Server({ 
+    const wsServer = new WebSocket.Server({
         server: httpServer
     });
 

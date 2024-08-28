@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
     "version": "0.8.3",
-    "description": "1. 更改一键开火的累计限制，现在累计时间最多30秒",
+    "description": "1. 更改一键开火的累计限制，现在累计时间最多30秒\n2. 修复游戏异常断开后游戏没有停止的问题",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

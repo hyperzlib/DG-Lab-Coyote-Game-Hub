@@ -40,6 +40,8 @@ export class DGLabWSClient {
     public socket: AsyncWebSocket;
     public active: boolean = true;
 
+    private closed = false;
+
     public pulseList: DGLabPulseBaseInfo[] = [];
 
     private eventStore = new EventStore();
@@ -140,11 +142,11 @@ export class DGLabWSClient {
         socketEvents.on("close", () => {
             // console.log("Socket closed");
             this.events.emit("close");
-
             this.destory();
+            this.closed = true;
         });
 
-        pulseServiceEvents.on('pulseListUpdated', (pulseList) => {
+        pulseServiceEvents.on("pulseListUpdated", (pulseList) => {
             this.pulseList = pulseList;
             this.events.emit("pulseListUpdated", pulseList);
         });
@@ -306,6 +308,12 @@ export class DGLabWSClient {
             }
         }
         this.socket.close();
+
+        if (!this.closed) {
+            this.events.emit("close");
+            this.destory();
+            this.closed = true;
+        }
     }
 
     public destory() {

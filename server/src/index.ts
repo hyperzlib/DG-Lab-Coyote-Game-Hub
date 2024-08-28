@@ -18,9 +18,9 @@ import { LocalIPAddress, openBrowser } from './utils/utils';
 import { validator } from './utils/validator';
 
 async function main() {
-    blocked((time, stack) => {
-        console.log(`Blocked for ${time}ms, operation started here:`, stack)
-    });
+    // blocked((time, stack) => {
+    //     console.log(`Blocked for ${time}ms, operation started here:`, stack)
+    // });
 
     await validator.initialize();
     await MainConfig.initialize();

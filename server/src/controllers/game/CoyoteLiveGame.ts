@@ -250,7 +250,8 @@ export class CoyoteLiveGame {
 
         await this.client.setStrength(Channel.A, strength);
         if (this.strengthConfig.bChannelMultiplier) {
-            await this.client.setStrength(Channel.B, strength * this.strengthConfig.bChannelMultiplier);
+            let bStrength = Math.min(strength * this.strengthConfig.bChannelMultiplier, this.clientStrength.limit);
+            await this.client.setStrength(Channel.B, bStrength);
         }
     }
 

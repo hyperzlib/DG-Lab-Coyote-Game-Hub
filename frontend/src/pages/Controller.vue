@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import Tabs from 'primevue/tabs';
-import Tab from 'primevue/tab';
-import TabList from 'primevue/tablist';
+// import Tabs from 'primevue/tabs';
+// import Tab from 'primevue/tab';
+// import TabList from 'primevue/tablist';
 
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';

@@ -78,7 +78,7 @@ export class DGLabPulseService {
     }
 
     public getPulseInfoList(): DGLabPulseBaseInfo[] {
-        return this.pulseList.map(pulse => ({ id: pulse.id, name: pulse.name }));
+        return this.pulseList;
     }
 
     public getPulse(pulseId: string): DGLabPulseInfo | null {

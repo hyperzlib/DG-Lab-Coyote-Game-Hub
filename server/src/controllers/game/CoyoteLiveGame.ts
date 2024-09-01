@@ -49,6 +49,7 @@ export class CoyoteLiveGame {
     public firePulseId: string = '';
 
     public currentPulseId: string = '';
+    public defaultFirePulseId: string = '';
 
     private eventStore: EventStore = new EventStore();
     private events = new EventEmitter<CoyoteLiveGameEvents>();
@@ -59,6 +60,7 @@ export class CoyoteLiveGame {
         return {
             strength: this.strengthConfig,
             pulseId: this.currentPulseId,
+            firePulseId: this.defaultFirePulseId || null,
         };
     }
 
@@ -98,9 +100,10 @@ export class CoyoteLiveGame {
             hasCachedConfig = true;
         }
 
-        let cachedPulseId = configCache.get(`${configCachePrefix}:pulseId`);
-        if (cachedPulseId) {
-            this.currentPulseId = cachedPulseId;
+        let cachedPulseConfig = configCache.get(`${configCachePrefix}:pulse`);
+        if (cachedPulseConfig && cachedPulseConfig.pulseId) {
+            this.currentPulseId = cachedPulseConfig.pulseId;
+            this.defaultFirePulseId = cachedPulseConfig.firePulseId || '';
             hasCachedConfig = true;
         }
 
@@ -151,7 +154,7 @@ export class CoyoteLiveGame {
      * @param config 
      */
     public async updateConfig(config: CoyoteLiveGameConfig): Promise<void> {
-        let configUpdated = false;
+        let shouldRestartGame = false;
         let onlyStrengthUpdated = false;
         let deltaStrength = 0;
         
@@ -159,7 +162,7 @@ export class CoyoteLiveGame {
         if (diffKeys) {
             this.strengthConfig = config.strength;
             this.strengthConfigModified = Date.now();
-            configUpdated = true;
+            shouldRestartGame = true;
 
             onlyStrengthUpdated = diffKeys.every((key) => key === 'strength' || key === 'randomStrength');
             deltaStrength = this.strengthConfig.strength - this.client.strength.strength;
@@ -172,10 +175,12 @@ export class CoyoteLiveGame {
 
         if (config.pulseId && config.pulseId !== this.currentPulseId) {
             this.currentPulseId = config.pulseId;
-            configUpdated = true;
+            shouldRestartGame = true;
         }
 
-        if (configUpdated) {
+        this.defaultFirePulseId = config.firePulseId || '';
+
+        if (shouldRestartGame) {
             this.handleConfigUpdated();
 
             if (onlyStrengthUpdated && deltaStrength <= 5) {
@@ -208,7 +213,7 @@ export class CoyoteLiveGame {
         if (!this.fireStrength) {
             this.fireStrength = strength;
             this.fireEndTimestamp = Date.now() + duration;
-            this.firePulseId = pulseId || '';
+            this.firePulseId = pulseId || this.defaultFirePulseId || '';
 
             // 通知强度变化
             this.events.emit('strengthChanged', this.gameStrength);
@@ -227,7 +232,7 @@ export class CoyoteLiveGame {
                     this.fireEndTimestamp = Date.now() + FIRE_MAX_DURATION;
                 }
             }
-            this.firePulseId = pulseId || '';
+            this.firePulseId = pulseId || this.defaultFirePulseId || '';
         }
     }
 
@@ -386,7 +391,10 @@ export class CoyoteLiveGame {
         const configCachePrefix = `coyoteLiveGameConfig:${this.client.clientId}:`;
         const configCache  = CoyoteLiveGameManager.instance.configCache;
         configCache.set(`${configCachePrefix}:strength`, this.strengthConfig);
-        configCache.set(`${configCachePrefix}:pulseId`, this.currentPulseId);
+        configCache.set(`${configCachePrefix}:pulse`, {
+            pulseId: this.currentPulseId,
+            firePulseId: this.defaultFirePulseId || null,
+        });
 
         this.events.emit('close');
     }

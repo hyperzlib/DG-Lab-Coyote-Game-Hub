@@ -10,6 +10,12 @@
                 },
                 "pulseId": {
                     "type": "string"
+                },
+                "firePulseId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 }
             },
             "required": [

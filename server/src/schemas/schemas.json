@@ -3,12 +3,12 @@
         "fileMd5": "631bc4fd8b2340fc59012a7f862ea61e"
     },
     "./src/schemas/CoyoteLiveGameConfig.json": {
-        "fileMd5": "68edd3b978756b23403dddb222032faa"
+        "fileMd5": "2acb2305747cc5debb108157b8592022"
     },
     "./src/schemas/MainConfigType.json": {
         "fileMd5": "246505a20c9c95200b7e94214f15bb1c"
     },
     "./src/schemas/GameStrengthConfig.json": {
-        "fileMd5": "68edd3b978756b23403dddb222032faa"
+        "fileMd5": "2acb2305747cc5debb108157b8592022"
     }
 }

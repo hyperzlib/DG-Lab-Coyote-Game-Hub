@@ -41,6 +41,7 @@ export type GameStrengthConfig = {
 export type CoyoteLiveGameConfig = {
     strength: GameStrengthConfig;
     pulseId: string;
+    firePulseId?: string | null;
 }
 
 export interface SocketApiEventListeners extends EventDef {

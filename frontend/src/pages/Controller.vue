@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+import Tabs from 'primevue/tabs';
+import Tab from 'primevue/tab';
+import TabList from 'primevue/tablist';
+
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 import StatusChart from '../charts/Circle1.vue';
@@ -6,6 +10,7 @@ import StatusChart from '../charts/Circle1.vue';
 import { CoyoteLiveGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
+import PulseCard from '../components/card/PulseCard.vue';
 
 const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
 
@@ -24,6 +29,7 @@ const state = reactive({
 
   pulseList: null as PulseItemResponse[] | null,
   currentPulseId: '',
+  firePulseId: '',
 
   clientType: 'dglab' as 'unknown' | 'dglab' | 'dghelper',
   clientId: '',
@@ -54,6 +60,7 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
         bChannelMultiplier: state.bChannelEnabled ? state.bChannelMultiple : undefined,
       },
       pulseId: state.currentPulseId,
+      firePulseId: state.firePulseId || null,
     };
   },
   set: (value) => {
@@ -64,6 +71,7 @@ const gameConfig = computed<CoyoteLiveGameConfig>({
     state.bChannelEnabled = typeof value.strength.bChannelMultiplier === 'number';
     state.bChannelMultiple = value.strength.bChannelMultiplier ?? 1;
     state.currentPulseId = value.pulseId;
+    state.firePulseId = value.firePulseId || '';
   }
 });
 
@@ -237,10 +245,6 @@ const handleConnSetClientId = (clientId: string) => {
   state.showConnectionDialog = false;
 
   toast.add({ severity: 'success', summary: '设置成功', detail: '正在等待客户端连接', life: 3000 });
-};
-
-const setPulse = (pulseId: string) => {
-  state.currentPulseId = pulseId;
 };
 
 const postConfig = async (autoPost = false) => {
@@ -421,16 +425,22 @@ watch(gameConfig, () => {
             </div>
           </div>
           <Divider></Divider>
-          <h2 class="font-bold text-xl mt-4 mb-2">波形选择</h2>
+          <div class="flex justify-between gap-2 mt-4 mb-2 items-center">
+            <h2 class="font-bold text-xl">波形选择</h2>
+            <!-- <Tabs class="inner-tabs">
+              <TabList>
+                <Tab value="0">单个</Tab>
+                <Tab value="1">随机</Tab>
+              </TabList>
+            </Tabs> -->
+          </div>
           <FadeAndSlideTransitionGroup>
             <div v-if="state.clientStatus !== 'connected'" class="flex justify-center py-4">
               <div class="opacity-60">请先连接到客户端</div>
             </div>
-            <div v-else-if="state.pulseList" class="grid justify-center grid-cols-3 md:grid-cols-5 gap-4">
-              <ToggleButton v-for="pulseInfo in state.pulseList" class="pulse-btn"
-                :model-value="state.currentPulseId === pulseInfo.id" :onLabel="pulseInfo.name"
-                :offLabel="pulseInfo.name" @update:model-value="setPulse(pulseInfo.id)" onIcon="pi pi-wave-pulse"
-                offIcon="pi pi-wave-pulse" />
+            <div v-else-if="state.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+              <PulseCard v-for="pulse in state.pulseList" :key="pulse.id" :pulse-info="pulse"
+                v-model:current-pulse-id="state.currentPulseId" v-model:fire-pulse-id="state.firePulseId" />
             </div>
             <div v-else class="flex justify-center py-4">
               <ProgressSpinner />
@@ -525,6 +535,11 @@ $container-max-widths: (
   text-align: center;
 }
 
+.inner-tabs {
+  --p-tabs-tablist-background: transparent;
+  --p-tabs-tab-padding: 0.5rem 1.5rem;
+}
+
 @media (prefers-color-scheme: dark) {
   .controller-panel {
     background: #121212;
@@ -533,15 +548,6 @@ $container-max-widths: (
 
   .controller-toolbar {
     border-bottom: 1px solid #333;
-  }
-}
-
-.pulse-btn {
-  width: 100%;
-  padding: 1rem;
-
-  :deep(.p-togglebutton-content) {
-    flex-direction: column;
   }
 }
 </style>

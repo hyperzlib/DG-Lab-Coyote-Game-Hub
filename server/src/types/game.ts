@@ -9,4 +9,5 @@ export interface GameStrengthConfig {
 export interface CoyoteLiveGameConfig {
     strength: GameStrengthConfig;
     pulseId: string;
+    firePulseId?: string | null;
 }

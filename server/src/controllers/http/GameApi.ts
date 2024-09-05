@@ -225,6 +225,11 @@ export class GameApiController {
         }
         
         if (!game) {
+            ctx.body = {
+                status: 0,
+                code: 'ERR::GAME_NOT_FOUND',
+                message: '游戏进程不存在，可能是客户端未连接',
+            };
             return;
         }
 
@@ -311,8 +316,28 @@ export class GameApiController {
     }
 
     public static async getPulseId(ctx: RouterContext): Promise<void> {
-        const game = await GameApiController.requestGameInstance(ctx);
+        let game: CoyoteLiveGame | null = null;
+        if (ctx.params.id === 'all') {
+            if (!MainConfig.value.allowBroadcastToClients) {
+                ctx.body = {
+                    status: 0,
+                    code: 'ERR::BROADCAST_NOT_ALLOWED',
+                    message: '当前服务器配置不允许向所有客户端广播指令',
+                };
+                return;
+            }
+
+            game = CoyoteLiveGameManager.instance.getGameList().next().value;
+        } else {
+            game = await GameApiController.requestGameInstance(ctx);
+        }
+        
         if (!game) {
+            ctx.body = {
+                status: 0,
+                code: 'ERR::GAME_NOT_FOUND',
+                message: '游戏进程不存在，可能是客户端未连接',
+            };
             return;
         }
 
@@ -342,16 +367,6 @@ export class GameApiController {
             return;
         }
 
-        const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
-        if (!game) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            };
-            return;
-        }
-
         const req = ctx.request.body as { pulseId: string };
 
         if (!req.pulseId) {
@@ -363,15 +378,47 @@ export class GameApiController {
             return;
         }
 
-        game.updateConfig({
-            ...game.gameConfig,
-            pulseId: req.pulseId,
-        })
+        let gameList: Iterable<CoyoteLiveGame> = [];
+        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
+            if (!MainConfig.value.allowBroadcastToClients) {
+                ctx.body = {
+                    status: 0,
+                    code: 'ERR::BROADCAST_NOT_ALLOWED',
+                    message: '当前服务器配置不允许向所有客户端广播指令',
+                };
+                return;
+            }
+
+            gameList = CoyoteLiveGameManager.instance.getGameList();
+        } else  { // 设置指定游戏的强度配置
+            const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
+            if (!game) {
+                ctx.body = {
+                    status: 0,
+                    code: 'ERR::GAME_NOT_FOUND',
+                    message: '游戏进程不存在，可能是客户端未连接',
+                };
+                return;
+            }
+
+           (gameList as CoyoteLiveGame[]).push(game);
+        }
+        
+        let successClientIds = new Set<string>();
+        for (const game of gameList) {
+            game.updateConfig({
+                ...game.gameConfig,
+                pulseId: req.pulseId,
+            });
+
+            successClientIds.add(game.clientId);
+        }
 
         ctx.body = {
             status: 1,
             code: 'OK',
-            message: '成功设置了游戏的脉冲ID',
+            message: `成功设置了 ${successClientIds.size} 个游戏的脉冲ID`,
+            successClientIds: Array.from(successClientIds),
         };
     }
 
@@ -403,10 +450,7 @@ export class GameApiController {
             pulseList = DGLabPulseService.instance.pulseList;
         } else {
             // 只返回基本信息
-            DGLabPulseService.instance.pulseList.map((pulse) => ({
-                id: pulse.id,
-                name: pulse.name,
-            }));
+            pulseList = DGLabPulseService.instance.getPulseInfoList();
         }
 
         ctx.body = {

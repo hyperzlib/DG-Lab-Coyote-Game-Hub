@@ -16,11 +16,19 @@ export type TaskEventsHandler = {
     (event: 'error', listener: (error: any) => void): void;
 };
 
+export function createHarvest(abortController: AbortController): () => void {
+    return () => {
+        if (abortController.signal.aborted) {
+            throw new TaskAbortedError();
+        }
+    };
+}
+
 /**
  * @param abortController
  * @param harvest This function will break the task if the task is aborted.
  */
-export type TaskHandler = (abortController: AbortController, harvest: () => void) => Promise<void>;
+export type TaskHandler = (abortController: AbortController, harvest: () => void, round: number) => Promise<void>;
 
 export class Task {
     public minInterval: number;
@@ -48,13 +56,14 @@ export class Task {
             return;
         }
 
-        const harvest = this.createHarvest(this.abortController);
+        const harvest = createHarvest(this.abortController);
 
         this.running = true;
+        let round = 0;
         while (this.running) {
             let startTime = Date.now();
             try {
-                await this.handler(this.abortController, harvest);
+                await this.handler(this.abortController, harvest, round);
             } catch (error) {
                 if (error instanceof TaskAbortedError) { // Task aborted
                     break;
@@ -65,19 +74,13 @@ export class Task {
 
             const sleepTime = Math.max(0, this.minInterval - (endTime - startTime));
             await asleep(sleepTime);
+
+            round ++;
         }
 
         if (this.stopResolve) {
             this.stopResolve();
         }
-    }
-
-    private createHarvest(abortController: AbortController): () => void {
-        return () => {
-            if (abortController.signal.aborted) {
-                throw new TaskAbortedError();
-            }
-        };
     }
 
     public handleError(error: Error) {

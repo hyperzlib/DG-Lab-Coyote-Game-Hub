@@ -5,6 +5,8 @@ import { EventStore } from '../../utils/EventStore';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
 import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
 import { validator } from '../../utils/validator';
+import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
+import { DGLabPulseService } from '../../services/DGLabPulse';
 
 export type WebWSPostMessage = {
     event: string;
@@ -35,6 +37,12 @@ export class WebWSClient {
     public async initialize(): Promise<void> {
         this.bindEvents();
 
+        // 发送波形列表
+        await this.send({
+            event: 'pulseListUpdated',
+            data: DGLabPulseService.instance.getPulseInfoList(),
+        });
+
         this.heartbeatTask = setInterval(() => this.taskHeartbeat(), 15000);
     }
 
@@ -58,12 +66,10 @@ export class WebWSClient {
     public bindEvents() {
         const gameManagerEvents = this.eventStore.wrap(CoyoteLiveGameManager.instance);
         const socketEvents = this.eventStore.wrap(this.socket);
+        const gameConfigServiceEvents = this.eventStore.wrap(CoyoteGameConfigService.instance);
+        const pulseServiceEvents = this.eventStore.wrap(DGLabPulseService.instance);
 
-        gameManagerEvents.on("gameCreated", async (clientId, gameInstance) => {
-            if (clientId !== this.clientId) {
-                return;
-            }
-
+        gameManagerEvents.on("gameCreated", this.clientId, async (gameInstance) => {
             this.connectToGame(gameInstance, true);
         });
 
@@ -86,6 +92,23 @@ export class WebWSClient {
 
             this.destory();
         });
+
+        gameConfigServiceEvents.on("configUpdated", this.clientId, async (type, newConfig) => {
+            await this.send({
+                event: 'configUpdated',
+                data: {
+                    type,
+                    config: newConfig,
+                }
+            });
+        });
+
+        pulseServiceEvents.on("pulseListUpdated", async (pulseList) => {
+            await this.send({
+                event: 'pulseListUpdated',
+                data: pulseList,
+            });
+        });
     }
 
     private async handleMessage(message: any) {
@@ -98,9 +121,11 @@ export class WebWSClient {
             case 'bindClient':
                 await this.handleBindClient(message);
                 break;
-            case 'updateConfig':
-                await this.handleUpdateConfig(message);
+            case 'updateStrengthConfig':
+                await this.handleUpdateStrengthConfig(message);
                 break;
+            case 'updateGameConfig':
+                await this.handleUpdateGameConfig(message);
             case 'startGame':
                 await this.handleStartGame(message);
                 break;
@@ -124,6 +149,24 @@ export class WebWSClient {
 
         this.clientId = message.clientId;
 
+        // 发送服务器存储的配置信息
+        await this.send({
+            event: 'configUpdated',
+            data: {
+                type: GameConfigType.MainGame,
+                config: CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame),
+            },
+        });
+
+        // 发送服务器存储的自定义波形
+        await this.send({
+            event: 'configUpdated',
+            data: {
+                type: GameConfigType.CustomPulse,
+                config: CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.CustomPulse),
+            },
+        });
+
         let gameInstance = CoyoteLiveGameManager.instance.getGame(this.clientId);
         if (gameInstance) { // 如果已经有游戏实例，直接连接
             this.connectToGame(gameInstance);
@@ -141,8 +184,8 @@ export class WebWSClient {
             });
 
             await this.send({
-                event: 'configUpdated',
-                data: gameInstance.gameConfig,
+                event: 'strengthConfigUpdated',
+                data: gameInstance.strengthConfig,
             });
         }
 
@@ -151,7 +194,7 @@ export class WebWSClient {
         });
     }
 
-    private async handleUpdateConfig(message: any) {
+    private async handleUpdateStrengthConfig(message: any) {
         if (!this.gameInstance) {
             await this.sendResponse(message.requestId, {
                 status: 0,
@@ -166,16 +209,57 @@ export class WebWSClient {
                 message: '数据包错误：config 不存在',
             });
             return;
-        } else if (!validator.validateCoyoteLiveGameConfig(message.config)) {
+        } else if (!validator.validateGameStrengthConfig(message.config)) {
             await this.sendResponse(message.requestId, {
                 status: 0,
                 message: '数据包错误：config 格式错误',
-                detail: validator.validateCoyoteLiveGameConfig.errors,
+                detail: validator.validateMainGameConfig.errors,
             });
             return;
         }
 
-        await this.gameInstance.updateConfig(message.config);
+        await this.gameInstance.updateStrengthConfig(message.config);
+    }
+
+    private async handleUpdateGameConfig(message: any) {
+        if (!message.type || !message.config) {
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '数据包错误：type 或 config 参数为空',
+            });
+            return;
+        }
+
+        switch (message.type) {
+            case GameConfigType.MainGame:
+                if (!validator.validateMainGameConfig(message.config)) {
+                    await this.sendResponse(message.requestId, {
+                        status: 0,
+                        message: '数据包错误：config 格式错误',
+                        detail: validator.validateMainGameConfig.errors,
+                    });
+                    return;
+                }
+                break;
+            case GameConfigType.CustomPulse:
+                if (!validator.validateGameCustomPulseConfig(message.config)) {
+                    await this.sendResponse(message.requestId, {
+                        status: 0,
+                        message: '数据包错误：config 格式错误',
+                        detail: validator.validateGameCustomPulseConfig.errors,
+                    });
+                    return;
+                }
+                break;
+            default:
+                await this.sendResponse(message.requestId, {
+                    status: 0,
+                    message: '数据包错误：type 参数错误',
+                });
+                return;
+        }
+        
+        CoyoteGameConfigService.instance.set(this.clientId, message.type, message.config);
     }
 
     private async handleStartGame(message: any) {
@@ -245,25 +329,12 @@ export class WebWSClient {
             }
         });
 
-        // 发送波形列表
-        await this.send({
-            event: 'pulseListUpdated',
-            data: gameInstance.client.pulseList,
-        })
-
         const gameEvents = this.gameEventStore.wrap(gameInstance);
         gameEvents.on("close", () => {
             this.disconnectFromGame();
 
             this.send({
                 event: 'clientDisconnected',
-            });
-        });
-
-        gameEvents.on("pulseListUpdated", async (pulseList) => {
-            await this.send({
-                event: 'pulseListUpdated',
-                data: pulseList,
             });
         });
 
@@ -286,9 +357,9 @@ export class WebWSClient {
             });
         });
 
-        gameEvents.on("configUpdated", (gameConfig) => {
+        gameEvents.on("strengthConfigUpdated", (gameConfig) => {
             this.send({
-                event: 'configUpdated',
+                event: 'strengthConfigUpdated',
                 data: gameConfig,
             });
         });
@@ -318,8 +389,8 @@ export class WebWSClient {
             });
 
             await this.send({
-                event: 'configUpdated',
-                data: gameInstance.gameConfig,
+                event: 'strengthConfigUpdated',
+                data: gameInstance.strengthConfig,
             });
         }
     }

@@ -1,6 +1,6 @@
 export interface IEventEmitter {
-    on(eventName: string, callback: Function): any;
-    off(eventName: string, callback?: Function): any;
+    on: Function;
+    off: Function;
 }
 
 export interface EventStoreItem {
@@ -36,8 +36,10 @@ export class EventStore {
             get: (target, prop) => {
                 switch (prop) {
                     case 'on':
+                    case 'addListener':
                         return this.wrapOn(eventSource);
                     case 'off':
+                    case 'removeListener':
                         return this.wrapOff(eventSource);
                     default:
                         return (target as any)[prop];
@@ -54,25 +56,41 @@ export class EventStore {
     }
 
     private wrapOn<T extends IEventEmitter>(eventSource: T) {
-        return (eventName: string, callback: Function) => {
+        return (eventName: string, arg1: string | Function, arg2?: Function) => {
+            let callback: Function;
+            if (typeof arg1 === 'string') {
+                eventName = `${eventName}/${arg1}`;
+                callback = arg2!;
+            } else {
+                callback = arg1;
+            }
+
             this.listenedEvents.push({
                 source: eventSource,
                 eventName,
-                callback
+                callback,
             });
 
-            return eventSource.on(eventName, callback);
+            return eventSource.on(eventName, callback as any);
         }
     }
 
     private wrapOff<T extends IEventEmitter>(eventSource: T) {
-        return (eventName: string, callback?: Function) => {
+        return (eventName: string, arg1: string | Function, arg2?: Function) => {
+            let callback: Function;
+            if (typeof arg1 === 'string') {
+                eventName = `${eventName}/${arg1}`;
+                callback = arg2!;
+            } else {
+                callback = arg1;
+            }
+
             let eventItem = this.listenedEvents.find((item) => item.source === eventSource && item.eventName === eventName && item.callback === callback);
             if (eventItem) {
                 this.listenedEvents = this.listenedEvents.filter((item) => item !== eventItem);
             }
 
-            return eventSource.off(eventName, callback);
+            return eventSource.off(eventName, callback as any);
         }
     }
 
@@ -81,7 +99,7 @@ export class EventStore {
      */
     public removeAllListeners() {
         for (let eventItem of this.listenedEvents) {
-            eventItem.source.off(eventItem.eventName, eventItem.callback);
+            eventItem.source.off(eventItem.eventName, eventItem.callback as any);
         }
 
         this.listenedEvents = [];

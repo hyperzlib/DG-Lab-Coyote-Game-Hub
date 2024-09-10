@@ -8,8 +8,9 @@ class TypeValidator {
     constructor() { }
 
     public async initialize() {
-        this.validators.set('CoyoteLiveGameConfig', this.ajv.compile(await import('../schemas/CoyoteLiveGameConfig.json')));
+        this.validators.set('MainGameConfig', this.ajv.compile(await import('../schemas/MainGameConfig.json')));
         this.validators.set('GameStrengthConfig', this.ajv.compile(await import('../schemas/GameStrengthConfig.json')));
+        this.validators.set('GameCustomPulseConfig', this.ajv.compile(await import('../schemas/GameCustomPulseConfig.json')));
         this.validators.set('MainConfigType', this.ajv.compile(await import('../schemas/MainConfigType.json')));
     }
 
@@ -22,12 +23,16 @@ class TypeValidator {
         return validator(data);
     }
 
-    public get validateCoyoteLiveGameConfig() {
-        return this.validators.get('CoyoteLiveGameConfig')!;
+    public get validateMainGameConfig() {
+        return this.validators.get('MainGameConfig')!;
     }
     
     public get validateGameStrengthConfig() {
         return this.validators.get('GameStrengthConfig')!;
+    }
+
+    public get validateGameCustomPulseConfig() {
+        return this.validators.get('GameCustomPulseConfig')!;
     }
 
     public get validateMainConfigType() {

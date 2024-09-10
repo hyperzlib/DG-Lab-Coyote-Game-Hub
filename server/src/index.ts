@@ -16,6 +16,7 @@ import './managers/CoyoteLiveGameManager';
 import { DGLabPulseService } from './services/DGLabPulse';
 import { LocalIPAddress, openBrowser } from './utils/utils';
 import { validator } from './utils/validator';
+import { CoyoteGameConfigService } from './services/CoyoteGameConfigService';
 
 async function main() {
     // blocked((time, stack) => {
@@ -26,6 +27,7 @@ async function main() {
     await MainConfig.initialize();
 
     await DGLabPulseService.instance.initialize();
+    await CoyoteGameConfigService.instance.initialize();
 
     const app = new Koa();
     const httpServer = http.createServer(app.callback());

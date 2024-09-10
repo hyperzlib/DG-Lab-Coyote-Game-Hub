@@ -11,15 +11,25 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
     router.get('/api/client/connect', WebController.getClientConnectInfo);
 
     router.get('/api/game', GameApiController.gameApiInfo);
+
+    // v1
     router.get('/api/game/:id', GameApiController.gameInfo);
-    router.get('/api/game/:id/strength_config', GameApiController.getStrengthConfig);
-    router.post('/api/game/:id/strength_config', GameApiController.setStrengthConfig);
+    router.get('/api/game/:id/strength_config', GameApiController.getGameStrength);
+    router.post('/api/game/:id/strength_config', GameApiController.setGameStrength);
     router.get('/api/game/:id/pulse_id', GameApiController.getPulseId);
     router.post('/api/game/:id/pulse_id', GameApiController.setPulseId);
-
     router.get('/api/game/:id/pulse_list', GameApiController.getPulseList);
 
-    router.post('/api/game/:id/fire', GameApiController.fire);
+    router.post('/api/game/:id/fire', GameApiController.startActionFire);
+
+    // v2
+    router.get('/api/v2/game/:id', GameApiController.gameInfo);
+    router.get('/api/v2/game/:id/strength', GameApiController.getGameStrength);
+    router.post('/api/v2/game/:id/strength', GameApiController.setGameStrength);
+    router.get('/api/v2/game/:id/pulse', GameApiController.getPulseId);
+    router.post('/api/v2/game/:id/pulse', GameApiController.setPulseId);
+
+    router.post('/api/v2/game/:id/action/fire', GameApiController.startActionFire);
 
     wsRouter.get('/ws', async (ws, req) => {
         WebWSManager.instance.handleWebSocket(ws, req);

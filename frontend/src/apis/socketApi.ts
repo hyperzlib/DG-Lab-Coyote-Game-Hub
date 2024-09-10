@@ -54,7 +54,8 @@ export interface SocketApiEventListeners extends EventDef {
     gameStarted: [];
     gameStopped: [];
     strengthChanged: [strength: GameStrengthInfo];
-    configUpdated: [config: CoyoteLiveGameConfig];
+    strengthConfigUpdated: [config: CoyoteLiveGameConfig];
+    gameConfigUpdated: [config: CoyoteLiveGameConfig];
 }
 
 export class SocketApi {
@@ -237,8 +238,11 @@ export class SocketApi {
             case "strengthChanged":
                 this.events.emit("strengthChanged", message.data);
                 break;
-            case "configUpdated":
-                this.events.emit("configUpdated", message.data);
+            case "strengthConfigUpdated":
+                this.events.emit("strengthConfigUpdated", message.data);
+                break;
+            case "gameConfigUpdated":
+                this.events.emit("gameConfigUpdated", message.data);
                 break;
             case "heartbeat":
                 this.send({

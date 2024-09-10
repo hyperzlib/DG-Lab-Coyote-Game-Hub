@@ -11,7 +11,7 @@ async function md5File(file) {
 const typesList = [
     {
         file: './src/types/game.ts',
-        types: ['GameStrengthConfig', 'CoyoteLiveGameConfig']
+        types: ['GameStrengthConfig', 'GameCustomPulseConfig', 'MainGameConfig']
     },
     {
         file: './src/types/config.ts',

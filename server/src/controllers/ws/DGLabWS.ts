@@ -23,7 +23,6 @@ export interface OutputPulseOptions {
 }
 
 export interface DGLabWSEvents {
-    pulseListUpdated: [pulseList: DGLabPulseBaseInfo[]];
     strengthChanged: [strength: StrengthInfo, strength_b: StrengthInfo];
     setStrength: [channel: Channel, strength: number];
     sendPulse: [channel: Channel, pulse: string[]];
@@ -79,7 +78,6 @@ export class DGLabWSClient {
 
         const pulseService = DGLabPulseService.instance;
         this.pulseList = pulseService.pulseList;
-        this.events.emit("pulseListUpdated", this.pulseList);
     }
 
     public async send(messageType: MessageType | string, message: string | number): Promise<boolean> {
@@ -122,7 +120,6 @@ export class DGLabWSClient {
 
     public bindEvents() {
         const socketEvents = this.eventStore.wrap(this.socket);
-        const pulseServiceEvents = this.eventStore.wrap(DGLabPulseService.instance);
 
         socketEvents.on("message", async (data, isBinary) => {
             if (isBinary) {
@@ -144,11 +141,6 @@ export class DGLabWSClient {
             this.events.emit("close");
             this.destory();
             this.closed = true;
-        });
-
-        pulseServiceEvents.on("pulseListUpdated", (pulseList) => {
-            this.pulseList = pulseList;
-            this.events.emit("pulseListUpdated", pulseList);
         });
     }
 

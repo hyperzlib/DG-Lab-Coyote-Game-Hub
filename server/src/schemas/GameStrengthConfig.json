@@ -10,22 +10,11 @@
                 },
                 "randomStrength": {
                     "type": "number"
-                },
-                "minInterval": {
-                    "type": "number"
-                },
-                "maxInterval": {
-                    "type": "number"
-                },
-                "bChannelMultiplier": {
-                    "type": "number"
                 }
             },
             "required": [
                 "strength",
-                "randomStrength",
-                "minInterval",
-                "maxInterval"
+                "randomStrength"
             ],
             "additionalProperties": false
         }

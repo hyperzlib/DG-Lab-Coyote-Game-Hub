@@ -3,9 +3,10 @@ import { CoyoteLiveGame } from "../controllers/game/CoyoteLiveGame";
 import { DGLabWSClient } from "../controllers/ws/DGLabWS";
 import { DGLabWSManager } from "./DGLabWSManager";
 import { LRUCache } from "lru-cache";
+import { ExEventEmitter } from "../utils/ExEventEmitter";
 
 export interface CoyoteLiveGameManagerEvents {
-    gameCreated: [clientId: string, game: CoyoteLiveGame];
+    gameCreated: [game: CoyoteLiveGame];
 }
 
 export class CoyoteLiveGameManager {
@@ -13,7 +14,7 @@ export class CoyoteLiveGameManager {
 
     private games: Map<string, CoyoteLiveGame>;
 
-    private events = new EventEmitter<CoyoteLiveGameManagerEvents>();
+    private events = new ExEventEmitter<CoyoteLiveGameManagerEvents>();
 
     /**
      * 缓存游戏配置信息，用于在断线重连时恢复游戏状态
@@ -43,7 +44,7 @@ export class CoyoteLiveGameManager {
     public async handleClientConnected(client: DGLabWSClient) {
         try {
             const game = await this.createGame(client);
-            this.events.emit('gameCreated', client.clientId, game);
+            this.events.emitSub('gameCreated', client.clientId, game);
         } catch (error) {
             console.error('Failed to create game:', error);
         }

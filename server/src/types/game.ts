@@ -1,13 +1,24 @@
+export type PulsePlayMode = 'single' | 'sequence' | 'random';
+
 export interface GameStrengthConfig {
     strength: number;
     randomStrength: number;
-    minInterval: number;
-    maxInterval: number;
-    bChannelMultiplier?: number;
 }
 
-export interface CoyoteLiveGameConfig {
-    strength: GameStrengthConfig;
-    pulseId: string;
+export interface MainGameConfig {
+    strengthChangeInterval: [number, number];
+
+    enableBChannel: boolean;
+    /** B通道强度倍率 */
+    bChannelStrengthMultiplier: number;
+
+    pulseId: string | string[];
     firePulseId?: string | null;
+
+    pulseMode: PulsePlayMode;
+    pulseChangeInterval: number;
+}
+
+export interface GameCustomPulseConfig {
+    customPulseList: any[];
 }

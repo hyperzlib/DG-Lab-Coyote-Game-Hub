@@ -9,6 +9,12 @@
         "fileMd5": "246505a20c9c95200b7e94214f15bb1c"
     },
     "./src/schemas/GameStrengthConfig.json": {
-        "fileMd5": "2acb2305747cc5debb108157b8592022"
+        "fileMd5": "767957c4f5c0bedfadc8b1389d22ba33"
+    },
+    "./src/schemas/GameCustomPulseConfig.json": {
+        "fileMd5": "767957c4f5c0bedfadc8b1389d22ba33"
+    },
+    "./src/schemas/MainGameConfig.json": {
+        "fileMd5": "767957c4f5c0bedfadc8b1389d22ba33"
     }
 }

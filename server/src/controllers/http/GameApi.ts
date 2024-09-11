@@ -1,9 +1,6 @@
-import { Context } from 'koa';
 import { RouterContext } from 'koa-router';
 import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
-import { CoyoteLiveGameConfig } from '../../types/game';
 import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
-import { MainConfig } from '../../config';
 import { DGLabPulseService } from '../../services/DGLabPulse';
 import { asleep } from '../../utils/utils';
 
@@ -33,6 +30,25 @@ export type FireRequest = {
     pulseId?: string;
 };
 
+export interface BaseResponse {
+    status: Status;
+    code: Code;
+}
+
+export enum Status {
+    Error = 0,
+    Ok = 1,
+}
+
+export enum Code {
+    Ok = 'OK',
+    ErrInvalidClientId = 'ERR::INVALID_CLIENT_ID',
+    ErrInvalidPulseId = 'ERR::INVALID_PULSE_ID',
+    ErrGameNotFound = 'ERR::GAME_NOT_FOUND',
+    ErrInvalidRequest = 'ERR::INVALID_REQUEST',
+    ErrBroadcastNotAllowed = 'ERR::BROADCAST_NOT_ALLOWED',
+}
+
 export class GameStrengthUpdateQueue {
     private queuedUpdates: Map<string, SetStrengthConfigRequest[]> = new Map();
     private runningQueue: Set<string> = new Set();
@@ -56,7 +72,7 @@ export class GameStrengthUpdateQueue {
         }
 
         this.runningQueue.add(clientId);
-        let randomId = Math.random().toString(36).substring(6);
+        // let randomId = Math.random().toString(36).substring(6); // usused
         while (this.queuedUpdates.get(clientId)) {
             // Merge updates
             const game = CoyoteLiveGameManager.instance.getGame(clientId);
@@ -140,125 +156,64 @@ export class GameStrengthUpdateQueue {
 const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
 export class GameApiController {
-    private static async requestGameInstance(ctx: RouterContext): Promise<CoyoteLiveGame | null> {
-        if (!ctx.params.id) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_CLIENT_ID',
-                message: '无效的客户端ID',
-            };
-            return null;
+    private static getGlobalPulseList(fullMode: boolean): any[] {
+        let pulseList: any[] = [];
+
+        if (fullMode) {
+            pulseList = DGLabPulseService.instance.pulseList;
+        } else {
+            // 只返回基本信息
+            pulseList = DGLabPulseService.instance.getPulseInfoList();
         }
 
-        const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
-        if (!game) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            };
-            return null;
-        }
+        return pulseList;
+    }
 
-        return game;
+    public static setResponse<T extends BaseResponse>(ctx: RouterContext, body: T) {
+        ctx.body = body;
+        ctx.status = 200;
+        ctx.type = 'application/json';
+        ctx.set('app-status', body.status.toString());
+        ctx.set('app-code', body.code);
+    }
+
+    public static setResponseOk<T extends object>(ctx: RouterContext, payload: Omit<T, keyof BaseResponse>) {
+        const baseResponse = {
+            status: Status.Ok,
+            code: Code.Ok,
+        };
+        const body = { ...baseResponse, ...payload };
+
+        GameApiController.setResponse(ctx, body);
     }
 
     public static async gameApiInfo(ctx: RouterContext): Promise<void> {
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             message: 'Coyote Live 游戏API',
             minApiVersion: 1,
             maxApiVersion: 1,
-        };
+        });
     };
 
     public static async gameInfo(ctx: RouterContext): Promise<void> {
-        let game: CoyoteLiveGame | null = null;
-        if (ctx.params.id === 'all') {
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
-            
-            game = CoyoteLiveGameManager.instance.getGameList().next().value;
-        } else {
-            game = await GameApiController.requestGameInstance(ctx);
-        }
+        const game: CoyoteLiveGame = ctx.state.game;
 
-        if (game) {
-            ctx.body = {
-                status: 1,
-                code: 'OK',
-                clientType: game.clientType,
-                gameConfig: game.gameConfig,
-                clientStrength: game.clientStrength,
-            };
-        } else {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            };
-        }
+        GameApiController.setResponseOk(ctx, {
+            clientType: game.clientType,
+            gameConfig: game.gameConfig,
+            clientStrength: game.clientStrength,
+        });
     }
 
     public static async getStrengthConfig(ctx: RouterContext): Promise<void> {
-        let game: CoyoteLiveGame | null = null;
-        if (ctx.params.id === 'all') {
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
-
-            game = CoyoteLiveGameManager.instance.getGameList().next().value;
-        } else {
-            game = await GameApiController.requestGameInstance(ctx);
-        }
+        const game: CoyoteLiveGame = ctx.state.game;
         
-        if (!game) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            };
-            return;
-        }
-
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             strengthConfig: game.gameConfig.strength,
-        };
+        });
     }
 
     public static async setStrengthConfig(ctx: RouterContext): Promise<void> {
-        if (!ctx.params.id) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_CLIENT_ID',
-                message: '无效的客户端ID',
-            };
-            return;
-        }
-
-        if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_REQUEST',
-                message: '无效的请求，参数为空',
-            };
-            return;
-        }
-
         // fix for x-www-form-urlencoded
         const postBody = ctx.request.body;
         for (const key1 in postBody) {
@@ -271,31 +226,7 @@ export class GameApiController {
             }
         }
 
-        let gameList: Iterable<CoyoteLiveGame> = [];
-        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
-
-            gameList = CoyoteLiveGameManager.instance.getGameList();
-        } else  { // 设置指定游戏的强度配置
-            const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
-            if (!game) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::GAME_NOT_FOUND',
-                    message: '游戏进程不存在，可能是客户端未连接',
-                };
-                return;
-            }
-
-           (gameList as CoyoteLiveGame[]).push(game);
-        }
+        const gameList: Iterable<CoyoteLiveGame> = ctx.state.gameList;
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
@@ -307,102 +238,43 @@ export class GameApiController {
             successClientIds.add(game.clientId);
         }
 
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             message: `成功设置了 ${successClientIds.size} 个游戏的强度配置`,
             successClientIds: Array.from(successClientIds),
-        };
+        });
     }
 
     public static async getPulseId(ctx: RouterContext): Promise<void> {
-        let game: CoyoteLiveGame | null = null;
-        if (ctx.params.id === 'all') {
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
+        const game: CoyoteLiveGame = ctx.state.game;
 
-            game = CoyoteLiveGameManager.instance.getGameList().next().value;
-        } else {
-            game = await GameApiController.requestGameInstance(ctx);
-        }
-        
-        if (!game) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            };
-            return;
-        }
-
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             pulseId: game.gameConfig.pulseId,
-        };
+        });
     }
 
     public static async setPulseId(ctx: RouterContext): Promise<void> {
-        if (!ctx.params.id) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_CLIENT_ID',
-                message: '无效的客户端ID',
-            };
-            return;
-        }
-
-        if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_REQUEST',
-                message: '无效的请求，参数为空',
-            };
-            return;
-        }
-
         const req = ctx.request.body as { pulseId: string };
 
         if (!req.pulseId) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_REQUEST',
+            GameApiController.setResponse(ctx, {
+                status: Status.Error,
+                code: Code.ErrInvalidRequest,
                 message: '无效的请求，需要 "pulseId" 参数',
-            };
+            });
             return;
         }
 
-        let gameList: Iterable<CoyoteLiveGame> = [];
-        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
-
-            gameList = CoyoteLiveGameManager.instance.getGameList();
-        } else  { // 设置指定游戏的强度配置
-            const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
-            if (!game) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::GAME_NOT_FOUND',
-                    message: '游戏进程不存在，可能是客户端未连接',
-                };
-                return;
-            }
-
-           (gameList as CoyoteLiveGame[]).push(game);
+        const globalPulseList = GameApiController.getGlobalPulseList(false);
+        if (!globalPulseList.some(it => it.id === req.pulseId)) {
+            GameApiController.setResponse(ctx, {
+                status: Status.Error,
+                code: Code.ErrInvalidPulseId,
+                message: '无效的脉冲ID',
+            });
+            return;
         }
+
+        const gameList: Iterable<CoyoteLiveGame> = ctx.state.gameList;
         
         let successClientIds = new Set<string>();
         for (const game of gameList) {
@@ -414,71 +286,28 @@ export class GameApiController {
             successClientIds.add(game.clientId);
         }
 
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             message: `成功设置了 ${successClientIds.size} 个游戏的脉冲ID`,
             successClientIds: Array.from(successClientIds),
-        };
+        });
     }
 
     public static async getPulseList(ctx: RouterContext): Promise<void> {
         // 关于为什么脉冲列表要根据游戏获取，是为了在将来适配DG Helper的情况下，用于获取DG-Lab内置的脉冲列表
-        let game: CoyoteLiveGame | null = null;
-        if (ctx.params.id === 'all') {
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
-
-            game = CoyoteLiveGameManager.instance.getGameList().next().value;
-        } else {
-            game = await GameApiController.requestGameInstance(ctx);
-        }
+        const _game: CoyoteLiveGame = ctx.state.game;
         
         // 是否获取完整的波形信息
         let isFullMode = ctx.request.query?.type === 'full';
 
         // 暂且只从配置文件中获取脉冲列表
-        let pulseList: any[] = [];
+        const pulseList = GameApiController.getGlobalPulseList(isFullMode);
 
-        if (isFullMode) {
-            pulseList = DGLabPulseService.instance.pulseList;
-        } else {
-            // 只返回基本信息
-            pulseList = DGLabPulseService.instance.getPulseInfoList();
-        }
-
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             pulseList: pulseList,
-        };
+        });
     }
 
     public static async fire(ctx: RouterContext): Promise<void> {
-        if (!ctx.params.id) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_CLIENT_ID',
-                message: '无效的客户端ID',
-            };
-            return;
-        }
-
-        if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_REQUEST',
-                message: '无效的请求，参数为空',
-            };
-            return;
-        }
-
         // fix for x-www-form-urlencoded
         const postBody = ctx.request.body;
         for (const key in postBody) {
@@ -493,11 +322,11 @@ export class GameApiController {
         const req = postBody as FireRequest;
 
         if (typeof req.strength !== 'number') {
-            ctx.body = {
-                status: 0,
-                code: 'ERR::INVALID_REQUEST',
+            GameApiController.setResponse(ctx, {
+                status: Status.Error,
+                code: Code.ErrInvalidRequest,
                 message: '无效的请求，需要 "strength" 参数',
-            };
+            });
             return;
         }
 
@@ -521,31 +350,7 @@ export class GameApiController {
         const pulseId = req.pulseId ?? undefined;
         const overrideTime = req.override ?? false;
 
-        let gameList: Iterable<CoyoteLiveGame> = [];
-        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
-            if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::BROADCAST_NOT_ALLOWED',
-                    message: '当前服务器配置不允许向所有客户端广播指令',
-                };
-                return;
-            }
-
-            gameList = CoyoteLiveGameManager.instance.getGameList();
-        } else  { // 设置指定游戏的强度配置
-            const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
-            if (!game) {
-                ctx.body = {
-                    status: 0,
-                    code: 'ERR::GAME_NOT_FOUND',
-                    message: '游戏进程不存在，可能是客户端未连接',
-                };
-                return;
-            }
-
-           (gameList as CoyoteLiveGame[]).push(game);
-        }
+        const gameList: Iterable<CoyoteLiveGame> = ctx.state.gameList;
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
@@ -554,12 +359,10 @@ export class GameApiController {
             successClientIds.add(game.clientId);
         }
 
-        ctx.body = {
-            status: 1,
-            code: 'OK',
+        GameApiController.setResponseOk(ctx, {
             message: `成功向 ${successClientIds.size} 个游戏发送了一键开火指令`,
             successClientIds: Array.from(successClientIds),
             warnings,
-        };
+        });
     }
 }

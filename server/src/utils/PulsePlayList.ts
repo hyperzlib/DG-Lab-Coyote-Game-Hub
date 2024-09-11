@@ -13,6 +13,8 @@ export class PulsePlayList {
     public constructor(pulseIds: string[], mode: 'single' | 'sequence' | 'random' = 'single', interval?: number) {
         this.pulseIds = pulseIds;
 
+        this.mode = mode;
+
         if (pulseIds.length <= 1) {
             mode = 'single';
         }

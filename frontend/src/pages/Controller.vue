@@ -207,7 +207,7 @@ const togglePulse = (pulseId: string) => {
     if (state.selectPulseIds.includes(pulseId)) {
       state.selectPulseIds = state.selectPulseIds.filter((id) => id !== pulseId);
     } else {
-      state.selectPulseIds = [pulseId];
+      state.selectPulseIds.push(pulseId);
     }
   }
 };
@@ -276,11 +276,6 @@ const handleConnSetClientId = (clientId: string) => {
 };
 
 const postConfig = async () => {
-  if (!dgClientConnected) {
-    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '保存配置需要先连接到客户端' });
-    return;
-  }
-
   try {
     if (simpleObjDiff(oldStrengthConfig, strengthConfig.value)) {
       let res = await wsClient.updateStrengthConfig(strengthConfig.value);

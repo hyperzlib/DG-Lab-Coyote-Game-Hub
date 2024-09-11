@@ -435,7 +435,7 @@ export class CoyoteGameController {
     }
 
     public async destroy(): Promise<void> {
-        console.log('Destroying CoyoteLiveGame');
+        // console.log('Destroying CoyoteLiveGame');
 
         if (this.gameTask) {
             await this.gameTask.stop();

@@ -33,12 +33,12 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
     }
 
     async execute(ab: AbortController, harvest: () => void, done: () => void): Promise<void> {
-        let strength = this.game.strengthConfig.strength + this.fireStrength;
-        let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30); // 单次最多输出30秒
+        let strength = Math.min(this.game.strengthConfig.strength + this.fireStrength, this.game.gameStrength.limit);
+        let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
 
         await this.game.setClientStrength(strength);
 
-        await this.game.client.outputPulse(this.firePulseId, outputTime, {
+        await this.game.client?.outputPulse(this.firePulseId, outputTime, {
             abortController: ab,
             bChannel: this.game.gameConfig.enableBChannel,
             onTimeEnd: () => {

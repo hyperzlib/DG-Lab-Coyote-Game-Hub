@@ -14,17 +14,14 @@ const pulseColorDarkMode = '#d4d4d8';
 
 const props = defineProps<{
     pulseInfo: any;
+    isCurrentPulse: boolean;
+    isFirePulse: boolean;
 }>();
 
-const currentPulseId = defineModel('currentPulseId', {
-    type: String,
-    default: '',
-});
-
-const firePulseId = defineModel('firePulseId', {
-    type: String,
-    default: '',
-});
+const emit = defineEmits<{
+    setCurrentPulse: [pulseId: string];
+    setFirePulse: [pulseId: string];
+}>();
 
 const menu = ref<InstanceType<typeof Menu> | null>(null);
 
@@ -34,16 +31,12 @@ const showMenu = (event: Event) => {
 
 const setCurrentPulse = () => {
     const pulseId = props.pulseInfo?.id ?? '';
-    currentPulseId.value = pulseId;
+    emit('setCurrentPulse', pulseId);
 };
 
 const setFirePulse = () => {
     const pulseId = props.pulseInfo?.id ?? '';
-    if (firePulseId.value === pulseId) {
-        firePulseId.value = '';
-    } else {
-        firePulseId.value = pulseId;
-    }
+    emit('setFirePulse', pulseId);
 };
 
 let prevSvgDataUrl: string | null = null;
@@ -82,11 +75,10 @@ const cardStyles = computed(() => {
 });
 
 const moreOptions = computed<MenuItem[]>(() => {
-    const isFirePulse = firePulseId.value === props.pulseInfo?.id;
     return [
         {
-            label: isFirePulse ? '开火默认波形' : '设为开火默认波形',
-            icon: isFirePulse ? 'pi pi-check' : '',
+            label: props.isFirePulse ? '开火默认波形' : '设为开火默认波形',
+            icon: props.isFirePulse ? 'pi pi-check' : '',
             command: () => {
                 setFirePulse();
             },
@@ -116,10 +108,10 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="flex items-center">
                         <Transition name="fade">
-                            <FireIcon class="box-content px-2 w-1em h-1em" v-if="props.pulseInfo.id === firePulseId"></FireIcon>
+                            <FireIcon class="box-content px-2 w-1em h-1em" v-if="props.isFirePulse"></FireIcon>
                         </Transition>
                         <Transition name="fade">
-                            <i class="pi pi-check-circle px-2 !text-md" v-if="props.pulseInfo.id === currentPulseId"></i>
+                            <i class="pi pi-check-circle px-2 !text-md" v-if="props.isCurrentPulse"></i>
                         </Transition>
                         <Button class="more-config-button" severity="secondary" icon="pi pi-ellipsis-h" text aria-label="更多选项" @click="showMenu"></Button>
                         <Menu ref="menu" :model="moreOptions" :popup="true"></Menu>

@@ -1,16 +1,17 @@
 <script lang="ts" setup>
-// import Tabs from 'primevue/tabs';
-// import Tab from 'primevue/tab';
-// import TabList from 'primevue/tablist';
+import Tabs from 'primevue/tabs';
+import Tab from 'primevue/tab';
+import TabList from 'primevue/tablist';
 
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 import StatusChart from '../charts/Circle1.vue';
 
-import { CoyoteLiveGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
+import { GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
 import PulseCard from '../components/card/PulseCard.vue';
+import { simpleObjDiff } from '../utils/utils';
 
 const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
 
@@ -21,17 +22,18 @@ const state = reactive({
 
   tempStrength: 0,
 
-  randomFreqLow: 10,
-  randomFreqHigh: 15,
+  randomFreq: [5, 10],
 
   bChannelEnabled: false,
   bChannelMultiple: 1,
 
   pulseList: null as PulseItemResponse[] | null,
-  currentPulseId: '',
+  selectPulseIds: [''],
   firePulseId: '',
 
-  clientType: 'dglab' as 'unknown' | 'dglab' | 'dghelper',
+  pulseMode: 'single',
+  pulseChangeInterval: 60,
+
   clientId: '',
   clientWsUrlList: null as ClientConnectUrlInfo[] | null,
 
@@ -47,31 +49,41 @@ const state = reactive({
 // 在收到服务器的配置后设置为true，防止触发watch
 let receivedConfig = false;
 
-let oldConfig: CoyoteLiveGameConfig | null = null;
-
-const gameConfig = computed<CoyoteLiveGameConfig>({
+let oldGameConfig: MainGameConfig | null = null;
+const gameConfig = computed<MainGameConfig>({
   get: () => {
     return {
-      strength: {
-        strength: state.strengthVal,
-        randomStrength: state.randomStrengthVal,
-        minInterval: state.randomFreqLow,
-        maxInterval: state.randomFreqHigh,
-        bChannelMultiplier: state.bChannelEnabled ? state.bChannelMultiple : undefined,
-      },
-      pulseId: state.currentPulseId,
-      firePulseId: state.firePulseId || null,
-    };
+      strengthChangeInterval: state.randomFreq,
+      enableBChannel: state.bChannelEnabled,
+      bChannelStrengthMultiplier: state.bChannelMultiple,
+      pulseId: state.selectPulseIds.length === 1 ? state.selectPulseIds[0] : state.selectPulseIds,
+      firePulseId: state.firePulseId === '' ? null : state.firePulseId,
+      pulseMode: state.pulseMode,
+      pulseChangeInterval: state.pulseChangeInterval,
+    } as MainGameConfig;
   },
   set: (value) => {
-    state.strengthVal = value.strength.strength;
-    state.randomStrengthVal = value.strength.randomStrength;
-    state.randomFreqLow = value.strength.minInterval;
-    state.randomFreqHigh = value.strength.maxInterval;
-    state.bChannelEnabled = typeof value.strength.bChannelMultiplier === 'number';
-    state.bChannelMultiple = value.strength.bChannelMultiplier ?? 1;
-    state.currentPulseId = value.pulseId;
+    state.randomFreq = value.strengthChangeInterval;
+    state.bChannelEnabled = value.enableBChannel;
+    state.bChannelMultiple = value.bChannelStrengthMultiplier;
+    state.selectPulseIds = typeof value.pulseId === 'string' ? [value.pulseId] : value.pulseId || [''];
     state.firePulseId = value.firePulseId || '';
+    state.pulseMode = value.pulseMode;
+    state.pulseChangeInterval = value.pulseChangeInterval;
+  }
+});
+
+let oldStrengthConfig: GameStrengthConfig | null = null;
+const strengthConfig = computed<GameStrengthConfig>({
+  get: () => {
+    return {
+      strength: state.strengthVal,
+      randomStrength: state.randomStrengthVal,
+    } as GameStrengthConfig;
+  },
+  set: (value) => {
+    state.strengthVal = value.strength;
+    state.randomStrengthVal = value.randomStrength;
   }
 });
 
@@ -79,17 +91,7 @@ const chartVal = computed(() => ({
   valLow: Math.min(state.strengthVal + state.tempStrength, state.strengthLimit),
   valHigh: Math.min(state.strengthVal + state.tempStrength + state.randomStrengthVal, state.strengthLimit),
   valLimit: state.strengthLimit,
-}))
-
-const randomFreq = computed({
-  get: () => {
-    return [state.randomFreqLow, state.randomFreqHigh];
-  },
-  set: (value) => {
-    state.randomFreqLow = value[0];
-    state.randomFreqHigh = value[1];
-  },
-});
+}));
 
 const toast = useToast();
 
@@ -148,11 +150,6 @@ const initWebSocket = async () => {
     dgClientConnected = false;
   });
 
-  wsClient.on('gameInitialized', () => {
-    // 游戏初始化完成后，上报当前配置
-    postConfig(true);
-  });
-
   wsClient.on('gameStarted', () => {
     state.gameStarted = true;
   });
@@ -166,16 +163,31 @@ const initWebSocket = async () => {
     state.tempStrength = strength.tempStrength;
   });
 
-  wsClient.on('configUpdated', (config) => {
-    receivedConfig = true;
-
+  wsClient.on('strengthConfigUpdated', (config) => {
     if (state.showConfigSavePrompt) {
       // 当前有配置未保存，不更新配置，只替换旧配置
-      oldConfig = config;
+      oldStrengthConfig = config;
+    } else {
+      // 覆盖本地配置
+      strengthConfig.value = config;
+      oldStrengthConfig = config;
+
+      // 屏蔽保存提示
+      receivedConfig = true;
+      nextTick(() => {
+        receivedConfig = false;
+      });
+    }
+  });
+
+  wsClient.on('mainGameConfigUpdated', (config) => {
+    if (state.showConfigSavePrompt) {
+      // 当前有配置未保存，不更新配置，只替换旧配置
+      oldGameConfig = config;
     } else {
       // 覆盖本地配置
       gameConfig.value = config;
-      oldConfig = config;
+      oldGameConfig = config;
 
       // 屏蔽保存提示
       receivedConfig = true;
@@ -186,6 +198,22 @@ const initWebSocket = async () => {
   });
 
   wsClient.connect();
+};
+
+const togglePulse = (pulseId: string) => {
+  if (state.pulseMode === 'single') {
+    state.selectPulseIds = [pulseId];
+  } else {
+    if (state.selectPulseIds.includes(pulseId)) {
+      state.selectPulseIds = state.selectPulseIds.filter((id) => id !== pulseId);
+    } else {
+      state.selectPulseIds = [pulseId];
+    }
+  }
+};
+
+const setFirePulse = (pulseId: string) => {
+  state.firePulseId = pulseId;
 };
 
 const initClientConnection = async () => {
@@ -247,21 +275,26 @@ const handleConnSetClientId = (clientId: string) => {
   toast.add({ severity: 'success', summary: '设置成功', detail: '正在等待客户端连接', life: 3000 });
 };
 
-const postConfig = async (autoPost = false) => {
+const postConfig = async () => {
   if (!dgClientConnected) {
     toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '保存配置需要先连接到客户端' });
     return;
   }
 
   try {
-    let res = await wsClient.updateConfig(gameConfig.value);
-    handleApiResponse(res);
-
-    oldConfig = gameConfig.value;
-
-    if (!autoPost) {
-      toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存' });
+    if (simpleObjDiff(oldStrengthConfig, strengthConfig.value)) {
+      let res = await wsClient.updateStrengthConfig(strengthConfig.value);
+      handleApiResponse(res);
+      oldStrengthConfig = strengthConfig.value;
     }
+
+    if (simpleObjDiff(oldGameConfig, gameConfig.value)) {
+      let res = await wsClient.updateConfig(GameConfigType.MainGame, gameConfig.value);
+      handleApiResponse(res);
+      oldGameConfig = gameConfig.value;
+    }
+
+    toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存' });
   } catch (error: any) {
     console.error('Cannot post config:', error);
   }
@@ -301,8 +334,11 @@ const handleSaveConfig = () => {
 };
 
 const handleCancelSaveConfig = () => {
-  if (oldConfig) {
-    gameConfig.value = oldConfig;
+  if (oldGameConfig) {
+    gameConfig.value = oldGameConfig;
+  }
+  if (oldStrengthConfig) {
+    strengthConfig.value = oldStrengthConfig;
   }
 
   state.showConfigSavePrompt = false;
@@ -323,21 +359,18 @@ onMounted(async () => {
   await initWebSocket();
 });
 
-watch(gameConfig, () => {
+watch([gameConfig, strengthConfig], () => {
   if (receivedConfig) { // 收到服务器配置后不触发保存提示
     receivedConfig = false;
     return;
   }
 
-  if (dgClientConnected) { // 已连接时才显示保存提示，未连接时会在初始化完成后自动发送配置
-    state.showConfigSavePrompt = true; // 显示保存提示
-  }
+  state.showConfigSavePrompt = true; // 显示保存提示
 }, { deep: true });
 </script>
 
 <template>
   <div class="w-full page-container">
-    <Toast></Toast>
     <Toast></Toast>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
@@ -381,13 +414,13 @@ watch(gameConfig, () => {
             <label class="font-semibold w-30 flex-shrink-0">强度变化频率</label>
             <div class="w-full flex-shrink flex gap-2 flex-col lg:items-center lg:flex-row lg:gap-8">
               <div class="h-6 lg:h-auto flex-grow flex items-center">
-                <Slider class="w-full" v-model="randomFreq" range :max="60" />
+                <Slider class="w-full" v-model="state.randomFreq" range :max="60" />
               </div>
               <div class="w-40">
                 <InputGroup class="input-small">
-                  <InputNumber class="input-text-center" v-model="state.randomFreqLow" />
+                  <InputNumber class="input-text-center" v-model="state.randomFreq[0]" />
                   <InputGroupAddon>-</InputGroupAddon>
-                  <InputNumber class="input-text-center" v-model="state.randomFreqHigh" />
+                  <InputNumber class="input-text-center" v-model="state.randomFreq[1]" />
                 </InputGroup>
               </div>
             </div>
@@ -427,42 +460,24 @@ watch(gameConfig, () => {
           <Divider></Divider>
           <div class="flex justify-between gap-2 mt-4 mb-2 items-center">
             <h2 class="font-bold text-xl">波形选择</h2>
-            <!-- <Tabs class="inner-tabs">
+            <Tabs class="inner-tabs" v-model:value="state.pulseMode">
               <TabList>
-                <Tab value="0">单个</Tab>
-                <Tab value="1">随机</Tab>
+                <Tab value="single">单个</Tab>
+                <Tab value="sequence">顺序</Tab>
+                <Tab value="random">随机</Tab>
               </TabList>
-            </Tabs> -->
+            </Tabs>
           </div>
           <FadeAndSlideTransitionGroup>
-            <div v-if="state.clientStatus !== 'connected'" class="flex justify-center py-4">
-              <div class="opacity-60">请先连接到客户端</div>
-            </div>
-            <div v-else-if="state.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+            <div v-if="state.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
               <PulseCard v-for="pulse in state.pulseList" :key="pulse.id" :pulse-info="pulse"
-                v-model:current-pulse-id="state.currentPulseId" v-model:fire-pulse-id="state.firePulseId" />
+                :is-current-pulse="state.selectPulseIds.includes(pulse.id)" :is-fire-pulse="pulse.id === state.firePulseId"
+                @set-current-pulse="togglePulse" @set-fire-pulse="setFirePulse" />
             </div>
             <div v-else class="flex justify-center py-4">
               <ProgressSpinner />
             </div>
           </FadeAndSlideTransitionGroup>
-
-          <!-- 自定义按钮 -->
-          <!-- <FadeAndSlideTransitionGroup>
-            <div v-if="state.clientStatus === 'connected' && state.clientType === 'dglab'">
-              <Divider></Divider>
-              <h2 class="font-bold text-xl mt-4 mb-2">自定义按钮功能</h2>
-              <h3 class="font-semibold text-lg mb-2">A通道按钮</h3>
-
-              <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-                <label class="font-semibold w-30"><i class="pi pi-circle"></i></label>
-                <InputNumber class="input-small" v-model="state.strengthVal" />
-                <div class="flex-grow flex-shrink"></div>
-              </div>
-
-            </div>
-            <div v-else></div>
-          </FadeAndSlideTransitionGroup> -->
         </template>
       </Card>
     </div>

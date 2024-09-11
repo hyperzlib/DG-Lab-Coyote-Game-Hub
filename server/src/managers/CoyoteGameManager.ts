@@ -1,20 +1,20 @@
 import { EventEmitter } from "events";
-import { CoyoteLiveGame } from "../controllers/game/CoyoteLiveGame";
+import { CoyoteGameController } from "../controllers/game/CoyoteGameController";
 import { DGLabWSClient } from "../controllers/ws/DGLabWS";
 import { DGLabWSManager } from "./DGLabWSManager";
 import { LRUCache } from "lru-cache";
 import { ExEventEmitter } from "../utils/ExEventEmitter";
 
-export interface CoyoteLiveGameManagerEvents {
-    gameCreated: [game: CoyoteLiveGame];
+export interface CoyoteGameManagerEvents {
+    
 }
 
-export class CoyoteLiveGameManager {
-    private static _instance: CoyoteLiveGameManager;
+export class CoyoteGameManager {
+    private static _instance: CoyoteGameManager;
 
-    private games: Map<string, CoyoteLiveGame>;
+    private games: Map<string, CoyoteGameController>;
 
-    private events = new ExEventEmitter<CoyoteLiveGameManagerEvents>();
+    private events = new ExEventEmitter<CoyoteGameManagerEvents>();
 
     /**
      * 缓存游戏配置信息，用于在断线重连时恢复游戏状态
@@ -27,12 +27,12 @@ export class CoyoteLiveGameManager {
     constructor() {
         this.games = new Map();
 
-        DGLabWSManager.instance.on('clientConnected', (client) => this.handleClientConnected(client));
+        DGLabWSManager.instance.on('clientConnected', (client) => this.handleCoyoteClientConnected(client));
     }
 
     public static createInstance() {
         if (!this._instance) {
-            this._instance = new CoyoteLiveGameManager();
+            this._instance = new CoyoteGameManager();
         }
     }
 
@@ -41,20 +41,20 @@ export class CoyoteLiveGameManager {
         return this._instance;
     }
 
-    public async handleClientConnected(client: DGLabWSClient) {
+    public async handleCoyoteClientConnected(client: DGLabWSClient) {
         try {
-            const game = await this.createGame(client);
-            this.events.emitSub('gameCreated', client.clientId, game);
+            const game = await this.getOrCreateGame(client.clientId);
+            await game.bindClient(client);
         } catch (error) {
             console.error('Failed to create game:', error);
         }
     }
 
-    public async createGame(client: DGLabWSClient) {
-        const game = new CoyoteLiveGame(client);
+    public async createGame(clientId: string) {
+        const game = new CoyoteGameController(clientId);
         await game.initialize();
 
-        this.games.set(client.clientId, game);
+        this.games.set(clientId, game);
 
         return game;
     }
@@ -63,7 +63,16 @@ export class CoyoteLiveGameManager {
         return this.games.get(clientId);
     }
 
-    public getGameList(): IterableIterator<CoyoteLiveGame> {
+    public async getOrCreateGame(clientId: string) {
+        let game = this.getGame(clientId);
+        if (!game) {
+            game = await this.createGame(clientId);
+        }
+
+        return game;
+    }
+
+    public getGameList(): IterableIterator<CoyoteGameController> {
         return this.games.values();
     }
 
@@ -73,4 +82,4 @@ export class CoyoteLiveGameManager {
     public removeAllListeners = this.events.removeAllListeners.bind(this.events);
 }
 
-CoyoteLiveGameManager.createInstance();
+CoyoteGameManager.createInstance();

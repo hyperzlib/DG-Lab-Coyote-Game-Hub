@@ -1,35 +1,44 @@
 import { EventEmitter } from 'events';
 
 import { Channel } from '../../types/dg';
-import { DGLabWSClient, StrengthInfo } from '../../controllers/ws/DGLabWS';
+import { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS';
 import { Task } from '../../utils/task';
 import { asleep, randomInt, simpleObjDiff } from '../../utils/utils';
 import { EventStore } from '../../utils/EventStore';
-import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
+import { CoyoteGameManager } from '../../managers/CoyoteGameManager';
 import { MainGameConfig, GameStrengthConfig } from '../../types/game';
 import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
 import { PulsePlayList } from '../../utils/PulsePlayList';
 import { AbstractGameAction } from './actions/AbstractGameAction';
+import { WebWSClient } from '../ws/WebWS';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;
 };
 
-export interface CoyoteLiveGameEvents {
+export interface CoyoteGameEvents {
     close: [];
     strengthChanged: [strength: GameStrengthInfo];
     strengthConfigUpdated: [config: GameStrengthConfig];
+    clientConnected: [];
+    clientDisconnected: [];
     gameStarted: [];
     gameStopped: [];
 }
 
 export const FIRE_MAX_DURATION = 30000;
 
-export class CoyoteLiveGame {
-    public clientType = 'dglab';
+export class CoyoteGameController {
+    /** 在线Socket的ID列表，用于判断是否可以释放Game */
+    private onlineSockets = new Set<string>();
 
-    public client: DGLabWSClient;
+    /** 游戏对应的clientId */
+    public clientId: string;
 
+    /** DG-Lab客户端连接 */
+    public client?: DGLabWSClient;
+
+    /** 强度配置 */
     public strengthConfig: GameStrengthConfig = {
         strength: 5,
         randomStrength: 5,
@@ -39,12 +48,13 @@ export class CoyoteLiveGame {
 
     public gameConfig!: MainGameConfig;
 
+    /** 强度配置更改时间 */
     public strengthConfigModified: number = 0;
 
+    /** 强度设置时间 */
     public strengthSetTime: number = 0;
 
-    public pulseOffsetTime: number = 0;
-
+    /** 当前游戏Action列表 */
     public actionList: AbstractGameAction[] = [];
 
     private _tempStrength: number = 0;
@@ -53,8 +63,9 @@ export class CoyoteLiveGame {
     public pulsePlayList!: PulsePlayList;
 
     private eventStore: EventStore = new EventStore();
-    private events = new EventEmitter<CoyoteLiveGameEvents>();
+    private events = new EventEmitter<CoyoteGameEvents>();
 
+    /** 游戏主循环Task */
     private gameTask: Task | null = null;
 
     public get tempStrength(): number {
@@ -66,35 +77,34 @@ export class CoyoteLiveGame {
         this.events.emit('strengthChanged', this.gameStrength);
     }
 
-    public get clientId(): string {
-        return this.client.clientId;
-    }
-
     public get clientStrength(): StrengthInfo {
-        return this.client.strength;
+        return this.client?.strength ?? {
+            strength: 0,
+            limit: 20,
+        };
     }
 
     public get gameStrength(): GameStrengthInfo {
         return {
-            ...this.client.strength,
+            ...this.clientStrength,
             tempStrength: this._tempStrength,
         };
     }
 
-    constructor(client: DGLabWSClient) {
-        this.client = client;
+    constructor(clientId: string) {
+        this.clientId = clientId;
     }
 
     async initialize(): Promise<void> {
-        this.gameConfig = await CoyoteGameConfigService.instance.get(this.client.clientId, GameConfigType.MainGame, true);
+        this.gameConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame, true);
 
         // 初始化波形列表
         let pulseList = typeof this.gameConfig.pulseId === 'string' ? [this.gameConfig.pulseId] : this.gameConfig.pulseId;
         this.pulsePlayList = new PulsePlayList(pulseList, this.gameConfig.pulseMode, this.gameConfig.pulseChangeInterval);
 
         // 从缓存中恢复游戏状态
-        const configCachePrefix = `coyoteLiveGameConfig:${this.client.clientId}:`;
-        const configCache  = CoyoteLiveGameManager.instance.configCache;
+        const configCachePrefix = `coyoteLiveGameConfig:${this.clientId}:`;
+        const configCache  = CoyoteGameManager.instance.configCache;
         let hasCachedConfig = false;
 
         let cachedGameStrengthConfig = configCache.get(`${configCachePrefix}:strength`);
@@ -104,46 +114,66 @@ export class CoyoteLiveGame {
             hasCachedConfig = true;
         }
 
-        if (hasCachedConfig) { // 有缓存配置时需要通知客户端
+        if (hasCachedConfig) { // 有缓存配置时需要通知控制器更新配置
             this.events.emit('strengthConfigUpdated', this.strengthConfig);
         }
 
-        // 监听配置更新事件
+        // 监听游戏配置更新事件
         const configEvents = this.eventStore.wrap(this.gameConfigService);
         configEvents.on('configUpdated', `${this.clientId}/${GameConfigType.MainGame}`, (type, newConfig) => {
             this.handleConfigUpdated(newConfig);
         });
+    }
 
-        // 在断线时结束游戏
+    public get running() {
+        return this.gameTask?.running ?? false;
+    }
+
+    public async bindClient(client: DGLabWSClient): Promise<void> {
+        this.client = client;
+        this.onlineSockets.add('dgclient');
+
+        this.events.emit('clientConnected');
+        this.events.emit('gameStopped');
+
+        await this.setClientStrength(0);
+
+        // 通知客户端当前强度
+        this.events.emit('strengthChanged', {
+            limit: this.clientStrength.limit,
+            strength: 0,
+            tempStrength: 0,
+        });
+
         const clientEvents = this.eventStore.wrap(this.client);
+        // 连接关闭事件
         clientEvents.on('close', () => {
-            this.destroy().catch((error) => {
-                console.error('Failed to destroy CoyoteLiveGame:', error);
-            });
+            clientEvents.removeAllListeners(); // 将会同时清除EventStore中的引用
+            this.onlineSockets.delete('dgclient');
+            this.handleSocketDisconnected();
+
+            this.client = undefined;
+
+            this.events.emit('clientDisconnected');
         });
 
         // 监听强度上报事件
         clientEvents.on('strengthChanged', (strength, _) => {
-            let configUpdated = false;
-            if (strength.strength < this.strengthConfig.strength && Date.now() - this.strengthConfigModified > 500) {
-                // 强度低于基础强度，且500ms内没有更新强度配置时降低随机强度
-                this.strengthConfig.strength = strength.strength;
-                configUpdated = true;
-            }
-
-            // 估算脉冲的offset时间
-            this.pulseOffsetTime = Date.now() - this.strengthSetTime - 50;
-            
             this.events.emit('strengthChanged', this.gameStrength);
-
-            if (configUpdated) {
-                this.events.emit('strengthConfigUpdated', this.strengthConfig);
-            }
         });
     }
 
-    public get enabled() {
-        return this.gameTask?.running ?? false;
+    public async bindControllerSocket(socket: WebWSClient): Promise<void> {
+        this.onlineSockets.add(socket.socketId);
+
+        const socketEvents = this.eventStore.wrap(socket);
+
+        // 连接关闭事件
+        socketEvents.on('close', () => {
+            socketEvents.removeAllListeners(); // 将会同时清除EventStore中的引用
+            this.onlineSockets.delete(socket.socketId);
+            this.handleSocketDisconnected();
+        });
     }
 
     /**
@@ -153,26 +183,24 @@ export class CoyoteLiveGame {
     public async updateStrengthConfig(config: GameStrengthConfig): Promise<void> {
         let deltaStrength = 0;
         
-        if (simpleObjDiff(config.strength, this.strengthConfig)) {
+        console.log('Update strength config:', config);
+        if (simpleObjDiff(config, this.strengthConfig)) {
             this.strengthConfig = config;
             this.strengthConfigModified = Date.now();
 
-            deltaStrength = this.strengthConfig.strength - this.client.strength.strength;
+            if (this.client) { // 客户端已连接时才更新强度
+                deltaStrength = this.strengthConfig.strength - this.client.strength.strength;
 
-            // 如果游戏未开始，且强度小于最低强度，需要更新强度，否则本地强度会被服务端强制更新
-            if (this.client.strength.strength < this.strengthConfig.strength && this.gameTask) {
-                await this.setClientStrength(this.strengthConfig.strength, true);
-            }
+                this.events.emit('strengthConfigUpdated', this.strengthConfig);
 
-            this.events.emit('strengthConfigUpdated', this.strengthConfig);
-
-            if (deltaStrength <= 5) {
-                // 如果强度增加不超过5，则直接设置强度
-                // 在GameApi连续加减时，这么做可以防止波形大量中断
-                await this.setClientStrength(this.strengthConfig.strength);
-            } else {
-                // 重启波形输出
-                await this.restartGame();
+                if (deltaStrength <= 5) {
+                    // 如果强度增加不超过5，则直接设置强度
+                    // 在GameApi连续加减时，这么做可以防止波形大量中断
+                    await this.setClientStrength(this.strengthConfig.strength);
+                } else {
+                    // 重启波形输出
+                    await this.restartGame();
+                }
             }
         }
     }
@@ -188,6 +216,7 @@ export class CoyoteLiveGame {
             oldAction.updateConfig(action.config);
             oldAction.priority = action.priority;
         } else {
+            action._initialize(this);
             this.actionList.push(action);
         }
 
@@ -254,16 +283,11 @@ export class CoyoteLiveGame {
     /**
      * 设置客户端强度
      * @param strength 强度
-     * @param immediate 是否立即设置，否则会计算脉冲offset
      * @returns 
      */
-    public async setClientStrength(strength: number, immediate: boolean = false): Promise<void> {
-        if (!this.client.active) {
+    public async setClientStrength(strength: number): Promise<void> {
+        if (!this.client?.active) {
             return;
-        }
-
-        if (!immediate) {
-            await asleep(this.pulseOffsetTime);
         }
 
         await this.client.setStrength(Channel.A, strength);
@@ -282,6 +306,13 @@ export class CoyoteLiveGame {
      * @returns 
      */
     private async runGameTask(ab: AbortController, harvest: () => void, round: number): Promise<void> {
+        if (!this.client) {
+            this.stopGame().catch((error) => {
+                console.error('Failed to stop game:', error);
+            });
+            return;
+        }
+
         if (this.actionList.length > 0) {
             // 执行游戏特殊动作
             const currentAction = this.actionList[0];
@@ -298,16 +329,31 @@ export class CoyoteLiveGame {
         // 随机强度
         const strengthChangeInterval = this.gameConfig.strengthChangeInterval;
         let outputTime = randomInt(strengthChangeInterval[0], strengthChangeInterval[1]) * 1000;
-        let nextStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
-        nextStrength = Math.min(nextStrength, this.clientStrength.limit);
+        let targetStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
+        targetStrength = Math.min(targetStrength, this.clientStrength.limit);
 
-        if (Date.now() - this.strengthConfigModified > 51) { // 防止重复设置强度
-            try {
-                let isImmediate = round === 0;
-                await this.setClientStrength(nextStrength, isImmediate);
-            } catch (error) {
+        let currentStrength = this.client.strength.strength;
+        if (targetStrength > currentStrength) { // 递增强度
+            let setStrengthInterval = setInterval(() => {
+                if (ab.signal.aborted) { // 任务被中断
+                    clearInterval(setStrengthInterval);
+                    return;
+                }
+
+                this.setClientStrength(currentStrength).catch((error) => {
+                    console.error('Failed to set strength:', error);
+                });
+
+                if (currentStrength >= targetStrength) {
+                    clearInterval(setStrengthInterval);
+                }
+
+                currentStrength = Math.min(currentStrength + 2, targetStrength);
+            }, 200);
+        } else {
+            this.setClientStrength(targetStrength).catch((error) => {
                 console.error('Failed to set strength:', error);
-            }
+            });
         }
 
         harvest();
@@ -324,15 +370,16 @@ export class CoyoteLiveGame {
      * @param ignoreEvent 
      */
     public async startGame(ignoreEvent = false): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
         if (!this.gameTask) {
             // 初始化强度和脉冲
             await this.client.reset();
 
             let initStrength = this.strengthConfig.strength;
             initStrength = Math.min(initStrength, this.clientStrength.limit); // 限制初始强度不超过限制
-
-            // 设置初始强度
-            await this.setClientStrength(initStrength, true);
 
             // 启动游戏任务
             this.gameTask = new Task((ab, harvest, round) => this.runGameTask(ab, harvest, round));
@@ -355,7 +402,7 @@ export class CoyoteLiveGame {
             await this.gameTask.abort();
             this.gameTask = null;
 
-            await this.client.reset();
+            await this.client?.reset();
 
             if (!ignoreEvent) {
                 this.events.emit('gameStopped');
@@ -369,22 +416,34 @@ export class CoyoteLiveGame {
      * 每次更新配置后都需要重启游戏
      */
     public async restartGame(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
         if (this.gameTask) {
             await this.stopGame(true);
             await this.startGame(true);
         }
     }
 
+    public handleSocketDisconnected(): void {
+        if (this.onlineSockets.size === 0) {
+            this.destroy().catch((error) => {
+                console.error('Failed to destroy CoyoteLiveGame:', error);
+            });
+        }
+    }
+
     public async destroy(): Promise<void> {
-        // console.log('Destroying CoyoteLiveGame');
+        console.log('Destroying CoyoteLiveGame');
 
         if (this.gameTask) {
             await this.gameTask.stop();
         }
 
         // 保存配置, 以便下次连接时恢复
-        const configCachePrefix = `coyoteLiveGameConfig:${this.client.clientId}:`;
-        const configCache  = CoyoteLiveGameManager.instance.configCache;
+        const configCachePrefix = `coyoteLiveGameConfig:${this.clientId}:`;
+        const configCache  = CoyoteGameManager.instance.configCache;
         configCache.set(`${configCachePrefix}:strength`, this.strengthConfig);
 
         this.events.emit('close');

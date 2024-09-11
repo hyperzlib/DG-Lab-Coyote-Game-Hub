@@ -45,7 +45,9 @@ export const simpleObjDiff = (obj1: any, obj2: any) => {
         const a = obj1[key];
         const b = obj2[key];
 
-        if (Array.isArray(a) && Array.isArray(b)) {
+        if (typeof a !== typeof b) {
+            differentKeys.push(key);
+        } else if (Array.isArray(a) && Array.isArray(b)) {
             if (a.length !== b.length) {
                 differentKeys.push(key);
             } else {

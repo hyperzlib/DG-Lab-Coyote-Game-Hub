@@ -2,8 +2,8 @@ import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { AsyncWebSocket } from '../../utils/WebSocketAsync';
 import { EventStore } from '../../utils/EventStore';
-import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
-import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
+import { CoyoteGameManager } from '../../managers/CoyoteGameManager';
+import { CoyoteGameController } from '../game/CoyoteGameController';
 import { validator } from '../../utils/validator';
 import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
 import { DGLabPulseService } from '../../services/DGLabPulse';
@@ -20,7 +20,9 @@ export interface WebWSClientEvents {
 
 export class WebWSClient {
     public socket: AsyncWebSocket;
+
     public clientId: string = '';
+    public socketId: string = uuidv4();
 
     private eventStore = new EventStore();
     private gameEventStore = new EventStore();
@@ -28,7 +30,7 @@ export class WebWSClient {
     private heartbeatTask: NodeJS.Timeout | null = null;
     private prevHeartbeatTime: number | null = null;
 
-    private gameInstance: CoyoteLiveGame | null = null;
+    private gameInstance: CoyoteGameController | null = null;
 
     public constructor(socket: AsyncWebSocket) {
         this.socket = socket;
@@ -64,14 +66,9 @@ export class WebWSClient {
     }
 
     public bindEvents() {
-        const gameManagerEvents = this.eventStore.wrap(CoyoteLiveGameManager.instance);
         const socketEvents = this.eventStore.wrap(this.socket);
         const gameConfigServiceEvents = this.eventStore.wrap(CoyoteGameConfigService.instance);
         const pulseServiceEvents = this.eventStore.wrap(DGLabPulseService.instance);
-
-        gameManagerEvents.on("gameCreated", this.clientId, async (gameInstance) => {
-            this.connectToGame(gameInstance, true);
-        });
 
         socketEvents.on("message", async (data, isBinary) => {
             if (isBinary) {
@@ -93,9 +90,10 @@ export class WebWSClient {
             this.destory();
         });
 
+        // 监听配置更新事件
         gameConfigServiceEvents.on("configUpdated", this.clientId, async (type, newConfig) => {
             await this.send({
-                event: 'configUpdated',
+                event: 'gameConfigUpdated',
                 data: {
                     type,
                     config: newConfig,
@@ -103,6 +101,7 @@ export class WebWSClient {
             });
         });
 
+        // 监听波形列表更新事件
         pulseServiceEvents.on("pulseListUpdated", async (pulseList) => {
             await this.send({
                 event: 'pulseListUpdated',
@@ -124,7 +123,7 @@ export class WebWSClient {
             case 'updateStrengthConfig':
                 await this.handleUpdateStrengthConfig(message);
                 break;
-            case 'updateGameConfig':
+            case 'updateConfig':
                 await this.handleUpdateGameConfig(message);
             case 'startGame':
                 await this.handleStartGame(message);
@@ -134,6 +133,12 @@ export class WebWSClient {
                 break;
             case 'heartbeat':
                 this.prevHeartbeatTime = Date.now();
+                break;
+            default:
+                await this.sendResponse(message.requestId, {
+                    status: 0,
+                    message: '未知的 action: ' + message.action,
+                });
                 break;
         }
     }
@@ -150,44 +155,27 @@ export class WebWSClient {
         this.clientId = message.clientId;
 
         // 发送服务器存储的配置信息
+        const gameConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame);
         await this.send({
-            event: 'configUpdated',
+            event: 'gameConfigUpdated',
             data: {
                 type: GameConfigType.MainGame,
-                config: CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame),
+                config: gameConfig,
             },
         });
 
         // 发送服务器存储的自定义波形
+        const customPulseConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.CustomPulse);
         await this.send({
-            event: 'configUpdated',
+            event: 'gameConfigUpdated',
             data: {
                 type: GameConfigType.CustomPulse,
-                config: CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.CustomPulse),
+                config: customPulseConfig,
             },
         });
 
-        let gameInstance = CoyoteLiveGameManager.instance.getGame(this.clientId);
-        if (gameInstance) { // 如果已经有游戏实例，直接连接
-            this.connectToGame(gameInstance);
-
-            // 恢复游戏状态
-            if (gameInstance.enabled) {
-                await this.send({
-                    event: 'gameStarted',
-                });
-            }
-
-            await this.send({
-                event: 'strengthChanged',
-                data: gameInstance.gameStrength,
-            });
-
-            await this.send({
-                event: 'strengthConfigUpdated',
-                data: gameInstance.strengthConfig,
-            });
-        }
+        let gameInstance = await CoyoteGameManager.instance.getOrCreateGame(this.clientId);
+        this.connectToGame(gameInstance);
 
         await this.sendResponse(message.requestId, {
             status: 1,
@@ -316,23 +304,21 @@ export class WebWSClient {
         }
     }
 
-    private async connectToGame(gameInstance: CoyoteLiveGame, isInitGame = false) {
-        this.disconnectFromGame(); // 断开之前的连接
-
+    private async connectToGame(gameInstance: CoyoteGameController) {
         this.gameInstance = gameInstance;
 
-        // 发送连接事件
-        await this.send({
-            event: 'clientConnected',
-            data: {
-                clientType: gameInstance.clientType,
-            }
-        });
+        // 绑定控制器，用于在所有控制器断开连接时回收游戏实例
+        gameInstance.bindControllerSocket(this);
 
         const gameEvents = this.gameEventStore.wrap(gameInstance);
-        gameEvents.on("close", () => {
-            this.disconnectFromGame();
+        gameEvents.on("clientConnected", async () => {
+            await this.send({
+                event: 'clientConnected',
+                data: {}
+            });
+        });
 
+        gameEvents.on("clientDisconnected", () => {
             this.send({
                 event: 'clientDisconnected',
             });
@@ -364,41 +350,33 @@ export class WebWSClient {
             });
         });
 
-        if (isInitGame) {
-            // 如果是初始化游戏，发送初始化事件，此时客户端会上报当前的强度和配置
-            await this.send({
-                event: 'gameInitialized',
-            });
-            
-            await this.send({
-                event: 'strengthChanged',
-                data: gameInstance.gameStrength,
-            });
-        } else {
-            // 如果游戏已经开始，发送游戏开始事件
-            if (this.gameInstance.enabled) {
-                await this.send({
-                    event: 'gameStarted',
-                });
-            }
+        // 发送当前强度
+        await this.send({
+            event: 'strengthChanged',
+            data: gameInstance.gameStrength,
+        });
 
-            // 使用服务器端的强度和配置覆盖客户端的信息
-            await this.send({
-                event: 'strengthChanged',
-                data: gameInstance.gameStrength,
-            });
+        await this.send({
+            event: 'strengthConfigUpdated',
+            data: gameInstance.strengthConfig,
+        });
 
+        if (this.gameInstance.client) {
             await this.send({
-                event: 'strengthConfigUpdated',
-                data: gameInstance.strengthConfig,
+                event: 'clientConnected',
+                data: {}
             });
         }
-    }
-
-    private async disconnectFromGame() {
-        if (this.gameInstance) {
-            this.gameEventStore.removeAllListeners();    
-            this.gameInstance = null;
+        
+        // 如果游戏已经开始，发送游戏开始事件
+        if (this.gameInstance.running) {
+            await this.send({
+                event: 'gameStarted',
+            });
+        } else { // 确保控制器显示游戏停止状态
+            await this.send({
+                event: 'gameStopped',
+            });
         }
     }
 
@@ -426,8 +404,8 @@ export class WebWSClient {
             clearInterval(this.heartbeatTask);
         }
 
-        this.disconnectFromGame();
         this.eventStore.removeAllListeners();
+        this.gameEventStore.removeAllListeners();
 
         this.events.emit("close");
         this.events.removeAllListeners();

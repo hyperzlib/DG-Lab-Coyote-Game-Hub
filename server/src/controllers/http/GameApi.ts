@@ -1,8 +1,8 @@
 import { Context } from 'koa';
 import { RouterContext } from 'koa-router';
-import { CoyoteLiveGameManager } from '../../managers/CoyoteLiveGameManager';
+import { CoyoteGameManager } from '../../managers/CoyoteGameManager';
 import { GameStrengthConfig, MainGameConfig } from '../../types/game';
-import { CoyoteLiveGame } from '../game/CoyoteLiveGame';
+import { CoyoteGameController } from '../game/CoyoteGameController';
 import { MainConfig } from '../../config';
 import { DGLabPulseService } from '../../services/DGLabPulse';
 import { asleep } from '../../utils/utils';
@@ -61,7 +61,7 @@ export class GameStrengthUpdateQueue {
         let randomId = Math.random().toString(36).substring(6);
         while (this.queuedUpdates.get(clientId)) {
             // Merge updates
-            const game = CoyoteLiveGameManager.instance.getGame(clientId);
+            const game = CoyoteGameManager.instance.getGame(clientId);
             if (!game) { // 游戏不存在，可能是客户端断开连接
                 this.queuedUpdates.delete(clientId);
                 break;
@@ -129,7 +129,7 @@ export class GameStrengthUpdateQueue {
 const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
 export class GameApiController {
-    private static async requestGameInstance(ctx: RouterContext): Promise<CoyoteLiveGame | null> {
+    private static async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {
         if (!ctx.params.id) {
             ctx.body = {
                 status: 0,
@@ -139,7 +139,7 @@ export class GameApiController {
             return null;
         }
 
-        const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
+        const game = CoyoteGameManager.instance.getGame(ctx.params.id);
         if (!game) {
             ctx.body = {
                 status: 0,
@@ -163,7 +163,8 @@ export class GameApiController {
     };
 
     public static async gameInfo(ctx: RouterContext): Promise<void> {
-        let game: CoyoteLiveGame | null = null;
+        let game: CoyoteGameController | null = null;
+        let clientId = '';
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
                 ctx.body = {
@@ -174,30 +175,45 @@ export class GameApiController {
                 return;
             }
             
-            game = CoyoteLiveGameManager.instance.getGameList().next().value;
+            game = CoyoteGameManager.instance.getGameList().next().value;
+            clientId = game!.clientId;
         } else {
             game = await GameApiController.requestGameInstance(ctx);
+            clientId = ctx.params.id;
         }
 
-        if (game) {
-            ctx.body = {
-                status: 1,
-                code: 'OK',
-                clientType: game.clientType,
-                gameConfig: game.gameConfig,
-                clientStrength: game.clientStrength,
-            };
-        } else {
+        if (!clientId) {
             ctx.body = {
                 status: 0,
                 code: 'ERR::GAME_NOT_FOUND',
                 message: '游戏进程不存在，可能是客户端未连接',
             };
+            return;
+        }
+
+        let gameConfig = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.MainGame, false);
+
+        if (game) {
+            ctx.body = {
+                status: 1,
+                code: 'OK',
+                strengthConfig: game.strengthConfig,
+                gameConfig,
+                clientStrength: game.clientStrength,
+            };
+        } else {
+            ctx.body = {
+                status: 1,
+                code: 'OK',
+                strengthConfig: null,
+                gameConfig,
+                clientStrength: null,
+            };
         }
     }
 
     public static async getGameStrength(ctx: RouterContext): Promise<void> {
-        let game: CoyoteLiveGame | null = null;
+        let game: CoyoteGameController | null = null;
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
                 ctx.body = {
@@ -208,7 +224,7 @@ export class GameApiController {
                 return;
             }
 
-            game = CoyoteLiveGameManager.instance.getGameList().next().value;
+            game = CoyoteGameManager.instance.getGameList().next().value;
         } else {
             game = await GameApiController.requestGameInstance(ctx);
         }
@@ -265,7 +281,7 @@ export class GameApiController {
             }
         }
 
-        let gameList: Iterable<CoyoteLiveGame> = [];
+        let gameList: Iterable<CoyoteGameController> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
                 ctx.body = {
@@ -276,9 +292,9 @@ export class GameApiController {
                 return;
             }
 
-            gameList = CoyoteLiveGameManager.instance.getGameList();
+            gameList = CoyoteGameManager.instance.getGameList();
         } else  { // 设置指定游戏的强度配置
-            const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
+            const game = CoyoteGameManager.instance.getGame(ctx.params.id);
             if (!game) {
                 ctx.body = {
                     status: 0,
@@ -288,7 +304,7 @@ export class GameApiController {
                 return;
             }
 
-           (gameList as CoyoteLiveGame[]).push(game);
+           (gameList as CoyoteGameController[]).push(game);
         }
 
         let successClientIds = new Set<string>();
@@ -326,7 +342,7 @@ export class GameApiController {
                 return;
             }
 
-            const game: CoyoteLiveGame = CoyoteLiveGameManager.instance.getGameList().next().value;
+            const game: CoyoteGameController = CoyoteGameManager.instance.getGameList().next().value;
             clientId = game.clientId;
         } else {
             clientId = ctx.params.id;
@@ -352,7 +368,7 @@ export class GameApiController {
         }
 
         let currentPulseId = typeof gameConfig.pulseId === 'string' ? gameConfig.pulseId : gameConfig.pulseId[0];
-        const game = CoyoteLiveGameManager.instance.getGame(clientId);
+        const game = CoyoteGameManager.instance.getGame(clientId);
         if (game) {
             currentPulseId = game.pulsePlayList.getCurrentPulseId();
         }
@@ -412,7 +428,7 @@ export class GameApiController {
                 return;
             }
 
-            const gameList = CoyoteLiveGameManager.instance.getGameList();
+            const gameList = CoyoteGameManager.instance.getGameList();
             for (const game of gameList) {
                 clientIdList.push(game.clientId);
             }
@@ -530,7 +546,7 @@ export class GameApiController {
         const pulseId = req.pulseId ?? undefined;
         const overrideTime = req.override ?? false;
 
-        let gameList: Iterable<CoyoteLiveGame> = [];
+        let gameList: Iterable<CoyoteGameController> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
                 ctx.body = {
@@ -541,9 +557,9 @@ export class GameApiController {
                 return;
             }
 
-            gameList = CoyoteLiveGameManager.instance.getGameList();
+            gameList = CoyoteGameManager.instance.getGameList();
         } else  { // 设置指定游戏的强度配置
-            const game = CoyoteLiveGameManager.instance.getGame(ctx.params.id);
+            const game = CoyoteGameManager.instance.getGame(ctx.params.id);
             if (!game) {
                 ctx.body = {
                     status: 0,
@@ -553,7 +569,7 @@ export class GameApiController {
                 return;
             }
 
-           (gameList as CoyoteLiveGame[]).push(game);
+           (gameList as CoyoteGameController[]).push(game);
         }
 
         let successClientIds = new Set<string>();

@@ -273,7 +273,7 @@ export class DGLabWSClient {
 
         let finished = true;
         if (totalDuration > time) {
-            const waitTime = totalDuration - time - onTimeEndDuration - netDuration + 200;
+            const waitTime = totalDuration - time - onTimeEndDuration - netDuration;
             finished = await asleep(waitTime, options.abortController);
         }
 

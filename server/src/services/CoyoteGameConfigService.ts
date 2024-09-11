@@ -87,13 +87,13 @@ export class CoyoteGameConfigService {
         if (fs.existsSync(configPath)) {
             const fileContent = await fs.promises.readFile(configPath, { encoding: 'utf-8' });
             const config = JSON.parse(fileContent);
-            this.configCache.set(clientId, config);
+            this.configCache.set(cacheKey, config);
             return config;
         }
 
         if (useDefault) {
             const defaultConfig = this.getDefaultConfig(type);
-            this.configCache.set(clientId, defaultConfig);
+            this.configCache.set(cacheKey, defaultConfig);
             return defaultConfig as any;
         }
 

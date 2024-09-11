@@ -41,6 +41,8 @@ export class EventStore {
                     case 'off':
                     case 'removeListener':
                         return this.wrapOff(eventSource);
+                    case 'removeAllListeners':
+                        return this.wrapRemoveAllListeners(eventSource);
                     default:
                         return (target as any)[prop];
                 }
@@ -92,6 +94,31 @@ export class EventStore {
 
             return eventSource.off(eventName, callback as any);
         }
+    }
+
+    private wrapRemoveAllListeners<T extends IEventEmitter>(eventSource: T) {
+        return (eventName?: string, arg1?: string) => {
+            if (eventName) {
+                // Remove all listeners of the specified event
+                if (arg1) {
+                    eventName = `${eventName}/${arg1}`;
+                }
+
+                let shouldRemove = this.listenedEvents.find((item) => item.source === eventSource && item.eventName === eventName);
+                if (shouldRemove) {
+                    eventSource.off(eventName, shouldRemove.callback as any);
+                }
+
+                this.listenedEvents = this.listenedEvents.filter((item) => item.source !== eventSource || item.eventName !== eventName);
+            } else {
+                let shouldRemove = this.listenedEvents.filter((item) => item.source === eventSource);
+                for (let item of shouldRemove) {
+                    eventSource.off(item.eventName, item.callback as any);
+                }
+
+                this.listenedEvents = this.listenedEvents.filter((item) => item.source !== eventSource);
+            }
+        };
     }
 
     /**

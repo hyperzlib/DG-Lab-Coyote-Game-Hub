@@ -1,10 +1,10 @@
-import { CoyoteLiveGame } from "../CoyoteLiveGame";
+import { CoyoteGameController } from "../CoyoteGameController";
 
 export abstract class AbstractGameAction<ActionConfig = any> {
     /** 游戏动作的默认权重 */
     static readonly defaultPriority = 0;
 
-    public game!: CoyoteLiveGame;
+    public game!: CoyoteGameController;
     abortController: AbortController = new AbortController();
 
     constructor(
@@ -14,7 +14,7 @@ export abstract class AbstractGameAction<ActionConfig = any> {
         public priority: number = AbstractGameAction.defaultPriority,
     ) {}
 
-    _initialize(game: CoyoteLiveGame) {
+    _initialize(game: CoyoteGameController) {
         this.game = game;
         this.initialize();
     }

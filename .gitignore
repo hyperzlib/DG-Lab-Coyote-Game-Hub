@@ -15,3 +15,5 @@ node_modules/
 /frontend/src/components.d.ts
 
 /build
+
+game-config/

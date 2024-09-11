@@ -12,16 +12,16 @@ import blocked from 'blocked-at';
 
 // 加载Managers
 import './managers/DGLabWSManager';
-import './managers/CoyoteLiveGameManager';
+import './managers/CoyoteGameManager';
 import { DGLabPulseService } from './services/DGLabPulse';
 import { LocalIPAddress, openBrowser } from './utils/utils';
 import { validator } from './utils/validator';
 import { CoyoteGameConfigService } from './services/CoyoteGameConfigService';
 
 async function main() {
-    // blocked((time, stack) => {
-    //     console.log(`Blocked for ${time}ms, operation started here:`, stack)
-    // });
+    blocked((time, stack) => {
+        console.log(`Blocked for ${time}ms, operation started here:`, stack)
+    });
 
     await validator.initialize();
     await MainConfig.initialize();

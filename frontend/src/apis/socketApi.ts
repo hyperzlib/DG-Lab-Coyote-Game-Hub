@@ -30,32 +30,48 @@ export type GameStrengthInfo = {
     tempStrength: number;
 };
 
-export type GameStrengthConfig = {
-    strength: number;
-    randomStrength: number;
-    minInterval: number;
-    maxInterval: number;
-    bChannelMultiplier?: number;
+export enum GameConfigType {
+    MainGame = 'main-game',
+    CustomPulse = 'custom-pulse',
 }
 
-export type CoyoteLiveGameConfig = {
-    strength: GameStrengthConfig;
-    pulseId: string;
+export type PulsePlayMode = 'single' | 'sequence' | 'random';
+
+export interface GameStrengthConfig {
+    strength: number;
+    randomStrength: number;
+}
+
+export interface MainGameConfig {
+    strengthChangeInterval: [number, number];
+
+    enableBChannel: boolean;
+    /** B通道强度倍率 */
+    bChannelStrengthMultiplier: number;
+
+    pulseId: string | string[];
     firePulseId?: string | null;
+
+    pulseMode: PulsePlayMode;
+    pulseChangeInterval: number;
+}
+
+export interface GameCustomPulseConfig {
+    customPulseList: any[];
 }
 
 export interface SocketApiEventListeners extends EventDef {
     error: [error: any];
     open: [];
     pulseListUpdated: [pulseList: PulseItemResponse[]];
-    clientConnected: [clientType: string];
+    clientConnected: [];
     clientDisconnected: [];
-    gameInitialized: [];
     gameStarted: [];
     gameStopped: [];
     strengthChanged: [strength: GameStrengthInfo];
-    strengthConfigUpdated: [config: CoyoteLiveGameConfig];
-    gameConfigUpdated: [config: CoyoteLiveGameConfig];
+    strengthConfigUpdated: [config: GameStrengthConfig];
+    mainGameConfigUpdated: [config: MainGameConfig];
+    customPulseConfigUpdated: [config: GameCustomPulseConfig];
 }
 
 export class SocketApi {
@@ -179,10 +195,18 @@ export class SocketApi {
         });
     }
 
-    public updateConfig(gameConfig: CoyoteLiveGameConfig) {
+    public updateStrengthConfig(config: GameStrengthConfig) {
+        return this.sendRequest({
+            action: "updateStrengthConfig",
+            config,
+        });
+    }
+
+    public updateConfig(type: string, newConfig: any) {
         return this.sendRequest({
             action: "updateConfig",
-            config: gameConfig,
+            type,
+            config: newConfig,
         });
     }
 
@@ -220,9 +244,6 @@ export class SocketApi {
             case "pulseListUpdated":
                 this.events.emit("pulseListUpdated", message.data);
                 break;
-            case "gameInitialized":
-                this.events.emit("gameInitialized");
-                break;
             case "gameStarted":
                 this.events.emit("gameStarted");
                 break;
@@ -242,7 +263,16 @@ export class SocketApi {
                 this.events.emit("strengthConfigUpdated", message.data);
                 break;
             case "gameConfigUpdated":
-                this.events.emit("gameConfigUpdated", message.data);
+                switch (message.data.type) {
+                    case GameConfigType.MainGame:
+                        this.events.emit("mainGameConfigUpdated", message.data.config);
+                        break;
+                    case GameConfigType.CustomPulse:
+                        this.events.emit("customPulseConfigUpdated", message.data.config);
+                        break;
+                    default:
+                        console.warn("Unknown game config type:", message.data.type);
+                }
                 break;
             case "heartbeat":
                 this.send({
@@ -251,6 +281,7 @@ export class SocketApi {
                 break;
             default:
                 console.warn("Unknown event:", message.event, message);
+                break;
         }
     };
 

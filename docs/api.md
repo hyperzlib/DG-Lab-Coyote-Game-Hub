@@ -52,11 +52,25 @@ GET /api/game/{clientId}/pulse_list
     "pulseList": [
         {
             "id": "pulse-1",
-            "name": "脉冲1"
+            "name": "脉冲1",
+            "pulseData": [ // 可能为null
+                "0A0A0A0A00000000",
+                "0A0A0A0A14141414",
+                "0A0A0A0A28282828",
+                "0A0A0A0A3C3C3C3C",
+                "0A0A0A0A50505050",
+                "0A0A0A0A64646464",
+                "0A0A0A0A64646464",
+                "0A0A0A0A64646464",
+                "0A0A0A0A00000000",
+                "0A0A0A0A00000000",
+                "0A0A0A0A00000000",
+                "0A0A0A0A00000000"
+            ]
         },
         {
             "id": "pulse-2",
-            "name": "脉冲2"
+            "name": "脉冲2",
         }
     ]
 }

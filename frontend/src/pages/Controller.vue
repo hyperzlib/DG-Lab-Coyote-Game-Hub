@@ -1,8 +1,4 @@
 <script lang="ts" setup>
-import Tabs from 'primevue/tabs';
-import Tab from 'primevue/tab';
-import TabList from 'primevue/tablist';
-
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 import StatusChart from '../charts/Circle1.vue';
@@ -12,6 +8,7 @@ import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi'
 import { handleApiResponse } from '../utils/response';
 import PulseCard from '../components/card/PulseCard.vue';
 import { simpleObjDiff } from '../utils/utils';
+import Popover from 'primevue/popover';
 
 const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
 
@@ -43,8 +40,24 @@ const state = reactive({
 
   showConnectionDialog: false,
   showLiveCompDialog: false,
+  showSortPulseDialog: false,
   showConfigSavePrompt: false,
 });
+
+const pulseTimePopoverRef = ref<InstanceType<typeof Popover> | null>(null);
+
+const pulseModeOptions = [
+  { label: '单个', value: 'single' },
+  { label: '顺序', value: 'sequence' },
+  { label: '随机', value: 'random' },
+];
+
+const presetPulseTimeOptions = [
+  { label: '10', value: 10 },
+  { label: '30', value: 30 },
+  { label: '60', value: 60 },
+  { label: '120', value: 120 },
+];
 
 // 在收到服务器的配置后设置为true，防止触发watch
 let receivedConfig = false;
@@ -259,6 +272,10 @@ const showLiveCompDialog = () => {
   }
 };
 
+const showPulseTimePopover = (event: MouseEvent) => {
+  pulseTimePopoverRef.value?.show(event);
+};
+
 const handleResetClientId = () => {
   initClientConnection();
 };
@@ -289,7 +306,7 @@ const postConfig = async () => {
       oldGameConfig = gameConfig.value;
     }
 
-    toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存' });
+    toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存', life: 3000 });
   } catch (error: any) {
     console.error('Cannot post config:', error);
   }
@@ -297,7 +314,7 @@ const postConfig = async () => {
 
 const handleStartGame = async () => {
   if (!dgClientConnected) {
-    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '启动输出需要先连接到客户端' });
+    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '启动输出需要先连接到客户端', life: 5000 });
     return;
   }
 
@@ -311,7 +328,7 @@ const handleStartGame = async () => {
 
 const handleStopGame = async () => {
   if (!dgClientConnected) {
-    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '暂停输出需要先连接到客户端' });
+    toast.add({ severity: 'warn', summary: '未连接到客户端', detail: '暂停输出需要先连接到客户端', life: 5000 });
     return;
   }
 
@@ -453,21 +470,23 @@ watch([gameConfig, strengthConfig], () => {
             </div>
           </div>
           <Divider></Divider>
-          <div class="flex justify-between gap-2 mt-4 mb-2 items-center">
+          <div class="flex flex-col justify-between gap-2 mt-4 mb-2 items-start md:flex-row md:items-center">
             <h2 class="font-bold text-xl">波形选择</h2>
-            <Tabs class="inner-tabs" v-model:value="state.pulseMode">
-              <TabList>
-                <Tab value="single">单个</Tab>
-                <Tab value="sequence">顺序</Tab>
-                <Tab value="random">随机</Tab>
-              </TabList>
-            </Tabs>
+            <div class="flex gap-2 items-center">
+              <Button icon="pi pi-sort-alpha-down" title="波形排序" severity="secondary"
+                @click="state.showSortPulseDialog = true" v-if="state.pulseMode === 'sequence'"></Button>
+              <Button icon="pi pi-clock" title="波形切换间隔" severity="secondary" :label="state.pulseChangeInterval + 's'"
+                @click="showPulseTimePopover"></Button>
+              <SelectButton v-model="state.pulseMode" :options="pulseModeOptions" optionLabel="label"
+                optionValue="value" :allowEmpty="false" aria-labelledby="basic" />
+            </div>
           </div>
           <FadeAndSlideTransitionGroup>
             <div v-if="state.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
               <PulseCard v-for="pulse in state.pulseList" :key="pulse.id" :pulse-info="pulse"
-                :is-current-pulse="state.selectPulseIds.includes(pulse.id)" :is-fire-pulse="pulse.id === state.firePulseId"
-                @set-current-pulse="togglePulse" @set-fire-pulse="setFirePulse" />
+                :is-current-pulse="state.selectPulseIds.includes(pulse.id)"
+                :is-fire-pulse="pulse.id === state.firePulseId" @set-current-pulse="togglePulse"
+                @set-fire-pulse="setFirePulse" />
             </div>
             <div v-else class="flex justify-center py-4">
               <ProgressSpinner />
@@ -476,9 +495,26 @@ watch([gameConfig, strengthConfig], () => {
         </template>
       </Card>
     </div>
+    <Popover class="popover-pulseTime" ref="pulseTimePopoverRef">
+      <div class="flex flex-col gap-4 w-[25rem]">
+        <div>
+          <span class="font-medium block mb-2">波形切换间隔</span>
+          <div class="flex gap-2">
+            <InputGroup>
+              <InputNumber v-model="state.pulseChangeInterval" :min="5" :max="600" />
+              <InputGroupAddon>秒</InputGroupAddon>
+            </InputGroup>
+            <SelectButton v-model="state.pulseChangeInterval" :options="presetPulseTimeOptions" optionLabel="label"
+              optionValue="value" :allowEmpty="false" aria-labelledby="basic" />
+          </div>
+        </div>
+      </div>
+    </Popover>
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
+    <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="state.pulseList ?? []"
+      v-model:modelValue="state.selectPulseIds" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
   </div>
 </template>
@@ -492,6 +528,11 @@ body {
   body {
     background: #000;
   }
+}
+
+.popover-pulseTime::before,
+.popover-pulseTime::after {
+  display: none;
 }
 </style>
 

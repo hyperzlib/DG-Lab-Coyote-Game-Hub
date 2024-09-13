@@ -1,14 +1,16 @@
 <script lang="ts" setup>
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import StatusChart from '../charts/Circle1.vue';
 
 import { GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
-import PulseCard from '../components/card/PulseCard.vue';
 import { simpleObjDiff } from '../utils/utils';
 import Popover from 'primevue/popover';
+import { PulseItemInfo } from '../type/pulse';
+import { useConfirm } from 'primevue/useconfirm';
 
 const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
 
@@ -24,7 +26,8 @@ const state = reactive({
   bChannelEnabled: false,
   bChannelMultiple: 1,
 
-  pulseList: null as PulseItemResponse[] | null,
+  pulseList: null as PulseItemInfo[] | null,
+  customPulseList: [] as PulseItemInfo[],
   selectPulseIds: [''],
   firePulseId: '',
 
@@ -41,7 +44,22 @@ const state = reactive({
   showConnectionDialog: false,
   showLiveCompDialog: false,
   showSortPulseDialog: false,
+  showImportPulseDialog: false,
   showConfigSavePrompt: false,
+
+  willRenamePulseName: '',
+  showRenamePulseDialog: false,
+});
+
+const customPulseList = computed(() => {
+  return state.customPulseList.map((item) => ({
+    ...item,
+    isCustom: true,
+  }));
+});
+
+const fullPulseList = computed(() => {
+  return state.pulseList ? [...customPulseList.value, ...state.pulseList] : customPulseList.value;
 });
 
 const pulseTimePopoverRef = ref<InstanceType<typeof Popover> | null>(null);
@@ -107,6 +125,7 @@ const chartVal = computed(() => ({
 }));
 
 const toast = useToast();
+const confirm = useConfirm();
 
 let serverInfo: ServerInfoResData;
 let wsClient: SocketApi;
@@ -210,6 +229,10 @@ const initWebSocket = async () => {
     }
   });
 
+  wsClient.on('customPulseConfigUpdated', (config) => {
+    state.customPulseList = config.customPulseList;
+  });
+
   wsClient.connect();
 };
 
@@ -292,6 +315,61 @@ const handleConnSetClientId = (clientId: string) => {
   toast.add({ severity: 'success', summary: '设置成功', detail: '正在等待客户端连接', life: 3000 });
 };
 
+const handlePulseImported = async (pulseInfo: PulseItemInfo) => {
+  let duplicate = state.customPulseList.find((item) => item.id === pulseInfo.id);
+  if (duplicate) {
+    toast.add({ severity: 'warn', summary: '导入失败', detail: '相同波形已存在', life: 3000 });
+    return;
+  }
+
+  state.customPulseList.push(pulseInfo);
+  toast.add({ severity: 'success', summary: '导入成功', detail: '波形已导入', life: 3000 });
+
+  await postCustomPulseConfig();
+};
+
+let renamePulseId = '';
+const handleRenamePulse = async (pulseId: string) => {
+  renamePulseId = pulseId;
+  state.willRenamePulseName = state.customPulseList.find((item) => item.id === pulseId)?.name ?? '';
+
+  state.showRenamePulseDialog = true;
+};
+
+const handleRenamePulseConfirm = async (newName: string) => {
+  let pulse = state.customPulseList.find((item) => item.id === renamePulseId);
+  if (pulse) {
+    pulse.name = newName;
+    await postCustomPulseConfig();
+  }
+};
+
+const handleDeletePulse = async (pulseId: string) => {
+  confirm.require({
+    header: '删除波形',
+    message: '确定要删除此波形吗？',
+    rejectProps: {
+      label: '取消',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: '确定',
+      severity: 'danger',
+    },
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      state.customPulseList = state.customPulseList.filter((item) => item.id !== pulseId);
+      state.selectPulseIds = state.selectPulseIds.filter((id) => id !== pulseId);
+      if (state.selectPulseIds.length === 0) {
+        state.selectPulseIds = [fullPulseList.value[0].id];
+      }
+
+      await postCustomPulseConfig();
+    },
+  });
+};
+
 const postConfig = async () => {
   try {
     if (simpleObjDiff(oldStrengthConfig, strengthConfig.value)) {
@@ -309,6 +387,17 @@ const postConfig = async () => {
     toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存', life: 3000 });
   } catch (error: any) {
     console.error('Cannot post config:', error);
+  }
+};
+
+const postCustomPulseConfig = async () => {
+  try {
+    let res = await wsClient.updateConfig(GameConfigType.CustomPulse, {
+      customPulseList: state.customPulseList,
+    });
+    handleApiResponse(res);
+  } catch (error: any) {
+    console.error('Cannot post custom pulse config:', error);
   }
 };
 
@@ -371,6 +460,12 @@ onMounted(async () => {
   await initWebSocket();
 });
 
+watch(() => state.pulseMode, (newVal) => {
+  if (newVal === 'single' && state.selectPulseIds.length > 1) { // 单波形模式下只保留第一个波形
+    state.selectPulseIds = [state.selectPulseIds[0]];
+  }
+});
+
 watch([gameConfig, strengthConfig], () => {
   if (receivedConfig) { // 收到服务器配置后不触发保存提示
     receivedConfig = false;
@@ -384,6 +479,7 @@ watch([gameConfig, strengthConfig], () => {
 <template>
   <div class="w-full page-container">
     <Toast></Toast>
+    <ConfirmDialog></ConfirmDialog>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
         <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh"
@@ -475,6 +571,8 @@ watch([gameConfig, strengthConfig], () => {
             <div class="flex gap-2 items-center">
               <Button icon="pi pi-sort-alpha-down" title="波形排序" severity="secondary"
                 @click="state.showSortPulseDialog = true" v-if="state.pulseMode === 'sequence'"></Button>
+              <Button icon="pi pi-upload" title="导入波形" severity="secondary"
+                @click="state.showImportPulseDialog = true"></Button>
               <Button icon="pi pi-clock" title="波形切换间隔" severity="secondary" :label="state.pulseChangeInterval + 's'"
                 @click="showPulseTimePopover"></Button>
               <SelectButton v-model="state.pulseMode" :options="pulseModeOptions" optionLabel="label"
@@ -483,10 +581,10 @@ watch([gameConfig, strengthConfig], () => {
           </div>
           <FadeAndSlideTransitionGroup>
             <div v-if="state.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
-              <PulseCard v-for="pulse in state.pulseList" :key="pulse.id" :pulse-info="pulse"
+              <PulseCard v-for="pulse in fullPulseList" :key="pulse.id" :pulse-info="pulse"
                 :is-current-pulse="state.selectPulseIds.includes(pulse.id)"
                 :is-fire-pulse="pulse.id === state.firePulseId" @set-current-pulse="togglePulse"
-                @set-fire-pulse="setFirePulse" />
+                @set-fire-pulse="setFirePulse" @delete-pulse="handleDeletePulse" @rename-pulse="handleRenamePulse" />
             </div>
             <div v-else class="flex justify-center py-4">
               <ProgressSpinner />
@@ -495,6 +593,7 @@ watch([gameConfig, strengthConfig], () => {
         </template>
       </Card>
     </div>
+
     <Popover class="popover-pulseTime" ref="pulseTimePopoverRef">
       <div class="flex flex-col gap-4 w-[25rem]">
         <div>
@@ -510,11 +609,15 @@ watch([gameConfig, strengthConfig], () => {
         </div>
       </div>
     </Popover>
+
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
     <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="state.pulseList ?? []"
       v-model:modelValue="state.selectPulseIds" />
+    <ImportPulseDialog v-model:visible="state.showImportPulseDialog" @on-pulse-imported="handlePulseImported" />
+    <PromptDialog v-model:visible="state.showRenamePulseDialog" @confirm="handleRenamePulseConfirm" title="重命名波形" input-label="波形名称"
+      :default-value="state.willRenamePulseName" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
   </div>
 </template>

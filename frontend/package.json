@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@primevue/themes": "4.0.0-rc.2",
+    "crypto-js": "^4.2.0",
     "eventemitter3": "^5.0.1",
+    "js-base64": "^3.7.7",
+    "js-md5": "^0.8.3",
+    "pako": "^2.1.0",
     "pinia": "^2.2.2",
     "primeicons": "^7.0.0",
     "primevue": "4.0.0-rc.2",
@@ -20,10 +24,12 @@
     "vite-svg-loader": "^5.1.0",
     "vue": "^3.4.21",
     "vue-qrcode": "^2.2.2",
-    "vue-router": "^4.3.3"
+    "vue-router": "^4.3.3",
+    "zxing-wasm": "^1.2.12"
   },
   "devDependencies": {
     "@types/node": "^20.14.8",
+    "@types/pako": "^2.0.3",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-vue": "^5.0.4",
     "sass": "^1.77.5",

@@ -81,7 +81,14 @@ export class DGLabPulseService {
         return this.pulseList;
     }
 
-    public getPulse(pulseId: string): DGLabPulseInfo | null {
+    public getPulse(pulseId: string, customPulseList?: DGLabPulseInfo[]): DGLabPulseInfo | null {
+        if (customPulseList) {
+            const customPulse = customPulseList.find(pulse => pulse.id === pulseId);
+            if (customPulse) {
+                return customPulse;
+            }
+        }
+
         return this.pulseList.find(pulse => pulse.id === pulseId) ?? null;
     }
 

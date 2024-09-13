@@ -62,9 +62,9 @@ const initWebSocket = async () => {
     state.realStrength = strength.strength;
   });
 
-  wsClient.on('configUpdated', (config) => {
-    state.strength = config.strength.strength;
-    state.randomStrength = config.strength.randomStrength;
+  wsClient.on('strengthConfigUpdated', (config) => {
+    state.strength = config.strength;
+    state.randomStrength = config.randomStrength;
 
     state.strength = Math.min(state.strength, state.strengthLimit); // 限制当前值不超过上限
   });

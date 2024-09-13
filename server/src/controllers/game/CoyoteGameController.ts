@@ -11,6 +11,7 @@ import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGa
 import { PulsePlayList } from '../../utils/PulsePlayList';
 import { AbstractGameAction } from './actions/AbstractGameAction';
 import { WebWSClient } from '../ws/WebWS';
+import { DGLabPulseInfo } from '../../services/DGLabPulse';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;
@@ -59,11 +60,15 @@ export class CoyoteGameController {
 
     private _tempStrength: number = 0;
 
+    /** 自定义波形列表 */
+    public customPulseList: DGLabPulseInfo[] = [];
+
     /** 波形播放列表 */
     public pulsePlayList!: PulsePlayList;
 
+    public events = new EventEmitter<CoyoteGameEvents>();
+
     private eventStore: EventStore = new EventStore();
-    private events = new EventEmitter<CoyoteGameEvents>();
 
     /** 游戏主循环Task */
     private gameTask: Task | null = null;
@@ -97,6 +102,9 @@ export class CoyoteGameController {
 
     async initialize(): Promise<void> {
         this.gameConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame, true);
+        
+        const customPulseConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.CustomPulse, true);
+        this.customPulseList = customPulseConfig.customPulseList ?? [];
 
         // 初始化波形列表
         let pulseList = typeof this.gameConfig.pulseId === 'string' ? [this.gameConfig.pulseId] : this.gameConfig.pulseId;
@@ -122,6 +130,10 @@ export class CoyoteGameController {
         const configEvents = this.eventStore.wrap(this.gameConfigService);
         configEvents.on('configUpdated', `${this.clientId}/${GameConfigType.MainGame}`, (type, newConfig) => {
             this.handleConfigUpdated(newConfig);
+        });
+
+        configEvents.on('configUpdated', `${this.clientId}/${GameConfigType.CustomPulse}`, (type, newConfig) => {
+            this.customPulseList = newConfig.customPulseList;
         });
     }
 
@@ -183,15 +195,14 @@ export class CoyoteGameController {
     public async updateStrengthConfig(config: GameStrengthConfig): Promise<void> {
         let deltaStrength = 0;
         
-        console.log('Update strength config:', config);
         if (simpleObjDiff(config, this.strengthConfig)) {
             this.strengthConfig = config;
             this.strengthConfigModified = Date.now();
 
+            this.events.emit('strengthConfigUpdated', this.strengthConfig);
+
             if (this.client) { // 客户端已连接时才更新强度
                 deltaStrength = this.strengthConfig.strength - this.client.strength.strength;
-
-                this.events.emit('strengthConfigUpdated', this.strengthConfig);
 
                 if (deltaStrength <= 5) {
                     // 如果强度增加不超过5，则直接设置强度
@@ -362,6 +373,7 @@ export class CoyoteGameController {
         await this.client.outputPulse(pulseId, outputTime, {
             abortController: ab,
             bChannel: this.gameConfig.enableBChannel,
+            customPulseList: this.customPulseList,  // 自定义波形列表
         });
     }
 
@@ -402,11 +414,11 @@ export class CoyoteGameController {
             await this.gameTask.abort();
             this.gameTask = null;
 
-            await this.client?.reset();
-
             if (!ignoreEvent) {
                 this.events.emit('gameStopped');
             }
+
+            await this.client?.reset();
         }
     }
 
@@ -420,7 +432,7 @@ export class CoyoteGameController {
             return;
         }
 
-        if (this.gameTask) {
+        if (this.running) {
             await this.stopGame(true);
             await this.startGame(true);
         }
@@ -435,18 +447,17 @@ export class CoyoteGameController {
     }
 
     public async destroy(): Promise<void> {
-        // console.log('Destroying CoyoteLiveGame');
-
         if (this.gameTask) {
             await this.gameTask.stop();
         }
+
+        this.events.emit('close');
 
         // 保存配置, 以便下次连接时恢复
         const configCachePrefix = `coyoteLiveGameConfig:${this.clientId}:`;
         const configCache  = CoyoteGameManager.instance.configCache;
         configCache.set(`${configCachePrefix}:strength`, this.strengthConfig);
 
-        this.events.emit('close');
 
         this.eventStore.removeAllListeners();
         this.events.removeAllListeners();

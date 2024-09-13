@@ -25,7 +25,8 @@ export class CoyoteGameConfigService {
 
     private gameConfigDir = 'data/game-config';
 
-    private events = new ExEventEmitter<CoyoteLiveGameManagerEvents>();
+    public events = new ExEventEmitter<CoyoteLiveGameManagerEvents>();
+    
     private configCache: LRUCache<string, any> = new LRUCache({
         max: 1000,
         ttl: 1000 * 60 * 30, // 30 minutes

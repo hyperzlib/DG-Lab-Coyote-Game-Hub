@@ -44,7 +44,7 @@ export class WebWSManager {
         
         this.events.emit('clientConnected', client);
 
-        client.on('close', () => {
+        client.once('close', () => {
             this.clientList = this.clientList.filter((c) => c !== client);
         });
     }

@@ -6,6 +6,7 @@ import { definePreset } from '@primevue/themes';
 import Aura from '@primevue/themes/aura';
 
 import DialogService from 'primevue/dialogservice';
+import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 
 import 'virtual:windi.css'
@@ -87,5 +88,6 @@ createApp(App)
     })
     .use(DialogService)
     .use(ToastService)
+    .use(ConfirmationService)
     .directive('ripple', {}) // Bypass PrimeVue's ripple directive
     .mount('#app');

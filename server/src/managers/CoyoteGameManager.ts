@@ -54,6 +54,10 @@ export class CoyoteGameManager {
         const game = new CoyoteGameController(clientId);
         await game.initialize();
 
+        game.once('close', () => {
+            this.games.delete(clientId);
+        });
+
         this.games.set(clientId, game);
 
         return game;

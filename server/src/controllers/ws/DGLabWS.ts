@@ -6,7 +6,7 @@ import { Channel, DGLabMessage, MessageDataHead, MessageType, RetCode, FeedbackB
 import { asleep } from '../../utils/utils';
 import { EventEmitter } from 'events';
 import { EventStore } from '../../utils/EventStore';
-import { DGLabPulseBaseInfo, DGLabPulseService } from '../../services/DGLabPulse';
+import { DGLabPulseBaseInfo, DGLabPulseInfo, DGLabPulseService } from '../../services/DGLabPulse';
 
 const HEARTBEAT_INTERVAL = 20.0;
 const HEARTBEAT_TIMEOUT = 20.0;
@@ -19,6 +19,7 @@ export interface StrengthInfo {
 export interface OutputPulseOptions {
     abortController?: AbortController;
     bChannel?: boolean;
+    customPulseList?: DGLabPulseInfo[];
     onTimeEnd?: () => void;
 }
 
@@ -245,7 +246,7 @@ export class DGLabWSClient {
         // 输出脉冲，直到下次随机强度时间
         let totalDuration = 0;
         const pulseService = DGLabPulseService.instance;
-        const currentPulseInfo = pulseService.getPulse(pulseId) ?? pulseService.getDefaultPulse();
+        const currentPulseInfo = pulseService.getPulse(pulseId, options.customPulseList) ?? pulseService.getDefaultPulse();
 
         let startTime = Date.now();
 

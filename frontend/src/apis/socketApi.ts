@@ -22,6 +22,7 @@ export type PendingRequestInfo = {
 export type PulseItemResponse = {
     id: string;
     name: string;
+    pulseData: string[];
 };
 
 export type GameStrengthInfo = {

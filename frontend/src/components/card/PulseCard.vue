@@ -3,7 +3,6 @@ import FireIcon from '../../assets/fire-white.svg';
 import Button from 'primevue/button';
 import Menu from 'primevue/menu';
 import { generatePulseSVG, parseCoyotePulseHex } from '../../utils/coyotePulse';
-import { MenuItem } from 'primevue/menuitem';
 
 defineOptions({
     name: 'PulseCard',
@@ -21,6 +20,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     setCurrentPulse: [pulseId: string];
     setFirePulse: [pulseId: string];
+    renamePulse: [pulseId: string];
+    deletePulse: [pulseId: string];
 }>();
 
 const menu = ref<InstanceType<typeof Menu> | null>(null);
@@ -37,6 +38,16 @@ const setCurrentPulse = () => {
 const setFirePulse = () => {
     const pulseId = props.pulseInfo?.id ?? '';
     emit('setFirePulse', pulseId);
+};
+
+const renamePulse = () => {
+    const pulseId = props.pulseInfo?.id ?? '';
+    emit('renamePulse', pulseId);
+};
+
+const deletePulse = () => {
+    const pulseId = props.pulseInfo?.id ?? '';
+    emit('deletePulse', pulseId);
 };
 
 let prevSvgDataUrl: string | null = null;
@@ -74,16 +85,36 @@ const cardStyles = computed(() => {
     }
 });
 
-const moreOptions = computed<MenuItem[]>(() => {
-    return [
+const moreOptions = computed<any[]>(() => {
+    let options: any[] = [
         {
             label: props.isFirePulse ? '开火默认波形' : '设为开火默认波形',
-            icon: props.isFirePulse ? 'pi pi-check' : '',
+            icon: props.isFirePulse ? 'pi pi-check-circle' : 'pi pi-circle',
             command: () => {
                 setFirePulse();
             },
         },
     ];
+
+    if (props.pulseInfo.isCustom) { // 自定义波形
+        options.push({
+            label: '重命名',
+            icon: 'pi pi-pencil',
+            command: () => {
+                renamePulse();
+            },
+        });
+
+        options.push({
+            label: '删除',
+            icon: 'pi pi-trash',
+            command: () => {
+                deletePulse();
+            },
+        });
+    }
+
+    return options;
 });
 
 onBeforeUnmount(() => {
@@ -101,10 +132,11 @@ onBeforeUnmount(() => {
         <template #content>
             <div class="flex flex-col w-full h-full">
                 <div class="flex w-full justify-between items-center">
-                    <div class="flex h-full items-center flex-grow checkable" @click="setCurrentPulse()">
+                    <div class="flex h-full gap-1 items-center flex-grow checkable" @click="setCurrentPulse()">
                         <div class="pulse-name font-semibold px-2">
                             <span>{{ props.pulseInfo.name }}</span>
                         </div>
+                        <i v-if="props.pulseInfo.isCustom" class="pi pi-user" title="这是一个自定义波形"></i>
                     </div>
                     <div class="flex items-center">
                         <Transition name="fade">

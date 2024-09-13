@@ -35,6 +35,29 @@ export type FireRequest = {
     pulseId?: string;
 };
 
+export type ApiResponseType = {
+    status: number;
+    code: string;
+    message?: string;
+    warnings?: { code: string, message: string }[];
+} & Record<string, any>;
+
+export function apiResponse(ctx: Context, data: ApiResponseType) {
+    ctx.response.header['X-Api-Status'] = data.status;
+
+    if (data.status === 0) {
+        ctx.response.header['X-Api-Error-Code'] = data.code;
+        ctx.response.header['X-Api-Error-Message'] = data.message;
+    }
+
+    if (data.warnings) {
+        ctx.response.header['X-Api-Warning-Code'] = data.warnings.map(w => w.code).join(', ');
+        ctx.response.header['X-Api-Warning-Message'] = data.warnings.map(w => w.message).join(', ');
+    }
+
+    ctx.body = data;
+};
+
 export class GameStrengthUpdateQueue {
     private queuedUpdates: Map<string, SetStrengthConfigRequest[]> = new Map();
     private runningQueue: Set<string> = new Set();
@@ -58,7 +81,6 @@ export class GameStrengthUpdateQueue {
         }
 
         this.runningQueue.add(clientId);
-        let randomId = Math.random().toString(36).substring(6);
         while (this.queuedUpdates.get(clientId)) {
             // Merge updates
             const game = CoyoteGameManager.instance.getGame(clientId);
@@ -131,21 +153,21 @@ const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 export class GameApiController {
     private static async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {
         if (!ctx.params.id) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_CLIENT_ID',
                 message: '无效的客户端ID',
-            };
+            });
             return null;
         }
 
         const game = CoyoteGameManager.instance.getGame(ctx.params.id);
         if (!game) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::GAME_NOT_FOUND',
                 message: '游戏进程不存在，可能是客户端未连接',
-            };
+            });
             return null;
         }
 
@@ -153,13 +175,13 @@ export class GameApiController {
     }
 
     public static async gameApiInfo(ctx: RouterContext): Promise<void> {
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             message: 'Coyote Live 游戏API',
             minApiVersion: 1,
             maxApiVersion: 1,
-        };
+        });
     };
 
     public static async gameInfo(ctx: RouterContext): Promise<void> {
@@ -167,11 +189,11 @@ export class GameApiController {
         let clientId = '';
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::BROADCAST_NOT_ALLOWED',
                     message: '当前服务器配置不允许向所有客户端广播指令',
-                };
+                });
                 return;
             }
             
@@ -183,32 +205,32 @@ export class GameApiController {
         }
 
         if (!clientId) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::GAME_NOT_FOUND',
                 message: '游戏进程不存在，可能是客户端未连接',
-            };
+            });
             return;
         }
 
         let gameConfig = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.MainGame, false);
 
         if (game) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
                 strengthConfig: game.strengthConfig,
                 gameConfig,
                 clientStrength: game.clientStrength,
-            };
+            });
         } else {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
                 strengthConfig: null,
                 gameConfig,
                 clientStrength: null,
-            };
+            });
         }
     }
 
@@ -216,11 +238,11 @@ export class GameApiController {
         let game: CoyoteGameController | null = null;
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::BROADCAST_NOT_ALLOWED',
                     message: '当前服务器配置不允许向所有客户端广播指令',
-                };
+                });
                 return;
             }
 
@@ -230,19 +252,19 @@ export class GameApiController {
         }
         
         if (!game) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::GAME_NOT_FOUND',
                 message: '游戏进程不存在，可能是客户端未连接',
-            };
+            });
             return;
         }
 
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             strengthConfig: game.strengthConfig,
-        };
+        });
     }
 
     /**
@@ -252,20 +274,20 @@ export class GameApiController {
      */
     public static async setGameStrength(ctx: RouterContext): Promise<void> {
         if (!ctx.params.id) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_CLIENT_ID',
                 message: '无效的客户端ID',
-            };
+            });
             return;
         }
 
         if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
                 message: '无效的请求，参数为空',
-            };
+            });
             return;
         }
 
@@ -284,11 +306,11 @@ export class GameApiController {
         let gameList: Iterable<CoyoteGameController> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::BROADCAST_NOT_ALLOWED',
                     message: '当前服务器配置不允许向所有客户端广播指令',
-                };
+                });
                 return;
             }
 
@@ -296,11 +318,11 @@ export class GameApiController {
         } else  { // 设置指定游戏的强度配置
             const game = CoyoteGameManager.instance.getGame(ctx.params.id);
             if (!game) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::GAME_NOT_FOUND',
                     message: '游戏进程不存在，可能是客户端未连接',
-                };
+                });
                 return;
             }
 
@@ -317,12 +339,12 @@ export class GameApiController {
             successClientIds.add(game.clientId);
         }
 
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             message: `成功设置了 ${successClientIds.size} 个游戏的强度配置`,
             successClientIds: Array.from(successClientIds),
-        };
+        });
     }
 
     /**
@@ -334,11 +356,11 @@ export class GameApiController {
         let clientId: string = '';
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::BROADCAST_NOT_ALLOWED',
                     message: '当前服务器配置不允许向所有控制器广播指令',
-                };
+                });
                 return;
             }
 
@@ -349,21 +371,21 @@ export class GameApiController {
         }
         
         if (!clientId) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::GAME_NOT_FOUND',
                 message: '游戏配置不存在，可能是控制器未连接',
-            };
+            });
             return;
         }
 
         const gameConfig = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.MainGame, false);
         if (!gameConfig) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::GAME_NOT_FOUND',
                 message: '游戏配置不存在，可能是控制器未连接',
-            };
+            });
             return;
         }
 
@@ -374,12 +396,12 @@ export class GameApiController {
         }
         
 
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             currentPulseId,
             pulseId: gameConfig.pulseId,
-        };
+        });
     }
 
     /**
@@ -389,42 +411,42 @@ export class GameApiController {
      */
     public static async setPulseId(ctx: RouterContext): Promise<void> {
         if (!ctx.params.id) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_CLIENT_ID',
                 message: '无效的客户端ID',
-            };
+            });
             return;
         }
 
         if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
                 message: '无效的请求，参数为空',
-            };
+            });
             return;
         }
 
         const req = ctx.request.body as { pulseId: string | string[] };
 
         if (!req.pulseId) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
                 message: '无效的请求，需要 "pulseId" 参数',
-            };
+            });
             return;
         }
 
         let clientIdList: string[] = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::BROADCAST_NOT_ALLOWED',
                     message: '当前服务器配置不允许向所有客户端广播指令',
-                };
+                });
                 return;
             }
 
@@ -445,12 +467,12 @@ export class GameApiController {
             successClientIds.add(clientId);
         }
 
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             message: `成功设置了 ${successClientIds.size} 个游戏的波形ID`,
             successClientIds: Array.from(successClientIds),
-        };
+        });
     }
 
     /**
@@ -478,29 +500,29 @@ export class GameApiController {
             });
         }
 
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             pulseList,
-        };
+        });
     }
 
     public static async startActionFire(ctx: RouterContext): Promise<void> {
         if (!ctx.params.id) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_CLIENT_ID',
                 message: '无效的客户端ID',
-            };
+            });
             return;
         }
 
         if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
                 message: '无效的请求，参数为空',
-            };
+            });
             return;
         }
 
@@ -518,11 +540,11 @@ export class GameApiController {
         const req = postBody as FireRequest;
 
         if (typeof req.strength !== 'number') {
-            ctx.body = {
+            apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
                 message: '无效的请求，需要 "strength" 参数',
-            };
+            });
             return;
         }
 
@@ -549,11 +571,11 @@ export class GameApiController {
         let gameList: Iterable<CoyoteGameController> = [];
         if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::BROADCAST_NOT_ALLOWED',
                     message: '当前服务器配置不允许向所有客户端广播指令',
-                };
+                });
                 return;
             }
 
@@ -561,11 +583,11 @@ export class GameApiController {
         } else  { // 设置指定游戏的强度配置
             const game = CoyoteGameManager.instance.getGame(ctx.params.id);
             if (!game) {
-                ctx.body = {
+                apiResponse(ctx, {
                     status: 0,
                     code: 'ERR::GAME_NOT_FOUND',
                     message: '游戏进程不存在，可能是客户端未连接',
-                };
+                });
                 return;
             }
 
@@ -585,12 +607,12 @@ export class GameApiController {
             successClientIds.add(game.clientId);
         }
 
-        ctx.body = {
+        apiResponse(ctx, {
             status: 1,
             code: 'OK',
             message: `成功向 ${successClientIds.size} 个游戏发送了一键开火指令`,
             successClientIds: Array.from(successClientIds),
             warnings,
-        };
+        });
     }
 }

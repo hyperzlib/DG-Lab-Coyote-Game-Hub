@@ -24,9 +24,10 @@ export class WebWSClient {
     public clientId: string = '';
     public socketId: string = uuidv4();
 
+    public events = new EventEmitter<WebWSClientEvents>();
+
     private eventStore = new EventStore();
     private gameEventStore = new EventStore();
-    private events = new EventEmitter<WebWSClientEvents>();
     private heartbeatTask: NodeJS.Timeout | null = null;
     private prevHeartbeatTime: number | null = null;
 
@@ -90,17 +91,6 @@ export class WebWSClient {
             this.destory();
         });
 
-        // 监听配置更新事件
-        gameConfigServiceEvents.on("configUpdated", this.clientId, async (type, newConfig) => {
-            await this.send({
-                event: 'gameConfigUpdated',
-                data: {
-                    type,
-                    config: newConfig,
-                }
-            });
-        });
-
         // 监听波形列表更新事件
         pulseServiceEvents.on("pulseListUpdated", async (pulseList) => {
             await this.send({
@@ -125,6 +115,7 @@ export class WebWSClient {
                 break;
             case 'updateConfig':
                 await this.handleUpdateGameConfig(message);
+                break;
             case 'startGame':
                 await this.handleStartGame(message);
                 break;
@@ -306,6 +297,19 @@ export class WebWSClient {
 
     private async connectToGame(gameInstance: CoyoteGameController) {
         this.gameInstance = gameInstance;
+
+        const gameConfigServiceEvents = this.gameEventStore.wrap(CoyoteGameConfigService.instance);
+
+        // 监听配置更新事件
+        gameConfigServiceEvents.on("configUpdated", this.clientId, async (type, newConfig) => {
+            await this.send({
+                event: 'gameConfigUpdated',
+                data: {
+                    type,
+                    config: newConfig,
+                }
+            });
+        });
 
         // 绑定控制器，用于在所有控制器断开连接时回收游戏实例
         gameInstance.bindControllerSocket(this);

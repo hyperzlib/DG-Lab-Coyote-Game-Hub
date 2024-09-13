@@ -19,9 +19,9 @@ import { validator } from './utils/validator';
 import { CoyoteGameConfigService } from './services/CoyoteGameConfigService';
 
 async function main() {
-    blocked((time, stack) => {
-        console.log(`Blocked for ${time}ms, operation started here:`, stack)
-    });
+    // blocked((time, stack) => {
+    //     console.log(`Blocked for ${time}ms, operation started here:`, stack)
+    // });
 
     await validator.initialize();
     await MainConfig.initialize();

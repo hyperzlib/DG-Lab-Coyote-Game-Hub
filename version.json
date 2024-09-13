@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "0.9.1",
-    "description": "1. 增加了全新的波形选择界面\n2. 增加指定一键开火默认波形的功能\n3. 修复GameAPI的问题",
+    "version": "1.0.0",
+    "description": "1. 增加自定义波形功能\n2. 增加波形播放列表功能\n3. 重构服务端，支持保存游戏配置\n4. 更顺滑的强度变化",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

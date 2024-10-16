@@ -10,7 +10,7 @@ import { hexToBuffer } from './DGLabPulseHelper';
 
 // Load ZXing WASM module locally
 setZXingModuleOverrides({
-    locateFile: (path, prefix) => {
+    locateFile: (path: string, prefix: string) => {
         if (path.endsWith(".wasm")) {
             return 'lib/' + path;
         }

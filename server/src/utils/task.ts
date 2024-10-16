@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import { asleep } from "./utils";
+import { LatencyLogger } from "./latencyLogger";
 
 export class TaskAbortedError extends Error {
     constructor() {
@@ -36,6 +37,9 @@ export class Task {
     public running: boolean = false;
     public autoRestart: boolean = true;
 
+    private isRestarting: boolean = false;
+    private latencyLogger = new LatencyLogger();
+
     private handler: TaskHandler;
 
     private abortController: AbortController = new AbortController();
@@ -56,7 +60,7 @@ export class Task {
             return;
         }
 
-        const harvest = createHarvest(this.abortController);
+        let harvest = createHarvest(this.abortController);
 
         this.running = true;
         let round = 0;
@@ -64,11 +68,22 @@ export class Task {
             let startTime = Date.now();
             try {
                 await this.handler(this.abortController, harvest, round);
+                harvest(); // 确保触发TaskAborted
             } catch (error) {
                 if (error instanceof TaskAbortedError) { // Task aborted
-                    break;
+                    if (!this.isRestarting) { // 如果不是正在重启则停止任务
+                        break;
+                    } else {
+                        this.latencyLogger.finish();
+
+                        this.isRestarting = false;
+                        // 重设abortController
+                        this.abortController = new AbortController();
+                        harvest = createHarvest(this.abortController);
+                    }
+                } else {
+                    throw error;
                 }
-                throw error;
             }
             let endTime = Date.now();
 
@@ -99,6 +114,16 @@ export class Task {
         });
         
         await this.waitForStop;
+    }
+
+    public restart(): void {
+        if (!this.running) {
+            return;
+        }
+
+        this.latencyLogger.start('restartTask');
+        this.isRestarting = true;
+        this.abortController.abort();
     }
 
     public async abort(): Promise<void> {

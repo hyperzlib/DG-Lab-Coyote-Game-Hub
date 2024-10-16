@@ -12,6 +12,7 @@ import { PulsePlayList } from '../../utils/PulsePlayList';
 import { AbstractGameAction } from './actions/AbstractGameAction';
 import { WebWSClient } from '../ws/WebWS';
 import { DGLabPulseInfo } from '../../services/DGLabPulse';
+import { LatencyLogger } from '../../utils/latencyLogger';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;
@@ -32,6 +33,9 @@ export const FIRE_MAX_DURATION = 30000;
 export class CoyoteGameController {
     /** 在线Socket的ID列表，用于判断是否可以释放Game */
     private onlineSockets = new Set<string>();
+
+    /** 延迟调试 */
+    private latencyLogger = new LatencyLogger();
 
     /** 游戏对应的clientId */
     public clientId: string;
@@ -221,6 +225,8 @@ export class CoyoteGameController {
      * @param action 
      */
     public async startAction(action: AbstractGameAction): Promise<void> {
+        this.latencyLogger.start('action ' + action.constructor.name);
+
         let existsIndex = this.actionList.findIndex((a) => a.constructor === action.constructor);
         if (existsIndex >= 0) {
             const oldAction = this.actionList[existsIndex];
@@ -237,7 +243,8 @@ export class CoyoteGameController {
         existsIndex = this.actionList.findIndex((a) => a.constructor === action.constructor);
         if (existsIndex === 0) { // 立刻执行新的动作
             // 重启波形输出
-            await this.restartGame();
+            this.latencyLogger.log('startAction');
+            await this.restartGameTask();
         }
     }
 
@@ -327,9 +334,12 @@ export class CoyoteGameController {
         if (this.actionList.length > 0) {
             // 执行游戏特殊动作
             const currentAction = this.actionList[0];
+            this.latencyLogger.log('runGameTask: action ' + currentAction.constructor.name);
             await currentAction.execute(ab, harvest, () => {
                 this.actionList.shift();
             });
+            this.latencyLogger.log('runGameTask: action ' + currentAction.constructor.name + ' finished');
+            this.latencyLogger.finish();
             return;
         }
 
@@ -435,6 +445,22 @@ export class CoyoteGameController {
         if (this.running) {
             await this.stopGame(true);
             await this.startGame(true);
+            this.latencyLogger.finish();
+        }
+    }
+
+    /**
+     * 仅重启游戏任务，用于低延迟的强度调整
+     */
+    public async restartGameTask(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
+        if (this.running && this.gameTask) {
+            await this.client.reset();
+            this.latencyLogger.log('resetClient');
+            this.gameTask.restart();
         }
     }
 

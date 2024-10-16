@@ -7,6 +7,7 @@ import { asleep } from '../../utils/utils';
 import { EventEmitter } from 'events';
 import { EventStore } from '../../utils/EventStore';
 import { DGLabPulseBaseInfo, DGLabPulseInfo, DGLabPulseService } from '../../services/DGLabPulse';
+import { createHarvest } from '../../utils/task';
 
 const HEARTBEAT_INTERVAL = 20.0;
 const HEARTBEAT_TIMEOUT = 20.0;
@@ -250,6 +251,11 @@ export class DGLabWSClient {
 
         let startTime = Date.now();
 
+        let harvest = () => {};
+        if (options.abortController) {
+            harvest = createHarvest(options.abortController);
+        }
+
         for (let i = 0; i < 50; i++) {
             let [pulseData, pulseDuration] = pulseService.getPulseHexData(currentPulseInfo);
 
@@ -257,6 +263,8 @@ export class DGLabWSClient {
             if (options.bChannel) {
                 await this.sendPulse(Channel.B, pulseData);
             }
+
+            harvest();
 
             totalDuration += pulseDuration;
             if (totalDuration > time) {
@@ -268,27 +276,26 @@ export class DGLabWSClient {
 
         await asleep(time, options.abortController); // 等待时间到达
 
+        harvest();
+        
         startTime = Date.now();
         options.onTimeEnd?.(); // 时间到达后的回调
         let onTimeEndDuration = Date.now() - startTime;
 
         let finished = true;
+        harvest();
+
         if (totalDuration > time) {
             const waitTime = totalDuration - time - onTimeEndDuration - netDuration;
             finished = await asleep(waitTime, options.abortController);
         }
-
-        if (!finished) {
-            await this.clearPulse(Channel.A);
-            if (options.bChannel) {
-                await this.clearPulse(Channel.B);
-            }
-        }
     }
 
     public async reset() {
-        await this.clearPulse(Channel.A);
-        await this.clearPulse(Channel.B);
+        await Promise.all([
+            this.clearPulse(Channel.A),
+            this.clearPulse(Channel.B),
+        ]);
     }
 
     public async close() {

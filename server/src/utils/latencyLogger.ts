@@ -18,16 +18,16 @@ export class LatencyLogger {
     public log(method: string = '') {
         return; // Disable latency logger
 
-        if (!this.taskName || !this.startTime) {
-            return;
-        }
+        // if (!this.taskName || !this.startTime) {
+        //     return;
+        // }
 
-        const endTime = Date.now();
-        const fullLatency = endTime - this.startTime;
-        const latency = this.previousTime ? endTime - this.previousTime : 0;
+        // const endTime = Date.now();
+        // const fullLatency = endTime - this.startTime;
+        // const latency = this.previousTime ? endTime - this.previousTime : 0;
 
-        this.previousTime = endTime;
+        // this.previousTime = endTime;
 
-        console.log(`Latency trace: [${this.taskName}/${method}] - Latency: ${latency}ms (${fullLatency}ms)`);
+        // console.log(`Latency trace: [${this.taskName}/${method}] - Latency: ${latency}ms (${fullLatency}ms)`);
     }
 }

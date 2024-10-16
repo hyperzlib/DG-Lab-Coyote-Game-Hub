@@ -57,6 +57,7 @@ export class DGLabWSClient {
     public async initialize(): Promise<void> {
         this.bindEvents();
 
+        console.log(`Client connected: ${this.clientId}`);
         await this.send(MessageType.BIND, MessageDataHead.TARGET_ID);
 
         // Wait for successful binding

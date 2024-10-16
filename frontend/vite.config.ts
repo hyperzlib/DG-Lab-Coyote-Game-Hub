@@ -31,7 +31,11 @@ export default defineConfig({
       '/ws': {
         target: 'http://localhost:8920',
         ws: true,
-      }
+      },
+      '/dglab_ws': {
+        target: 'http://localhost:8920',
+        ws: true,
+      },
     }
   },
   plugins: [

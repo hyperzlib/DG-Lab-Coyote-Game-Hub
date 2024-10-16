@@ -6,7 +6,10 @@ import Tab from 'primevue/tab';
 import TabList from 'primevue/tablist';
 import TabPanels from 'primevue/tabpanels';
 
+import IconBluetooth from '../../assets/bluetooth.svg';
+
 import { ClientConnectUrlInfo } from '../../apis/webApi';
+import { CoyoteDeviceVersion } from '../../type/common';
 
 defineOptions({
   name: 'ConnectToClientDialog',
@@ -22,6 +25,7 @@ const visible = defineModel('visible');
 const emit = defineEmits<{
   (name: 'resetClientId'): void;
   (name: 'update:clientId', value: string): void;
+  (name: 'startBluetoothConnect', version: CoyoteDeviceVersion): void;
 }>();
 
 const state = reactive({
@@ -31,6 +35,10 @@ const state = reactive({
   clientIdResetting: false,
 
   formClientId: '',
+});
+
+const isSupportBluetooth = computed(() => {
+  return 'bluetooth' in navigator;
 });
 
 const wsUrlList = computed(() => {
@@ -52,12 +60,19 @@ const handleResetClientId = async () => {
   if (state.clientIdResetting) {
     return;
   }
+  if (!confirm('确定要重置客户端ID吗？')) {
+    return;
+  }
   state.clientIdResetting = true;
   emit('resetClientId');
 };
 
 const handleSetClientId = () => {
   emit('update:clientId', state.formClientId);
+};
+
+const handleStartBluetoothConnect = (version: CoyoteDeviceVersion) => {
+  emit('startBluetoothConnect', version);
 };
 
 watch(() => props.clientId, (newVal) => {
@@ -68,12 +83,13 @@ watch(() => props.clientId, (newVal) => {
 </script>
 
 <template>
-  <Dialog v-model:visible="visible" modal header="连接DG-Lab" class="mx-4 w-full md:w-[40rem]">
+  <Dialog v-model:visible="visible" modal header="连接设备" class="mx-4 w-full md:w-[40rem]">
     <FadeAndSlideTransitionGroup>
       <div v-if="props.clientWsUrlList">
         <Tabs v-model:value="state.selectedTab">
           <TabList>
             <Tab value="dglab">连接 DG-Lab</Tab>
+            <Tab value="coyoteble">蓝牙连接郊狼</Tab>
             <Tab value="clientId">通过客户端ID连接</Tab>
           </TabList>
           <TabPanels>
@@ -102,6 +118,31 @@ watch(() => props.clientId, (newVal) => {
                     optionLabel="label" optionValue="value"></Select>
                 </div>
               </div>
+              <div v-if="state.selectedTab === 'coyoteble'">
+                <div v-if="isSupportBluetooth" class="flex flex-col items-center gap-4">
+                  <Button label="连接郊狼 3.0" class="w-full" size="large"
+                    @click="handleStartBluetoothConnect(CoyoteDeviceVersion.V3)">
+                    <template #icon>
+                      <i class="pi">
+                        <IconBluetooth></IconBluetooth>
+                      </i>
+                    </template>
+                  </Button>
+                  <Button label="连接郊狼 2.0 (开发中)" class="w-full" size="large" disabled title="请期待后续版本支持"
+                    @click="handleStartBluetoothConnect(CoyoteDeviceVersion.V2)">
+                    <template #icon>
+                      <i class="pi">
+                        <IconBluetooth></IconBluetooth>
+                      </i>
+                    </template>
+                  </Button>
+                </div>
+                <div v-else>
+                  <p class="text-red-500 font-semibold text-lg">您的浏览器不支持蓝牙连接</p>
+                  <p>可以尝试使用Chrome或<a href="https://www.microsoft.com/edge/download">Edge浏览器</a></p>
+                  <p>iOS设备请使用<a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055">Bluefy浏览器</a></p>
+                </div>
+              </div>
               <div v-if="state.selectedTab === 'clientId'">
                 <div class="w-full flex flex-col items-top gap-2">
                   <label class="font-semibold">客户端ID</label>
@@ -109,6 +150,7 @@ watch(() => props.clientId, (newVal) => {
                     <InputText v-model="state.formClientId" placeholder="请输入目标客户端ID"></InputText>
                     <Button icon="pi pi-link" label="连接" @click="handleSetClientId"></Button>
                   </InputGroup>
+                  <span class="block text-sm text-gray-500">请确保目标客户端连接的站点是此站点</span>
                 </div>
               </div>
             </FadeAndSlideTransitionGroup>

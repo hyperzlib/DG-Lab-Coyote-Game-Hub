@@ -4,17 +4,43 @@ import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import StatusChart from '../charts/Circle1.vue';
 
-import { GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, SocketApi } from '../apis/socketApi';
+import { GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, PulsePlayMode, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
 import { simpleObjDiff } from '../utils/utils';
-import Popover from 'primevue/popover';
 import { PulseItemInfo } from '../type/pulse';
 import { useConfirm } from 'primevue/useconfirm';
+import { ConnectorType, CoyoteDeviceVersion } from '../type/common';
+import CoyoteBluetoothPanel from '../components/partials/CoyoteBluetoothPanel.vue';
+import PulseSettings from '../components/partials/PulseSettings.vue';
 
 const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
 
-const state = reactive({
+export interface ControllerPageState {
+  strengthVal: number;
+  randomStrengthVal: number;
+  strengthLimit: number;
+  tempStrength: number;
+  randomFreq: number[];
+  bChannelEnabled: boolean;
+  bChannelMultiple: number;
+  pulseList: PulseItemInfo[] | null;
+  customPulseList: PulseItemInfo[];
+  selectPulseIds: string[];
+  firePulseId: string;
+  pulseMode: PulsePlayMode;
+  pulseChangeInterval: number;
+  clientId: string;
+  clientWsUrlList: ClientConnectUrlInfo[] | null;
+  clientStatus: 'init' | 'waiting' | 'connected';
+  connectorType: ConnectorType;
+  gameStarted: boolean;
+  showConnectionDialog: boolean;
+  showLiveCompDialog: boolean;
+  showConfigSavePrompt: boolean;
+}
+
+const state = reactive<ControllerPageState>({
   strengthVal: 5,
   randomStrengthVal: 5,
   strengthLimit: 20,
@@ -39,43 +65,16 @@ const state = reactive({
 
   clientStatus: 'init' as 'init' | 'waiting' | 'connected',
 
+  connectorType: ConnectorType.DGLAB as ConnectorType,
+
   gameStarted: false,
 
   showConnectionDialog: false,
   showLiveCompDialog: false,
-  showSortPulseDialog: false,
-  showImportPulseDialog: false,
   showConfigSavePrompt: false,
-
-  willRenamePulseName: '',
-  showRenamePulseDialog: false,
 });
 
-const customPulseList = computed(() => {
-  return state.customPulseList.map((item) => ({
-    ...item,
-    isCustom: true,
-  }));
-});
-
-const fullPulseList = computed(() => {
-  return state.pulseList ? [...customPulseList.value, ...state.pulseList] : customPulseList.value;
-});
-
-const pulseTimePopoverRef = ref<InstanceType<typeof Popover> | null>(null);
-
-const pulseModeOptions = [
-  { label: '单个', value: 'single' },
-  { label: '顺序', value: 'sequence' },
-  { label: '随机', value: 'random' },
-];
-
-const presetPulseTimeOptions = [
-  { label: '10', value: 10 },
-  { label: '30', value: 30 },
-  { label: '60', value: 60 },
-  { label: '120', value: 120 },
-];
+const btPanelRef = ref<InstanceType<typeof CoyoteBluetoothPanel> | null>(null);
 
 // 在收到服务器的配置后设置为true，防止触发watch
 let receivedConfig = false;
@@ -126,6 +125,9 @@ const chartVal = computed(() => ({
 
 const toast = useToast();
 const confirm = useConfirm();
+
+provide('parentToast', toast);
+provide('parentConfirm', confirm);
 
 let serverInfo: ServerInfoResData;
 let wsClient: SocketApi;
@@ -236,22 +238,6 @@ const initWebSocket = async () => {
   wsClient.connect();
 };
 
-const togglePulse = (pulseId: string) => {
-  if (state.pulseMode === 'single') {
-    state.selectPulseIds = [pulseId];
-  } else {
-    if (state.selectPulseIds.includes(pulseId)) {
-      state.selectPulseIds = state.selectPulseIds.filter((id) => id !== pulseId);
-    } else {
-      state.selectPulseIds.push(pulseId);
-    }
-  }
-};
-
-const setFirePulse = (pulseId: string) => {
-  state.firePulseId = pulseId;
-};
-
 const initClientConnection = async () => {
   try {
     let res = await webApi.getClientConnectInfo();
@@ -295,10 +281,6 @@ const showLiveCompDialog = () => {
   }
 };
 
-const showPulseTimePopover = (event: MouseEvent) => {
-  pulseTimePopoverRef.value?.show(event);
-};
-
 const handleResetClientId = () => {
   initClientConnection();
 };
@@ -313,61 +295,6 @@ const handleConnSetClientId = (clientId: string) => {
   state.showConnectionDialog = false;
 
   toast.add({ severity: 'success', summary: '设置成功', detail: '正在等待客户端连接', life: 3000 });
-};
-
-const handlePulseImported = async (pulseInfo: PulseItemInfo) => {
-  let duplicate = state.customPulseList.find((item) => item.id === pulseInfo.id);
-  if (duplicate) {
-    toast.add({ severity: 'warn', summary: '导入失败', detail: '相同波形已存在', life: 3000 });
-    return;
-  }
-
-  state.customPulseList.push(pulseInfo);
-  toast.add({ severity: 'success', summary: '导入成功', detail: '波形已导入', life: 3000 });
-
-  await postCustomPulseConfig();
-};
-
-let renamePulseId = '';
-const handleRenamePulse = async (pulseId: string) => {
-  renamePulseId = pulseId;
-  state.willRenamePulseName = state.customPulseList.find((item) => item.id === pulseId)?.name ?? '';
-
-  state.showRenamePulseDialog = true;
-};
-
-const handleRenamePulseConfirm = async (newName: string) => {
-  let pulse = state.customPulseList.find((item) => item.id === renamePulseId);
-  if (pulse) {
-    pulse.name = newName;
-    await postCustomPulseConfig();
-  }
-};
-
-const handleDeletePulse = async (pulseId: string) => {
-  confirm.require({
-    header: '删除波形',
-    message: '确定要删除此波形吗？',
-    rejectProps: {
-      label: '取消',
-      severity: 'secondary',
-      outlined: true
-    },
-    acceptProps: {
-      label: '确定',
-      severity: 'danger',
-    },
-    icon: 'pi pi-exclamation-triangle',
-    accept: async () => {
-      state.customPulseList = state.customPulseList.filter((item) => item.id !== pulseId);
-      state.selectPulseIds = state.selectPulseIds.filter((id) => id !== pulseId);
-      if (state.selectPulseIds.length === 0) {
-        state.selectPulseIds = [fullPulseList.value[0].id];
-      }
-
-      await postCustomPulseConfig();
-    },
-  });
 };
 
 const postConfig = async () => {
@@ -450,6 +377,10 @@ const handleCancelSaveConfig = () => {
   });
 };
 
+const handleStartBluetoothConnect = (deviceVersion: CoyoteDeviceVersion) => {
+  btPanelRef.value?.startBluetoothConnect(deviceVersion);
+};
+
 onMounted(async () => {
   let storedClientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
   if (storedClientId) {
@@ -490,7 +421,9 @@ watch([gameConfig, strengthConfig], () => {
         <template #header>
           <Toolbar class="controller-toolbar">
             <template #start>
-              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接控制器"
+              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接"
+                :disabled="state.clientStatus === 'connected'"
+                :title="state.clientStatus === 'connected' ? '请先断开当前设备连接' : '连接设备'"
                 @click="showConnectionDialog()"></Button>
               <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
                 <i class="pi pi-circle-off"></i>
@@ -565,59 +498,17 @@ watch([gameConfig, strengthConfig], () => {
               B通道的强度 = A通道强度 * 强度倍数
             </div>
           </div>
+          <CoyoteBluetoothPanel :state="state" ref="btPanelRef"></CoyoteBluetoothPanel>
           <Divider></Divider>
-          <div class="flex flex-col justify-between gap-2 mt-4 mb-2 items-start md:flex-row md:items-center">
-            <h2 class="font-bold text-xl">波形选择</h2>
-            <div class="flex gap-2 items-center">
-              <Button icon="pi pi-sort-alpha-down" title="波形排序" severity="secondary"
-                @click="state.showSortPulseDialog = true" v-if="state.pulseMode === 'sequence'"></Button>
-              <Button icon="pi pi-upload" title="导入波形" severity="secondary"
-                @click="state.showImportPulseDialog = true"></Button>
-              <Button icon="pi pi-clock" title="波形切换间隔" severity="secondary" :label="state.pulseChangeInterval + 's'"
-                @click="showPulseTimePopover"></Button>
-              <SelectButton v-model="state.pulseMode" :options="pulseModeOptions" optionLabel="label"
-                optionValue="value" :allowEmpty="false" aria-labelledby="basic" />
-            </div>
-          </div>
-          <FadeAndSlideTransitionGroup>
-            <div v-if="state.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
-              <PulseCard v-for="pulse in fullPulseList" :key="pulse.id" :pulse-info="pulse"
-                :is-current-pulse="state.selectPulseIds.includes(pulse.id)"
-                :is-fire-pulse="pulse.id === state.firePulseId" @set-current-pulse="togglePulse"
-                @set-fire-pulse="setFirePulse" @delete-pulse="handleDeletePulse" @rename-pulse="handleRenamePulse" />
-            </div>
-            <div v-else class="flex justify-center py-4">
-              <ProgressSpinner />
-            </div>
-          </FadeAndSlideTransitionGroup>
+          <PulseSettings :state="state" @post-custom-pulse-config="postCustomPulseConfig" />
         </template>
       </Card>
     </div>
 
-    <Popover class="popover-pulseTime" ref="pulseTimePopoverRef">
-      <div class="flex flex-col gap-4 w-[25rem]">
-        <div>
-          <span class="font-medium block mb-2">波形切换间隔</span>
-          <div class="flex gap-2">
-            <InputGroup>
-              <InputNumber v-model="state.pulseChangeInterval" :min="5" :max="600" />
-              <InputGroupAddon>秒</InputGroupAddon>
-            </InputGroup>
-            <SelectButton v-model="state.pulseChangeInterval" :options="presetPulseTimeOptions" optionLabel="label"
-              optionValue="value" :allowEmpty="false" aria-labelledby="basic" />
-          </div>
-        </div>
-      </div>
-    </Popover>
-
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
-      :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId" />
+      :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId"
+      @start-bluetooth-connect="handleStartBluetoothConnect" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
-    <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="state.pulseList ?? []"
-      v-model:modelValue="state.selectPulseIds" />
-    <ImportPulseDialog v-model:visible="state.showImportPulseDialog" @on-pulse-imported="handlePulseImported" />
-    <PromptDialog v-model:visible="state.showRenamePulseDialog" @confirm="handleRenamePulseConfirm" title="重命名波形" input-label="波形名称"
-      :default-value="state.willRenamePulseName" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
   </div>
 </template>
@@ -639,7 +530,7 @@ body {
 }
 </style>
 
-<style lang="scss" scoped>
+<style lang="scss">
 $container-max-widths: (
   md: 768px,
   lg: 960px,
@@ -672,26 +563,26 @@ $container-max-widths: (
   border-radius: 0.8rem;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+
+  .input-small {
+    height: 32px;
+    --p-inputtext-padding-y: 0.25rem;
+  }
+
+  .input-text-center input {
+    text-align: center;
+  }
+
+  .inner-tabs {
+    --p-tabs-tablist-background: transparent;
+    --p-tabs-tab-padding: 0.5rem 1.5rem;
+  }
 }
 
 .controller-toolbar {
   border-radius: 0;
   border: none;
   border-bottom: 1px solid #e0e0e0;
-}
-
-.input-small {
-  height: 32px;
-  --p-inputtext-padding-y: 0.25rem;
-}
-
-.input-text-center :deep(input) {
-  text-align: center;
-}
-
-.inner-tabs {
-  --p-tabs-tablist-background: transparent;
-  --p-tabs-tab-padding: 0.5rem 1.5rem;
 }
 
 @media (prefers-color-scheme: dark) {

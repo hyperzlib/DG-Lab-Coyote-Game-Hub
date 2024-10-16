@@ -5,6 +5,22 @@ body {
     --progress-font-size: 1.8rem;
 }
 
+.pi > img,
+.pi > svg {
+    width: var(--p-icon-size);
+    height: auto;
+}
+
+a {
+    color: var(--link-color);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.d-none {
+    display: none !important;
+}
+
 @keyframes pulse {
     0% {
         opacity: 1;

@@ -95,12 +95,14 @@ const onCancel = () => {
 watch(() => visible.value, (newVal) => {
   if (!newVal) { // 关闭对话框时重置状态
     state.isProcessing = false;
-    state.formPulseName = (new Date()).toLocaleString() + ' 导入波形';
     state.selectedFile = null;
     if (state.selectedFileUrl) {
       URL.revokeObjectURL(state.selectedFileUrl);
       state.selectedFileUrl = null;
     }
+  } else {
+    // 打开对话框时重置默认波形名称
+    state.formPulseName = (new Date()).toLocaleString() + ' 导入波形';
   }
 });
 </script>

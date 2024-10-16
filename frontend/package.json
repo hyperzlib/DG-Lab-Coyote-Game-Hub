@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@primevue/themes": "4.0.0-rc.2",
+    "@types/web-bluetooth": "^0.0.20",
     "crypto-js": "^4.2.0",
     "eventemitter3": "^5.0.1",
     "js-base64": "^3.7.7",

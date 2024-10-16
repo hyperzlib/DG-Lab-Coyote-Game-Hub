@@ -106,7 +106,7 @@ watch(() => props.clientId, (newVal) => {
                   <span class="block text-sm text-gray-500">若是客户端ID泄露，可以点击“重置”按钮。</span>
                 </div>
                 <span class="block font-semibold mb-2">请使用DG-Lab扫描以下二维码：</span>
-                <div class="flex justify-center mb-4">
+                <div class="flex justify-center mb-4 min-h-256px">
                   <VueQrcode v-if="wsUrlList[state.selectedWsUrlIndex].connectUrl"
                     :value="wsUrlList[state.selectedWsUrlIndex].connectUrl" type="image/png"
                     :color="{ dark: '#000000ff', light: '#ffffffff' }" :width="256" :height="256" />
@@ -145,12 +145,15 @@ watch(() => props.clientId, (newVal) => {
               </div>
               <div v-if="state.selectedTab === 'clientId'">
                 <div class="w-full flex flex-col items-top gap-2">
+                  <Message severity="info" class="m-1">
+                    <p>此功能用于连接到其他人，或者恢复连接到先前的设备。</p>
+                    <p>仅支持连接相同站点的客户端。</p>
+                  </Message>
                   <label class="font-semibold">客户端ID</label>
                   <InputGroup>
                     <InputText v-model="state.formClientId" placeholder="请输入目标客户端ID"></InputText>
                     <Button icon="pi pi-link" label="连接" @click="handleSetClientId"></Button>
                   </InputGroup>
-                  <span class="block text-sm text-gray-500">请确保目标客户端连接的站点是此站点</span>
                 </div>
               </div>
             </FadeAndSlideTransitionGroup>

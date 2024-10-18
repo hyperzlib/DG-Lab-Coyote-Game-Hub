@@ -17,6 +17,8 @@ import { DGLabPulseService } from './services/DGLabPulse';
 import { LocalIPAddress, openBrowser } from './utils/utils';
 import { validator } from './utils/validator';
 import { CoyoteGameConfigService } from './services/CoyoteGameConfigService';
+import { SiteNotificationService } from './services/SiteNotificationService';
+import { checkUpdate } from './utils/checkUpdate';
 
 async function main() {
     // blocked((time, stack) => {
@@ -28,6 +30,7 @@ async function main() {
 
     await DGLabPulseService.instance.initialize();
     await CoyoteGameConfigService.instance.initialize();
+    await SiteNotificationService.instance.initialize();
 
     const app = new Koa();
     const httpServer = http.createServer(app.callback());
@@ -89,6 +92,24 @@ async function main() {
         console.log('Local IP Address List:');
         ipAddrList.forEach((ipAddr) => {
             console.log(`  - ${ipAddr}`);
+        });
+    });
+
+    // 检测更新
+    checkUpdate().then((updateInfo) => {
+        if (!updateInfo) return;
+
+        if (MainConfig.value.hideWebUpdateNotification) return; // 不在控制台显示更新通知
+
+        SiteNotificationService.instance.addNotification({
+            severity: 'secondary',
+            icon: 'pi pi-download',
+            title: `发现新版本 ${updateInfo.version}`,
+            message: updateInfo.description ?? '请前往GitHub查看更新内容。',
+            url: updateInfo.downloadUrl,
+            urlLabel: '下载',
+            sticky: true,
+            ignoreId: 'update-notification-' + updateInfo.version,
         });
     });
 }

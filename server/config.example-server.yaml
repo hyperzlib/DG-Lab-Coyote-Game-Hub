@@ -7,3 +7,8 @@ webWsBaseUrl: "wss://ws.example.com"        # 网页控制台的WebSocket Base U
 clientWsBaseUrl: "wss://ws.example.com"     # 客户端连接的WebSocket Base URL，需要包含协议类型
 pulseConfigPath: "pulse.yaml"               # 波形配置文件路径
 allowBroadcastToClients: false              # 允许向所有已连接的客户端广播消息（搭建公开服务时必须关闭）
+hideWebUpdateNotification: true             # 隐藏网页控制台的更新提示
+siteNotifications:                          # 站点通知
+  - title: "欢迎使用CoyoteGameHub"
+    message: "这是一个示例站点通知，你可以在配置文件中添加自己的通知，或者删除这个通知。"
+    ignoreId: 'site-welcome-1'             # 忽略ID，用户可以点击“忽略”按钮来忽略这个通知，忽略的通知将不再显示。建议每次更新通知时更改这个ID。

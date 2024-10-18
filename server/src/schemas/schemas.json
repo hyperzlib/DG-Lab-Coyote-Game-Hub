@@ -1,13 +1,4 @@
 {
-    "./src/schemas/RandomStrengthConfig.json": {
-        "fileMd5": "631bc4fd8b2340fc59012a7f862ea61e"
-    },
-    "./src/schemas/CoyoteLiveGameConfig.json": {
-        "fileMd5": "2acb2305747cc5debb108157b8592022"
-    },
-    "./src/schemas/MainConfigType.json": {
-        "fileMd5": "246505a20c9c95200b7e94214f15bb1c"
-    },
     "./src/schemas/GameStrengthConfig.json": {
         "fileMd5": "767957c4f5c0bedfadc8b1389d22ba33"
     },
@@ -16,5 +7,8 @@
     },
     "./src/schemas/MainGameConfig.json": {
         "fileMd5": "767957c4f5c0bedfadc8b1389d22ba33"
+    },
+    "./src/schemas/MainConfigType.json": {
+        "fileMd5": "58364660a9d932a3170e9437004ace2a"
     }
 }

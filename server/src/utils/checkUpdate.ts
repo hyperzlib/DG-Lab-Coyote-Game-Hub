@@ -7,7 +7,11 @@ export type VersionInfo = {
     description?: string;
     releaseFile: {
         [platform: string]: string;
-    }
+    },
+    apiMirrors: {
+        version: string;
+        release: string;
+    }[],
 } & Record<string, any>;
 
 export function compareVersion(current: string, remote: string) {
@@ -39,22 +43,17 @@ export function compareVersion(current: string, remote: string) {
     }
 }
 
-export async function checkUpdate() {
-    const apis = [
-        {
-            version: 'https://raw.githubusercontent.com/{repo}/master/version.json',
-            release: 'https://github.com/{repo}/releases/download/v{version}/{file}',
-        },
-        // 镜像地址
-        {
-            version: 'https://mirror.ghproxy.com/https://raw.githubusercontent.com/{repo}/master/version.json',
-            release: 'https://mirror.ghproxy.com/https://github.com/{repo}/releases/download/v{version}/{file}',
-        },
-    ]
+export type UpdateInfo = {
+    downloadUrl: string;
+} & VersionInfo;
+
+export async function checkUpdate(): Promise<UpdateInfo | false> {
     if (!fs.existsSync('version.json')) return false;
     try {
         const versionInfo: VersionInfo = JSON.parse(await fs.promises.readFile('version.json', 'utf8'));
         if (!versionInfo.repo || !versionInfo.version) return false;
+
+        let apis = versionInfo.apiMirrors;
 
         for (const api of apis) {
             try {
@@ -74,17 +73,24 @@ export async function checkUpdate() {
 
                     console.log(`检测到新版本：${res.version}，更新内容：\n${res.description}\n`);
 
+                    let downloadUrl = 'https://github.com/' + res.repo + '/releases/';
                     if (releaseFile) {
+                        downloadUrl = api.release.replace('{repo}', res.repo).replace('{version}', res.version).replace('{file}', releaseFile);
                         console.log(`下载地址：${api.release.replace('{repo}', res.repo).replace('{version}', res.version).replace('{file}', releaseFile)}`);
                     }
                     
-                    return true;
+                    return {
+                        downloadUrl,
+                        ...versionInfo,
+                    };
                 }
             } catch (e: any) {
                 
             }
         }
     } catch (e: any) {
-        
+        console.error('Failed to check update:', e);
     }
+
+    return false;
 }

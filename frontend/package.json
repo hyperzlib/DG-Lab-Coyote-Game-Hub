@@ -17,6 +17,7 @@
     "js-md5": "^0.8.3",
     "pako": "^2.1.0",
     "pinia": "^2.2.2",
+    "pinia-plugin-persistedstate": "^4.1.1",
     "primeicons": "^7.0.0",
     "primevue": "4.0.0-rc.2",
     "unplugin-auto-import": "^0.17.6",

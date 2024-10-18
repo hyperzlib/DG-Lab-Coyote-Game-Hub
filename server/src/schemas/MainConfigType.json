@@ -44,6 +44,17 @@
                 "allowBroadcastToClients": {
                     "type": "boolean",
                     "description": "允许插件API向所有客户端发送指令"
+                },
+                "hideWebUpdateNotification": {
+                    "type": "boolean",
+                    "description": "网页不显示更新通知"
+                },
+                "siteNotifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/RemoteNotificationInfo"
+                    },
+                    "description": "站点通知"
                 }
             },
             "required": [
@@ -51,6 +62,55 @@
                 "port",
                 "pulseConfigPath"
             ]
+        },
+        "RemoteNotificationInfo": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "通知标题"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "通知内容"
+                },
+                "icon": {
+                    "type": "string",
+                    "description": "通知图标，需要是PrimeVue图标列表里的className"
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": [
+                        "success",
+                        "info",
+                        "warn",
+                        "error",
+                        "secondary",
+                        "contrast"
+                    ],
+                    "description": "通知类型"
+                },
+                "ignoreId": {
+                    "type": "string",
+                    "description": "通知的ID，如果存在则此通知可以忽略"
+                },
+                "sticky": {
+                    "type": "boolean",
+                    "description": "阻止通知自动关闭"
+                },
+                "url": {
+                    "type": "string",
+                    "description": "点击通知后打开的URL"
+                },
+                "urlLabel": {
+                    "type": "string",
+                    "description": "打开URL的按钮文本"
+                }
+            },
+            "required": [
+                "message"
+            ],
+            "additionalProperties": false
         }
     }
 }

@@ -15,6 +15,8 @@ defineOptions({
   name: 'CoyoteBluetoothPanel',
 });
 
+const BT_CONFIG_STORAGE_KEY = 'CGH_BTClientConfig';
+
 const props = defineProps<{
   state: any;
 }>();
@@ -32,6 +34,7 @@ const state = reactive({
   deviceStrengthA: 0,
   deviceStrengthB: 0,
 
+  freqBalance: 150,
   inputLimitA: 20,
   inputLimitB: 20,
 });
@@ -134,6 +137,38 @@ const handleStopBluetoothConnect = () => {
   });
 };
 
+const saveLocalConfig = () => {
+  localStorage.setItem(BT_CONFIG_STORAGE_KEY, JSON.stringify({
+    freqBalance: state.freqBalance,
+    inputLimitA: state.inputLimitA,
+    inputLimitB: state.inputLimitB,
+  }));
+};
+
+const loadLocalConfig = () => {
+  const config = localStorage.getItem(BT_CONFIG_STORAGE_KEY);
+  if (!config) {
+    return;
+  }
+
+  const savedConfig = JSON.parse(config);
+  if (!savedConfig) {
+    return;
+  }
+
+  if (typeof savedConfig.freqBalance === 'number') {
+    state.freqBalance = Math.min(200, Math.max(0, savedConfig.freqBalance));
+  }
+  
+  if (typeof savedConfig.inputLimitA === 'number') {
+    state.inputLimitA = Math.min(200, Math.max(1, savedConfig.inputLimitA));
+  }
+
+  if (typeof savedConfig.inputLimitB === 'number') {
+    state.inputLimitB = Math.min(200, Math.max(1, savedConfig.inputLimitB));
+  }
+};
+
 watch(() => parentState.clientId, async (newVal) => {
   if (newVal) {
     // 刷新客户端ID时断开蓝牙连接
@@ -144,8 +179,21 @@ watch(() => parentState.clientId, async (newVal) => {
 watch(() => [state.inputLimitA, state.inputLimitB], (newVal) => {
   if (bluetoothController) {
     bluetoothController.setStrengthLimit(newVal[0], newVal[1]);
+    saveLocalConfig();
     toast?.add({ severity: 'success', summary: '设置成功', detail: '已更新强度上限', life: 3000 });
   }
+}, { immediate: true });
+
+watch(() => state.freqBalance, (newVal) => {
+  if (bluetoothController && parentState.connectorType === ConnectorType.COYOTE_BLE_V2) {
+    bluetoothController.setFreqBalance(newVal);
+    saveLocalConfig();
+    toast?.add({ severity: 'success', summary: '设置成功', detail: '已更新频率平衡参数', life: 3000 });
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  loadLocalConfig();
 });
 
 defineExpose({
@@ -187,16 +235,22 @@ defineExpose({
       </Chip>
     </div>
 
+    <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4"
+      v-if="parentState.connectorType === ConnectorType.COYOTE_BLE_V2">
+      <label class="font-semibold w-30">频率平衡参数</label>
+      <InputNumber class="input-small" v-model="state.freqBalance" :min="0" :max="200" />
+    </div>
+
     <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-      <label class="font-semibold w-30">强度上限</label>
+      <label class="font-semibold w-30 flex-shrink-0">强度上限</label>
       <div class="w-full flex flex-row gap-4">
         <InputGroup>
           <InputGroupAddon>A</InputGroupAddon>
-          <InputNumber v-model="state.inputLimitA" :min="0" :max="200" />
+          <InputNumber v-model="state.inputLimitA" :min="1" :max="200" />
         </InputGroup>
         <InputGroup>
           <InputGroupAddon>B</InputGroupAddon>
-          <InputNumber v-model="state.inputLimitB" :min="0" :max="200" />
+          <InputNumber v-model="state.inputLimitB" :min="1" :max="200" />
         </InputGroup>
       </div>
     </div>

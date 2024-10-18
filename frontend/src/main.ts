@@ -9,6 +9,9 @@ import DialogService from 'primevue/dialogservice';
 import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 
+import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+
 import 'virtual:windi.css'
 import 'primeicons/primeicons.css'
 import './style.scss'
@@ -79,8 +82,12 @@ const SeitaPreset = definePreset(Aura, {
     }
 });
 
+const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
+
 createApp(App)
     .use(router)
+    .use(pinia)
     .use(PrimeVue, {
         theme: {
             preset: SeitaPreset,

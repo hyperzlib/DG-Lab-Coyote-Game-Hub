@@ -1,10 +1,20 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "1.2.1",
+    "version": "1.0.0",
     "description": "1. 降低一键开火延迟",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",
         "mac": "coyote-game-hub-nodejs-server.zip"
-    }
+    },
+    "apiMirrors": [
+        {
+            "version": "https://raw.githubusercontent.com/{repo}/master/version.json",
+            "release": "https://github.com/{repo}/releases/download/v{version}/{file}"
+        },
+        {
+            "version": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/{repo}/master/version.json",
+            "release": "https://mirror.ghproxy.com/https://github.com/{repo}/releases/download/v{version}/{file}"
+        }
+    ]
 }

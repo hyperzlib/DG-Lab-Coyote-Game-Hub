@@ -7,6 +7,7 @@ import { CoyoteGameController } from '../game/CoyoteGameController';
 import { validator } from '../../utils/validator';
 import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
 import { DGLabPulseService } from '../../services/DGLabPulse';
+import { SiteNotificationService } from '../../services/SiteNotificationService';
 
 export type WebWSPostMessage = {
     event: string;
@@ -46,6 +47,15 @@ export class WebWSClient {
             data: DGLabPulseService.instance.getPulseInfoList(),
         });
 
+        // 发送站点通知
+        const siteNotifications = SiteNotificationService.instance.getNotifications();
+        for (const notification of siteNotifications) {
+            await this.send({
+                event: 'remoteNotification',
+                data: notification,
+            });
+        }
+
         this.heartbeatTask = setInterval(() => this.taskHeartbeat(), 15000);
     }
 
@@ -68,8 +78,8 @@ export class WebWSClient {
 
     public bindEvents() {
         const socketEvents = this.eventStore.wrap(this.socket);
-        const gameConfigServiceEvents = this.eventStore.wrap(CoyoteGameConfigService.instance);
         const pulseServiceEvents = this.eventStore.wrap(DGLabPulseService.instance);
+        const siteNotificationEvents = this.eventStore.wrap(SiteNotificationService.instance);
 
         socketEvents.on("message", async (data, isBinary) => {
             if (isBinary) {
@@ -96,6 +106,14 @@ export class WebWSClient {
             await this.send({
                 event: 'pulseListUpdated',
                 data: pulseList,
+            });
+        });
+
+        // 监听站点通知更新事件
+        siteNotificationEvents.on("newNotification", async (notification) => {
+            await this.send({
+                event: 'remoteNotification',
+                data: notification,
             });
         });
     }

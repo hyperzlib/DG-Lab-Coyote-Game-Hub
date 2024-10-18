@@ -28,8 +28,6 @@ export interface CoyoteGameEvents {
     gameStopped: [];
 }
 
-export const FIRE_MAX_DURATION = 30000;
-
 export class CoyoteGameController {
     /** 在线Socket的ID列表，用于判断是否可以释放Game */
     private onlineSockets = new Set<string>();

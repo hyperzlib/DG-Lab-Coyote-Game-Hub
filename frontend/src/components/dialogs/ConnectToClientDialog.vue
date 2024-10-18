@@ -20,7 +20,7 @@ const props = defineProps<{
   clientId?: string;
 }>();
 
-const visible = defineModel('visible');
+const visible = defineModel<boolean>('visible');
 
 const emit = defineEmits<{
   (name: 'resetClientId'): void;
@@ -36,6 +36,7 @@ const state = reactive({
 
   formClientId: '',
 });
+
 
 const isSupportBluetooth = computed(() => {
   return 'bluetooth' in navigator;
@@ -128,7 +129,7 @@ watch(() => props.clientId, (newVal) => {
                       </i>
                     </template>
                   </Button>
-                  <Button label="连接郊狼 2.0 (开发中)" class="w-full" size="large" disabled title="请期待后续版本支持"
+                  <Button label="连接郊狼 2.0" class="w-full" size="large"
                     @click="handleStartBluetoothConnect(CoyoteDeviceVersion.V2)">
                     <template #icon>
                       <i class="pi">

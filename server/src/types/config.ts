@@ -1,3 +1,5 @@
+import { RemoteNotificationInfo } from "./server";
+
 export type MainConfigType = {
     port: number;
     host: string;
@@ -15,4 +17,8 @@ export type MainConfigType = {
     openBrowser?: boolean;
     /** 允许插件API向所有客户端发送指令 */
     allowBroadcastToClients?: boolean;
+    /** 网页不显示更新通知 */
+    hideWebUpdateNotification?: boolean;
+    /** 站点通知 */
+    siteNotifications?: RemoteNotificationInfo[];
 } & Record<string, any>;

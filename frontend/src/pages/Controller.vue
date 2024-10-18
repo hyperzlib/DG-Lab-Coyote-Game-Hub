@@ -13,8 +13,10 @@ import { useConfirm } from 'primevue/useconfirm';
 import { ConnectorType, CoyoteDeviceVersion } from '../type/common';
 import CoyoteBluetoothPanel from '../components/partials/CoyoteBluetoothPanel.vue';
 import PulseSettings from '../components/partials/PulseSettings.vue';
-
-const CLIENT_ID_STORAGE_KEY = 'liveGameClientId';
+import ClientInfoDialog from '../components/dialogs/ClientInfoDialog.vue';
+import { useClientsStore } from '../stores/ClientsStore';
+import ConnectToSavedClientsDialog from '../components/dialogs/ConnectToSavedClientsDialog.vue';
+import { useRemoteNotificationStore } from '../stores/RemoteNotificationStore';
 
 export interface ControllerPageState {
   strengthVal: number;
@@ -30,14 +32,18 @@ export interface ControllerPageState {
   firePulseId: string;
   pulseMode: PulsePlayMode;
   pulseChangeInterval: number;
+  newClientName: string;
   clientId: string;
   clientWsUrlList: ClientConnectUrlInfo[] | null;
   clientStatus: 'init' | 'waiting' | 'connected';
   connectorType: ConnectorType;
   gameStarted: boolean;
   showConnectionDialog: boolean;
+  showClientInfoDialog: boolean;
   showLiveCompDialog: boolean;
   showConfigSavePrompt: boolean;
+  showClientNameDialog: boolean;
+  showConnectToSavedClientsDialog: boolean;
 }
 
 const state = reactive<ControllerPageState>({
@@ -60,6 +66,7 @@ const state = reactive<ControllerPageState>({
   pulseMode: 'single',
   pulseChangeInterval: 60,
 
+  newClientName: '',
   clientId: '',
   clientWsUrlList: null as ClientConnectUrlInfo[] | null,
 
@@ -70,8 +77,11 @@ const state = reactive<ControllerPageState>({
   gameStarted: false,
 
   showConnectionDialog: false,
+  showClientInfoDialog: false,
   showLiveCompDialog: false,
   showConfigSavePrompt: false,
+  showClientNameDialog: false,
+  showConnectToSavedClientsDialog: false,
 });
 
 const btPanelRef = ref<InstanceType<typeof CoyoteBluetoothPanel> | null>(null);
@@ -126,6 +136,9 @@ const chartVal = computed(() => ({
 const toast = useToast();
 const confirm = useConfirm();
 
+const clientsStore = useClientsStore();
+const remoteNotificationStore = useRemoteNotificationStore();
+
 provide('parentToast', toast);
 provide('parentConfirm', confirm);
 
@@ -155,7 +168,7 @@ const initWebSocket = async () => {
   wsClient.on('open', () => {
     // 此事件在重连时也会触发
     console.log('WebSocket connected or re-connected');
-    if (state.clientId) { // 重连时重新绑定客户端
+    if (state.clientId) { // 已有clientId，直接绑定
       bindClient();
     }
   });
@@ -171,6 +184,8 @@ const initWebSocket = async () => {
     state.showConnectionDialog = false; // 关闭连接对话框
     state.clientStatus = 'connected';
     dgClientConnected = true;
+
+    handleClientConnected();
 
     toast.add({ severity: 'success', summary: '客户端连接成功', detail: '已连接到客户端', life: 3000 });
   });
@@ -235,6 +250,23 @@ const initWebSocket = async () => {
     state.customPulseList = config.customPulseList;
   });
 
+  wsClient.on('remoteNotification', (notification) => {
+    if (notification.ignoreId && remoteNotificationStore.isIgnored(notification.ignoreId)) {
+      // 已忽略的通知不显示
+      return;
+    }
+
+    toast.add({
+      severity: (notification.severity as unknown as 'success' | 'info' | 'warn' | 'error' | 'secondary' | 'contrast' | undefined) || 'info',
+      summary: notification.title || '站点通知',
+      detail: {
+        type: 'custom',
+        ...notification,
+      },
+      life: notification.sticky ? undefined : 5000,
+    });
+  });
+
   wsClient.connect();
 };
 
@@ -243,7 +275,6 @@ const initClientConnection = async () => {
     let res = await webApi.getClientConnectInfo();
     handleApiResponse(res);
     state.clientId = res!.clientId;
-    localStorage.setItem(CLIENT_ID_STORAGE_KEY, state.clientId);
 
     bindClient();
   } catch (error: any) {
@@ -254,6 +285,7 @@ const initClientConnection = async () => {
 
 const bindClient = async () => {
   if (!state.clientId) return;
+  if (!wsClient?.isConnected) return;
 
   try {
     state.clientStatus = 'waiting';
@@ -263,6 +295,25 @@ const bindClient = async () => {
     console.error('Cannot bind client:', error);
     toast.add({ severity: 'error', summary: '绑定客户端失败', detail: error.message });
   }
+};
+
+const handleClientConnected = () => {
+  if (state.clientId) {
+    const clientInfo = clientsStore.getClientInfo(state.clientId);
+    if (!clientInfo) {
+      // 初次连接时保存客户端
+      state.newClientName = new Date().toLocaleString() + ' 连接的设备';
+      state.showClientNameDialog = true;
+
+    } else {
+      // 更新连接时间
+      clientsStore.updateClientConnectTime(state.clientId);
+    }
+  }
+};
+
+const handleSaveClientConnect = async (clientName: string) => {
+  clientsStore.addClient(state.clientId, clientName);
 };
 
 const showConnectionDialog = () => {
@@ -287,14 +338,11 @@ const handleResetClientId = () => {
 
 const handleConnSetClientId = (clientId: string) => {
   state.clientId = clientId;
-  localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
 
   bindClient();
 
   // 关闭连接对话框
   state.showConnectionDialog = false;
-
-  toast.add({ severity: 'success', summary: '设置成功', detail: '正在等待客户端连接', life: 3000 });
 };
 
 const postConfig = async () => {
@@ -382,9 +430,9 @@ const handleStartBluetoothConnect = (deviceVersion: CoyoteDeviceVersion) => {
 };
 
 onMounted(async () => {
-  let storedClientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
-  if (storedClientId) {
-    state.clientId = storedClientId;
+  if (clientsStore.clientList.length > 0) {
+    // 有保存的客户端，显示连接对话框
+    state.showConnectToSavedClientsDialog = true;
   }
 
   await initServerInfo();
@@ -409,7 +457,11 @@ watch([gameConfig, strengthConfig], () => {
 
 <template>
   <div class="w-full page-container">
-    <Toast></Toast>
+    <Toast>
+      <template #container="{ message, closeCallback }">
+        <CustomToastContent :message="message" :close-callback="closeCallback" />
+      </template>
+    </Toast>
     <ConfirmDialog></ConfirmDialog>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
@@ -421,10 +473,12 @@ watch([gameConfig, strengthConfig], () => {
         <template #header>
           <Toolbar class="controller-toolbar">
             <template #start>
-              <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接"
+              <Button icon="pi pi-qrcode" class="mr-2" severity="secondary" label="连接"
                 :disabled="state.clientStatus === 'connected'"
                 :title="state.clientStatus === 'connected' ? '请先断开当前设备连接' : '连接设备'"
                 @click="showConnectionDialog()"></Button>
+              <Button icon="pi pi-info-circle" class="mr-4" severity="secondary" label="信息"
+                :disabled="state.clientStatus === 'init'" @click="state.showClientInfoDialog = true"></Button>
               <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
                 <i class="pi pi-circle-off"></i>
                 <span>未连接</span>
@@ -440,7 +494,7 @@ watch([gameConfig, strengthConfig], () => {
               </span>
             </template>
             <template #end>
-              <Button icon="pi pi-file-export" class="mr-4" severity="secondary" label="添加到OBS"
+              <Button icon="pi pi-file-export" class="mr-2" severity="secondary" label="添加到OBS"
                 @click="showLiveCompDialog()"></Button>
               <Button icon="pi pi-play" class="mr-2" severity="secondary" label="启动输出" v-if="!state.gameStarted"
                 @click="handleStartGame()"></Button>
@@ -508,8 +562,15 @@ watch([gameConfig, strengthConfig], () => {
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId"
       @start-bluetooth-connect="handleStartBluetoothConnect" />
+    <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId"
+      :connector-type="state.connectorType" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
+    <ConnectToSavedClientsDialog v-model:visible="state.showConnectToSavedClientsDialog"
+      @confirm="handleConnSetClientId" />
+    <PromptDialog v-model:visible="state.showClientNameDialog" title="保存客户端" message="将此设备保存到本地，以便于下次连接。波形列表将跟随设备保存。"
+      input-label="客户端备注名" :default-value="state.newClientName" :allow-empty="false"
+      @confirm="handleSaveClientConnect" />
   </div>
 </template>
 

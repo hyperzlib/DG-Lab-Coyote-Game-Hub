@@ -7,7 +7,7 @@ import { MainConfig } from '../../config';
 import { DGLabPulseService } from '../../services/DGLabPulse';
 import { asleep } from '../../utils/utils';
 import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
-import { GameFireAction } from '../game/actions/GameFireAction';
+import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction';
 
 export type SetStrengthConfigRequest = {
     strength?: {
@@ -549,19 +549,19 @@ export class GameApiController {
         }
 
         let warnings: { code: string, message: string }[] = [];
-        if (req.strength > 30) {
+        if (req.strength > FIRE_MAX_STRENGTH) {
             warnings.push({
                 code: 'WARN::INVALID_STRENGTH',
-                message: '一键开火强度值不能超过 30',
+                message: `一键开火强度值不能超过 ${FIRE_MAX_STRENGTH}`,
             });
         }
 
         const fireTime = req.time ?? 5000;
 
-        if (fireTime > 30000) {
+        if (fireTime > FIRE_MAX_DURATION) {
             warnings.push({
                 code: 'WARN::INVALID_TIME',
-                message: '一键开火时间不能超过 30000ms',
+                message: `一键开火时间不能超过 ${FIRE_MAX_DURATION}ms`,
             });
         }
 

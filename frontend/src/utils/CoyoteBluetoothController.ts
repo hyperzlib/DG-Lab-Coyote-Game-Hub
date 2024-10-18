@@ -2,6 +2,8 @@ import { EventEmitter } from "eventemitter3";
 import { CoyoteDeviceVersion } from "../type/common";
 
 import SocketToCoyote3Worker from '../workers/SocketToCoyote3?worker';
+import SocketToCoyote2Worker from '../workers/SocketToCoyote2?worker';
+
 import { EventAddListenerFunc, EventRemoveListenerFunc } from "./event";
 
 /** 设备扫描前缀 */
@@ -14,7 +16,7 @@ export const devicePrefixMap = {
 export const serviceIdMap = {
     [CoyoteDeviceVersion.V2]: {
         main: '955a180b-0fe2-f5aa-a094-84b8d4f3e8ad',
-        battery: '955a180f-0fe2-f5aa-a094-84b8d4f3e8ad',
+        battery: '955a180a-0fe2-f5aa-a094-84b8d4f3e8ad',
     },
     [CoyoteDeviceVersion.V3]: {
         main: '0000180c-0000-1000-8000-00805f9b34fb',
@@ -42,6 +44,8 @@ export class CoyoteBluetoothController {
     public gattServer: BluetoothRemoteGATTServer | null = null;
     public mainService: BluetoothRemoteGATTService | null = null;
     public batteryService: BluetoothRemoteGATTService | null = null;
+
+    private batteryTask: NodeJS.Timeout | null = null;
 
     private characteristics: Map<string, BluetoothRemoteGATTCharacteristic> = new Map();
 
@@ -101,32 +105,59 @@ export class CoyoteBluetoothController {
             const batteryServiceId = serviceIdMap[this.deviceVersion].battery;
             this.batteryService = await this.gattServer.getPrimaryService(batteryServiceId);
 
-            if (this.deviceVersion === CoyoteDeviceVersion.V3) {
-                // 监听上报消息
-                const responseCharacteristic = await this.mainService.getCharacteristic('0000150b-0000-1000-8000-00805f9b34fb');
-                this.characteristics.set('0000150b-0000-1000-8000-00805f9b34fb', responseCharacteristic);
-                await responseCharacteristic.startNotifications();
-                responseCharacteristic.addEventListener('characteristicvaluechanged', this.handleBTResponse);
-
-                // 监听电量变化
-                const batteryCharacteristic = await this.batteryService.getCharacteristic('00001500-0000-1000-8000-00805f9b34fb');
-                this.characteristics.set('00001500-0000-1000-8000-00805f9b34fb', batteryCharacteristic);
-                const currentBatteryLevel = await batteryCharacteristic.readValue();
-                const currentBatteryLevelValue = currentBatteryLevel.getUint8(0);
-                this.events.emit('batteryLevelChange', currentBatteryLevelValue);
-
-                // 缓存characteristics
-                const writeCharacteristics = await this.mainService.getCharacteristic('0000150a-0000-1000-8000-00805f9b34fb');
-                this.characteristics.set('0000150a-0000-1000-8000-00805f9b34fb', writeCharacteristics);
-            }
+            await this.addBTLisener();
 
             this.events.emit('connect');
 
             // Start worker
             this.startWorker();
+
+            this.batteryTask = setInterval(this.runBatteryTask, 120 * 1000);
         } catch (error) {
             this.disconnect();
             throw error;
+        }
+    }
+
+    private async addBTLisener() {
+        if (this.deviceVersion === CoyoteDeviceVersion.V3) {
+            // 监听上报消息
+            const responseCharacteristic = await this.mainService!.getCharacteristic('0000150b-0000-1000-8000-00805f9b34fb');
+            this.characteristics.set('0000150b-0000-1000-8000-00805f9b34fb', responseCharacteristic);
+            await responseCharacteristic.startNotifications();
+            responseCharacteristic.addEventListener('characteristicvaluechanged', this.handleBTResponse);
+
+            // 监听电量变化
+            const batteryCharacteristic = await this.batteryService!.getCharacteristic('00001500-0000-1000-8000-00805f9b34fb');
+            this.characteristics.set('00001500-0000-1000-8000-00805f9b34fb', batteryCharacteristic);
+            const currentBatteryLevel = await batteryCharacteristic.readValue();
+            const currentBatteryLevelValue = currentBatteryLevel.getUint8(0);
+            this.events.emit('batteryLevelChange', currentBatteryLevelValue);
+
+            // 缓存写入特征
+            const writeCharacteristics = await this.mainService!.getCharacteristic('0000150a-0000-1000-8000-00805f9b34fb');
+            this.characteristics.set('0000150a-0000-1000-8000-00805f9b34fb', writeCharacteristics);
+        } else if (this.deviceVersion === CoyoteDeviceVersion.V2) {
+            console.log('V2');
+            // 监听上报消息
+            const responseCharacteristic = await this.mainService!.getCharacteristic('955a1504-0fe2-f5aa-a094-84b8d4f3e8ad');
+            this.characteristics.set('955a1504-0fe2-f5aa-a094-84b8d4f3e8ad', responseCharacteristic);
+            await responseCharacteristic.startNotifications();
+            responseCharacteristic.addEventListener('characteristicvaluechanged', this.handleBTResponse);
+
+            // 监听电量变化
+            const batteryCharacteristic = await this.batteryService!.getCharacteristic('955a1500-0fe2-f5aa-a094-84b8d4f3e8ad');
+            this.characteristics.set('955a1500-0fe2-f5aa-a094-84b8d4f3e8ad', batteryCharacteristic);
+            const currentBatteryLevel = await batteryCharacteristic.readValue();
+            const currentBatteryLevelValue = currentBatteryLevel.getUint8(0);
+            this.events.emit('batteryLevelChange', currentBatteryLevelValue);
+
+            // 缓存写入特征
+            const aChannelCharacteristic = await this.mainService!.getCharacteristic('955a1505-0fe2-f5aa-a094-84b8d4f3e8ad');
+            this.characteristics.set('955a1505-0fe2-f5aa-a094-84b8d4f3e8ad', aChannelCharacteristic);
+
+            const bChannelCharacteristic = await this.mainService!.getCharacteristic('955a1506-0fe2-f5aa-a094-84b8d4f3e8ad');
+            this.characteristics.set('955a1506-0fe2-f5aa-a094-84b8d4f3e8ad', bChannelCharacteristic);
         }
     }
 
@@ -140,6 +171,11 @@ export class CoyoteBluetoothController {
 
         if (this.worker) {
             this.stopWorker();
+        }
+
+        if (this.batteryTask) {
+            clearInterval(this.batteryTask);
+            this.batteryTask = null;
         }
 
         this.device = null;
@@ -163,6 +199,9 @@ export class CoyoteBluetoothController {
             switch (this.deviceVersion) {
                 case CoyoteDeviceVersion.V3:
                     this.worker = new SocketToCoyote3Worker();
+                    break;
+                case CoyoteDeviceVersion.V2:
+                    this.worker = new SocketToCoyote2Worker();
                     break;
                 default:
                     console.error('Unknown device version');
@@ -215,21 +254,40 @@ export class CoyoteBluetoothController {
             return;
         }
 
-        const pkgId = value.getUint8(0);
-        switch (pkgId) {
-            case 0xb1: // 强度上报
-                // const resId = value.getUint8(1);
-                const strengthA = value.getInt8(2);
-                const strengthB = value.getInt8(3);
+        if (this.deviceVersion === CoyoteDeviceVersion.V3) {
+            const pkgId = value.getUint8(0);
+            switch (pkgId) {
+                case 0xb1: // 强度上报
+                    // const resId = value.getUint8(1);
+                    const strengthA = value.getInt8(2);
+                    const strengthB = value.getInt8(3);
 
-                this.events.emit('strengthChange', strengthA, strengthB);
-                
-                this.worker?.postMessage({
-                    type: 'setStrength',
-                    strengthA,
-                    strengthB,
-                });
-                break;
+                    this.events.emit('strengthChange', strengthA, strengthB);
+                    
+                    this.worker?.postMessage({
+                        type: 'setStrength',
+                        strengthA,
+                        strengthB,
+                    });
+                    break;
+            }
+        } else if (this.deviceVersion === CoyoteDeviceVersion.V2) {
+            const buffer = new Uint8Array(value.buffer);
+            buffer.reverse();
+            let strengthA = ((buffer[0] & 0b00111111) << 5) | ((buffer[1] & 0b11111000) >> 3);
+            let strengthB = ((buffer[1] & 0b00000111) << 8) | buffer[2];
+            strengthA = Math.ceil(strengthA / 2047 * 200);
+            strengthB = Math.ceil(strengthB / 2047 * 200);
+
+            console.log('强度上报包: ', buffer);
+
+            this.events.emit('strengthChange', strengthA, strengthB);
+
+            this.worker?.postMessage({
+                type: 'setStrength',
+                strengthA,
+                strengthB,
+            });
         }
     }
 
@@ -264,6 +322,8 @@ export class CoyoteBluetoothController {
                     const dataMap = message.data;
                     let tasks: Promise<void>[] = [];
 
+                    console.log('发送数据: ', dataMap);
+
                     // 将数据发送到蓝牙设备
                     for (let key in dataMap) {
                         const data = dataMap[key];
@@ -287,11 +347,37 @@ export class CoyoteBluetoothController {
         }
     }
 
+    private runBatteryTask = async () => {
+        if (!this.batteryService) {
+            return;
+        }
+
+        try {
+            const batteryCharacteristic = this.characteristics.get('00001500-0000-1000-8000-00805f9b34fb');
+            if (!batteryCharacteristic) {
+                return;
+            }
+
+            const value = await batteryCharacteristic.readValue();
+            const batteryLevel = value.getUint8(0);
+            this.events.emit('batteryLevelChange', batteryLevel);
+        } catch (error) {
+            console.error('获取电量异常: ', error);
+        }
+    }
+
     public setStrengthLimit(strengthLimitA: number, strengthLimitB: number) {
         this.worker?.postMessage({
             type: 'setStrengthLimit',
             strengthLimitA,
             strengthLimitB,
+        });
+    }
+
+    public setFreqBalance(freqBalance: number) {
+        this.worker?.postMessage({
+            type: 'setFreqBalance',
+            freqBalance,
         });
     }
 

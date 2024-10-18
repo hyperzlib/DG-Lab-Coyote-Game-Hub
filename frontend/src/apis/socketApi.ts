@@ -38,6 +38,17 @@ export enum GameConfigType {
 
 export type PulsePlayMode = 'single' | 'sequence' | 'random';
 
+export type RemoteNotificationInfo = {
+    title?: string;
+    message: string;
+    icon?: string;
+    severity?: string;
+    ignoreId?: string;
+    sticky?: boolean;
+    url?: string;
+    urlLabel?: string;
+};
+
 export interface GameStrengthConfig {
     strength: number;
     randomStrength: number;
@@ -64,6 +75,7 @@ export interface GameCustomPulseConfig {
 export interface SocketApiEventListeners extends EventDef {
     error: [error: any];
     open: [];
+    remoteNotification: [notification: RemoteNotificationInfo];
     pulseListUpdated: [pulseList: PulseItemResponse[]];
     clientConnected: [];
     clientDisconnected: [];
@@ -92,6 +104,10 @@ export class SocketApi {
             wsUrl = `${protocol}://${window.location.host}${wsUrl}`;
         }
         this.socketUrl = wsUrl;
+    }
+
+    public get isConnected() {
+        return this.socket.readyState === WebSocket.OPEN;
     }
 
     public connect() {
@@ -274,6 +290,9 @@ export class SocketApi {
                     default:
                         console.warn("Unknown game config type:", message.data.type);
                 }
+                break;
+            case "remoteNotification":
+                this.events.emit("remoteNotification", message.data);
                 break;
             case "heartbeat":
                 this.send({

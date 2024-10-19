@@ -20,9 +20,9 @@ export class WebController {
 
         let wsUrl = '';
         if (config.webWsBaseUrl) {
-            wsUrl = `${config.webWsBaseUrl}/ws`;
+            wsUrl = `${config.webWsBaseUrl}/ws/`;
         } else {
-            wsUrl = '/ws';
+            wsUrl = '/ws/';
         }
 
         let clientWsDomain = config.clientWsBaseUrl || config.webWsBaseUrl;

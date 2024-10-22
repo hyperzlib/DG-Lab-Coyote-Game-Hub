@@ -5,6 +5,7 @@ import ToggleSwitch from 'primevue/toggleswitch';
 
 import { useToast } from 'primevue/usetoast';
 import { chartRoutes } from '../../charts/chartRoutes';
+import { inputToClipboard } from '../../utils/utils';
 
 defineOptions({
   name: 'GetLiveCompDialog',
@@ -79,8 +80,7 @@ const urlInputRef = ref<any>(null);
 
 const copyUrl = () => {
   if (urlInputRef.value) {
-    urlInputRef.value.$el.select();
-    document.execCommand('copy');
+    inputToClipboard(urlInputRef.value.$el);
     toast.add({ severity: 'success', summary: '提示', detail: '复制成功', life: 3000 });
   }
 };

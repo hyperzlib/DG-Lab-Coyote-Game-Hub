@@ -2,6 +2,7 @@ export type ServerInfoResData = {
     server: {
         wsUrl: string,
         clientWsUrls: ClientConnectUrlInfo[],
+        apiBaseHttpUrl: string,
     },
 };
 

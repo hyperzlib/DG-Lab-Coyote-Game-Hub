@@ -41,7 +41,7 @@ const connectToClient = (clientId: string) => {
                   </div>
                   <div class="flex flex-col md:items-end gap-8">
                     <div class="flex flex-row-reverse md:flex-row gap-2">
-                      <Button icon="pi pi-play" label="连接" class="flex-auto md:flex-initial whitespace-nowrap mr-2"
+                      <Button icon="pi pi-play" label="继续" class="flex-auto md:flex-initial whitespace-nowrap mr-2"
                         @click="connectToClient(item.id)"></Button>
                     </div>
                   </div>

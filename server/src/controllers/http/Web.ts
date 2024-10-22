@@ -45,12 +45,15 @@ export class WebController {
             });
         }
 
+        const apiBaseHttpUrl = config.apiBaseHttpUrl ?? config.webBaseUrl ?? `http://127.0.0.1:${config.port}`;
+
         ctx.body = {
             status: 1,
             code: 'OK',
             server: {
                 wsUrl: wsUrl,
                 clientWsUrls: wsUrlList,
+                apiBaseHttpUrl,
             },
         };
     };

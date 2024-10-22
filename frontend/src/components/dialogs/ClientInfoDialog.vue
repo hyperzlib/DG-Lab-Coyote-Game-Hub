@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import { useToast } from 'primevue/usetoast';
 import { useClientsStore } from '../../stores/ClientsStore';
 import { ConnectorType } from '../../type/common';
+import { inputToClipboard } from '../../utils/utils';
 
 defineOptions({
   name: 'ClientInfoDialog',
@@ -13,7 +15,10 @@ const visible = defineModel<boolean>('visible');
 const props = defineProps<{
   clientId: string;
   connectorType: string;
+  controllerUrl: string;
 }>();
+
+const toast = useToast();
 
 const state = reactive({
   inputClientName: '',
@@ -31,6 +36,20 @@ const connectorTypeStr = computed(() => {
 
 const setClientName = async (name: string) => {
   clientsStore.updateClientName(props.clientId, name);
+};
+
+const gameConnectCode = computed(() => {
+  if (props.controllerUrl) {
+    return `${props.clientId}@${props.controllerUrl}`;
+  } else {
+    return props.clientId;
+  }
+});
+
+const copyInput = (inputId: string) => {
+  const input = document.getElementById(inputId) as HTMLInputElement;
+  inputToClipboard(input);
+  toast.add({ severity: 'success', summary: '提示', detail: '复制成功', life: 3000 });
 };
 
 watch(() => visible.value, (value) => {
@@ -61,9 +80,16 @@ watch(() => state.inputClientName, (value) => {
       <label class="font-semibold w-30">客户端ID</label>
       <InputText :value="props.clientId" class="w-full" readonly />
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 mb-4">
       <label class="font-semibold w-30">连接方式</label>
       <InputText :value="connectorTypeStr" class="w-full" readonly />
+    </div>
+    <div class="flex items-center gap-2">
+      <label class="font-semibold w-30">游戏连接码</label>
+      <InputGroup>
+        <InputText :value="gameConnectCode" id="input-gameConnectCode" class="w-full" readonly />
+        <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-gameConnectCode')"></Button>
+      </InputGroup>
     </div>
   </Dialog>
 </template>

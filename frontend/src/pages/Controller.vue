@@ -36,6 +36,7 @@ export interface ControllerPageState {
   clientId: string;
   clientWsUrlList: ClientConnectUrlInfo[] | null;
   clientStatus: 'init' | 'waiting' | 'connected';
+  apiBaseHttpUrl: string;
   connectorType: ConnectorType;
   gameStarted: boolean;
   showConnectionDialog: boolean;
@@ -71,6 +72,8 @@ const state = reactive<ControllerPageState>({
   clientWsUrlList: null as ClientConnectUrlInfo[] | null,
 
   clientStatus: 'init' as 'init' | 'waiting' | 'connected',
+
+  apiBaseHttpUrl: '',
 
   connectorType: ConnectorType.DGLAB as ConnectorType,
 
@@ -154,6 +157,7 @@ const initServerInfo = async () => {
 
     serverInfo = serverInfoRes!;
     state.clientWsUrlList = serverInfo.server.clientWsUrls;
+    state.apiBaseHttpUrl = serverInfo.server.apiBaseHttpUrl;
   } catch (error: any) {
     console.error('Cannot get server info:', error);
     toast.add({ severity: 'error', summary: '获取服务器信息失败', detail: error.message });
@@ -562,7 +566,7 @@ watch([gameConfig, strengthConfig], () => {
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId"
       @start-bluetooth-connect="handleStartBluetoothConnect" />
-    <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId"
+    <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId" :controller-url="state.apiBaseHttpUrl"
       :connector-type="state.connectorType" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />

@@ -20,12 +20,6 @@ export type SetStrengthConfigRequest = {
         sub?: number;
         set?: number;
     },
-    minInterval?: {
-        set?: number;
-    },
-    maxInterval?: {
-        set?: number;
-    },
 };
 
 export type FireRequest = {

@@ -58,3 +58,12 @@ export function asleep(ms: number) {
         setTimeout(resolve, ms);
     });
 }
+
+export function inputToClipboard(input: HTMLInputElement | HTMLTextAreaElement) {
+    input.select();
+    if (document.execCommand) {
+        document.execCommand('copy');
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(input.value);
+    }
+}

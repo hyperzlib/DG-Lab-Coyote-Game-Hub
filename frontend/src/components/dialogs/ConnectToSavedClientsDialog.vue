@@ -23,7 +23,7 @@ const onConnectToClient = (clientId: string) => {
 </script>
 
 <template>
-  <Dialog v-model:visible="visible" modal header="恢复连接" class="connectedToSavedClients-dialog mx-4 w-full md:w-[40rem]">
+  <Dialog v-model:visible="visible" modal header="连接过的设备" class="connectedToSavedClients-dialog mx-4 w-full md:w-[40rem]">
     <div class="flex flex-col gap-4">
       <ConnectToSavedClientsList @connect-to-client="onConnectToClient" />
       

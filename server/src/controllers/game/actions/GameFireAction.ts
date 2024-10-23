@@ -62,7 +62,7 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
 
         if (config.strength) {
             this.fireStrength = Math.min(config.strength, FIRE_MAX_STRENGTH);
-            const strength = this.game.strengthConfig.strength + this.fireStrength;
+            const strength = Math.min(this.game.strengthConfig.strength + this.fireStrength, this.game.clientStrength.limit);
             this.game.setClientStrength(strength).catch((error) => {
                 console.error('Failed to set strength:', error);
             });

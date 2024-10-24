@@ -216,6 +216,7 @@ export class GameApiController {
                 strengthConfig: game.strengthConfig,
                 gameConfig,
                 clientStrength: game.clientStrength,
+                currentPulseId: game.pulsePlayList.getCurrentPulseId(),
             });
         } else {
             apiResponse(ctx, {

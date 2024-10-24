@@ -151,6 +151,8 @@ export class CoyoteGameController {
         this.events.emit('gameStopped');
 
         await this.setClientStrength(0);
+        // 必须清空临时强度
+        this._tempStrength = 0;
 
         // 通知客户端当前强度
         this.events.emit('strengthChanged', {

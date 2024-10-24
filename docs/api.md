@@ -3,7 +3,7 @@
 ## 获取游戏信息
 
 ```sh
-GET /api/game/{clientId}
+GET /api/v2/game/{clientId}
 ```
 
 ### 请求参数
@@ -16,27 +16,31 @@ GET /api/game/{clientId}
 {
     "status": 1,
     "code": "OK",
+    "strengthConfig": {
+        "strength": 5, // 基础强度
+        "randomStrength": 5 // 随机强度，（强度范围：[strength, strength+randomStrength]）
+    },
     "gameConfig": {
-        "strength": {
-            "strength": 1, // 基础强度
-            "randomStrength": 10, // 随机强度，最终强度 = 基础强度 + random(0, 随机强度)
-            "minInterval": 10, // 最小随机间隔
-            "maxInterval": 15, // 最大随机间隔
-            "bChannelMultiplier": 1.0, // B通道强度倍数，如果存在此参数，则会启动B通道
-        },
-        "pulseId": "pulse-1" // 脉冲ID
+        "strengthChangeInterval": [15, 30], // 随机强度变化间隔，单位：秒
+        "enableBChannel": false, // 是否启用B通道
+        "bChannelStrengthMultiplier": 1, // B通道强度倍数
+        "pulseId": "d6f83af0", // 当前波形列表，可能是string或者string[]
+        "pulseMode": "single", // 波形播放模式，single: 单个波形, sequence: 列表顺序播放, random: 随机播放
+        "pulseChangeInterval": 60
     },
     "clientStrength": {
-        "strength": 0, // 当前强度
-        "limit": 20 // 强度上限
-    }
+        "strength": 0, // 客户端当前强度
+        "limit": 20 // 客户端强度上限
+    },
+    "currentPulseId": "d6f83af0" // 当前正在播放的波形ID
 }
 ```
 
-## 获取脉冲列表
+## 获取波形列表
 
 ```sh
-GET /api/game/{clientId}/pulse_list
+GET /api/v2/pulse_list # 获取服务器配置的波形列表
+GET /api/v2/game/{clientId}/pulse_list # 获取完整的波形列表（包括客户端自定义波形）
 ```
 
 ### 请求参数
@@ -51,21 +55,18 @@ GET /api/game/{clientId}/pulse_list
     "code": "OK",
     "pulseList": [
         {
-            "id": "pulse-1",
-            "name": "脉冲1"
+            "id": "d6f83af0", // 波形ID
+            "name": "呼吸" // 波形名称
         },
-        {
-            "id": "pulse-2",
-            "name": "脉冲2"
-        }
+        // ...
     ]
 }
 ```
 
-## 获取游戏强度配置
+## 获取游戏强度信息
 
 ```sh
-GET /api/game/{clientId}/strength_config
+GET /api/v2/game/{clientId}/strength
 ```
 
 ### 请求参数
@@ -78,11 +79,9 @@ GET /api/game/{clientId}/strength_config
 {
     "status": 1,
     "code": "OK",
-    "strengthConfig": { // 强度配置，同上
-        "strength": 5,
-        "randomStrength": 10,
-        "minInterval": 10,
-        "maxInterval": 15
+    "strengthConfig": {
+        "strength": 5, // 基础强度
+        "randomStrength": 5 // 随机强度，（强度范围：[strength, strength+randomStrength]）
     }
 }
 ```
@@ -90,7 +89,7 @@ GET /api/game/{clientId}/strength_config
 ## 设置游戏强度配置
 
 ```sh
-POST /api/game/{clientId}/strength_config
+POST /api/v2/game/{clientId}/strength
 ```
 
 ### 请求参数
@@ -111,13 +110,7 @@ type SetStrengthConfigRequest = {
         add?: number; // 增加随机强度
         sub?: number; // 减少强度
         set?: number; // 设置强度
-    },
-    minInterval?: {
-        set?: number; // 设置最低随机间隔
-    },
-    maxInterval?: {
-        set?: number; // 设置最高随机间隔
-    },
+    }
 }
 ```
 
@@ -152,10 +145,10 @@ strength.add=1
 }
 ```
 
-## 获取游戏当前脉冲ID
+## 获取游戏当前波形ID
 
 ```sh
-GET /api/game/{clientId}/pulse_id
+GET /api/v2/game/{clientId}/pulse
 ```
 
 ### 请求参数
@@ -168,14 +161,29 @@ GET /api/game/{clientId}/pulse_id
 {
     "status": 1,
     "code": "OK",
-    "pulseId": "pulse-1"
+    "pulseId": "d6f83af0"
 }
 ```
 
-## 设置游戏当前脉冲ID
+或
+
+```json5
+{
+    "status": 1,
+    "code": "OK",
+    "pulseId": [
+        "d6f83af0",
+        "7eae1e5f",
+        "eea0e4ce",
+        "2cbd592e"
+    ]
+}
+```
+
+## 设置游戏当前波形ID
 
 ```sh
-POST /api/game/{clientId}/pulse_id
+POST /api/v2/game/{clientId}/pulse
 ```
 
 ### 请求参数
@@ -186,14 +194,33 @@ POST /api/game/{clientId}/pulse_id
 
 ```json5
 {
-    "pulseId": "pulse-1" // 脉冲ID
+    "pulseId": "d6f83af0" // 波形ID
+}
+```
+
+或
+
+```json5
+{
+    "pulseId": [
+        "d6f83af0",
+        "7eae1e5f",
+        "eea0e4ce",
+        "2cbd592e"
+    ] // 波形ID列表
 }
 ```
 
 使用x-www-form-urlencoded格式发送请求的Post Body：
 
 ```html
-pulseId=pulse-1
+pulseId=d6f83af0
+```
+
+或
+
+```html
+pulseId[]=d6f83af0&pulseId[]=7eae1e5f&pulseId[]=eea0e4ce&pulseId[]=2cbd592e
 ```
 
 ### 响应
@@ -202,8 +229,10 @@ pulseId=pulse-1
 {
     "status": 1,
     "code": "OK",
-    "message": "成功设置了 1 个游戏的脉冲ID",
-    "successNum": 1
+    "message": "成功设置了 1 个游戏的波形ID",
+    "successClientIds": [
+        "3ab0773d-69d0-41af-b74b-9c6ce6507f65"
+    ]
 }
 ```
 
@@ -221,7 +250,7 @@ pulseId=pulse-1
 ## 一键开火
 
 ```sh
-POST /api/game/{clientId}/fire
+POST /api/v2/game/{clientId}/action/fire
 ```
 
 ### 请求参数
@@ -233,8 +262,10 @@ POST /api/game/{clientId}/fire
 
 ```json5
 {
-    "strength": 20, // 一键开火强度，最高30
-    "time": 5000 // 一键开火时间，单位：毫秒，默认为5000，最高30000（30秒）
+    "strength": 20, // 一键开火强度，最高40
+    "time": 5000, // （可选）一键开火时间，单位：毫秒，默认为5000，最高30000（30秒）
+    "override": false, // （可选）多次一键开火时，是否重置时间，true为重置时间，false为叠加时间，默认为false
+    "pulseId": "d6f83af0" // （可选）一键开火的波形ID
 }
 ```
 

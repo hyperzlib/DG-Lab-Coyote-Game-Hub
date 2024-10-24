@@ -23,11 +23,13 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
     router.post('/api/game/:id/fire', GameApiController.startActionFire);
 
     // v2
+    router.get('/api/v2/pulse_list', GameApiController.getPulseList);
     router.get('/api/v2/game/:id', GameApiController.gameInfo);
     router.get('/api/v2/game/:id/strength', GameApiController.getGameStrength);
     router.post('/api/v2/game/:id/strength', GameApiController.setGameStrength);
     router.get('/api/v2/game/:id/pulse', GameApiController.getPulseId);
     router.post('/api/v2/game/:id/pulse', GameApiController.setPulseId);
+    router.get('/api/v2/game/:id/pulse_list', GameApiController.getPulseList);
 
     router.post('/api/v2/game/:id/action/fire', GameApiController.startActionFire);
 

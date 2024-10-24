@@ -11,7 +11,7 @@ export type GameFireActionConfig = {
     updateMode: "replace" | "append";
 };
 
-export const FIRE_MAX_STRENGTH = 30;
+export const FIRE_MAX_STRENGTH = 40;
 export const FIRE_MAX_DURATION = 30000;
 
 export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {

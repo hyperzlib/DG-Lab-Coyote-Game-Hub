@@ -102,6 +102,12 @@ const bindBTControllerEvents = () => {
     return;
   }
 
+  bluetoothController.on('workerInit', () => {
+    bluetoothController?.setStrengthLimit(state.inputLimitA, state.inputLimitB);
+    bluetoothController?.setFreqBalance(state.freqBalance);
+    bluetoothController?.startWs();
+  });
+
   bluetoothController.on('batteryLevelChange', (battery) => {
     state.deviceBattery = battery;
   });
@@ -109,6 +115,33 @@ const bindBTControllerEvents = () => {
   bluetoothController.on('strengthChange', (strengthA, strengthB) => {
     state.deviceStrengthA = strengthA;
     state.deviceStrengthB = strengthB;
+  });
+
+  bluetoothController.on('reconnecting', () => {
+    confirm?.require({
+      header: '蓝牙连接',
+      message: '连接已断开，正在重新连接到蓝牙设备',
+      acceptClass: 'd-none',
+      rejectLabel: '取消',
+      rejectProps: {
+        severity: 'secondary',
+      },
+      reject: () => {
+        stopBluetoothConnect();
+        confirm?.close();
+      },
+    });
+  });
+
+  bluetoothController.on('connect', () => {
+    // 重连成功
+    confirm?.close();
+  });
+
+  bluetoothController.on('disconnect', () => {
+    state.connected = false;
+    window.onbeforeunload = null;
+    confirm?.close();
   });
 };
 
@@ -159,7 +192,7 @@ const loadLocalConfig = () => {
   if (typeof savedConfig.freqBalance === 'number') {
     state.freqBalance = Math.min(200, Math.max(0, savedConfig.freqBalance));
   }
-  
+
   if (typeof savedConfig.inputLimitA === 'number') {
     state.inputLimitA = Math.min(200, Math.max(1, savedConfig.inputLimitA));
   }
@@ -214,20 +247,23 @@ defineExpose({
 
     <div class="w-full flex flex-col md:flex-row gap-2 lg:gap-8 mb-8 lg:mb-6">
       <Chip class="py-0 pl-0 w-full">
-        <div class="bg-primary text-primary-contrast rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center">
+        <div
+          class="bg-primary text-primary-contrast rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center">
           <BatteryIcon class="w-5 h-5"></BatteryIcon>
         </div>
         <div class="w-full text-center font-semibold text-lg">{{ state.deviceBattery }}%</div>
       </Chip>
       <Chip class="py-0 pl-0 w-full">
-        <div class="bg-primary text-primary-contrast rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center">
+        <div
+          class="bg-primary text-primary-contrast rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center">
           <i class="pi pi-bolt"></i>
           <span class="ml-[-2px]">A</span>
         </div>
         <div class="w-full text-center font-semibold text-lg">{{ state.deviceStrengthA }}</div>
       </Chip>
       <Chip class="py-0 pl-0 w-full">
-        <div class="bg-primary text-primary-contrast rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center">
+        <div
+          class="bg-primary text-primary-contrast rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center">
           <i class="pi pi-bolt"></i>
           <span class="ml-[-2px]">B</span>
         </div>

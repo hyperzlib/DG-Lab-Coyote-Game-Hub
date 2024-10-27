@@ -5,6 +5,7 @@ import SocketToCoyote3Worker from '../workers/SocketToCoyote3?worker';
 import SocketToCoyote2Worker from '../workers/SocketToCoyote2?worker';
 
 import { EventAddListenerFunc, EventRemoveListenerFunc } from "./event";
+import { asleep } from "./utils";
 
 /** 设备扫描前缀 */
 export const devicePrefixMap = {
@@ -26,7 +27,9 @@ export const serviceIdMap = {
 
 export type CoyoteBluetoothControllerEventListeners = {
     connect: [],
+    workerInit: [],
     disconnect: [],
+    reconnecting: [],
     batteryLevelChange: [level: number],
     strengthChange: [strengthA: number, strengthB: number],
     error: [error: Error],
@@ -88,8 +91,9 @@ export class CoyoteBluetoothController {
         this.device.addEventListener('gattserverdisconnected', this.handleDisconnected);
         
         if (!this.device.gatt) {
+            console.log('Failed to get GATT server');
             this.events.emit('error', new Error('Failed to get GATT server'));
-            return;
+            return false;
         }
 
         if (!this.device.gatt.connected) {
@@ -113,6 +117,8 @@ export class CoyoteBluetoothController {
             this.startWorker();
 
             this.batteryTask = setInterval(this.runBatteryTask, 120 * 1000);
+
+            return true;
         } catch (error) {
             this.disconnect();
             throw error;
@@ -138,7 +144,6 @@ export class CoyoteBluetoothController {
             const writeCharacteristics = await this.mainService!.getCharacteristic('0000150a-0000-1000-8000-00805f9b34fb');
             this.characteristics.set('0000150a-0000-1000-8000-00805f9b34fb', writeCharacteristics);
         } else if (this.deviceVersion === CoyoteDeviceVersion.V2) {
-            console.log('V2');
             // 监听上报消息
             const responseCharacteristic = await this.mainService!.getCharacteristic('955a1504-0fe2-f5aa-a094-84b8d4f3e8ad');
             this.characteristics.set('955a1504-0fe2-f5aa-a094-84b8d4f3e8ad', responseCharacteristic);
@@ -188,10 +193,59 @@ export class CoyoteBluetoothController {
     }
 
     private handleDisconnected = () => {
-        this.disconnect();
+        this.gattServer = null;
+        this.mainService = null;
+        this.batteryService = null;
+        
+        this.characteristics.clear();
 
-        // 尝试重新连接
-        this.connect();
+        if (this.batteryTask) {
+            clearInterval(this.batteryTask);
+            this.batteryTask = null;
+        }
+
+        this.startReconnect();
+    }
+
+    private async startReconnect() {
+        this.events.emit('reconnecting');
+
+        while (!this.stopping) {
+            let startTime = Date.now();
+            try {
+                // console.log('device gatt: ', this.device?.gatt);
+
+                if (!this.device) {
+                    // 无法连接到设备，直接清理
+                    this.cleanup();
+                    break;
+                }
+
+                await this.device.gatt?.connect();
+
+                if (this.device.gatt?.connected) {
+                    // 重新连接成功
+                    if (this.stopping) {
+                        // 如果已经停止，直接断开连接
+                        this.disconnect();
+                        break;
+                    }
+
+                    console.log('Reconnect success');
+                    await asleep(1000); // 防止gatt server未准备好
+                    await this.connect();
+                    break;
+                }
+            } catch (error) {
+                console.error('Reconnect failed: ', error);
+            }
+
+            // 5秒后重试
+            let costTime = Date.now() - startTime;
+            if (costTime < 5000) {
+                await asleep(5000 - costTime);
+            }
+        }
     }
 
     public startWorker() {
@@ -208,6 +262,8 @@ export class CoyoteBluetoothController {
                     break;
             }
             this.bindWorkerEvents();
+        } else {
+            this.worker.postMessage({ type: 'reconnect' });
         }
     }
 
@@ -279,8 +335,6 @@ export class CoyoteBluetoothController {
             strengthA = Math.ceil(strengthA / 2047 * 200);
             strengthB = Math.ceil(strengthB / 2047 * 200);
 
-            console.log('强度上报包: ', buffer);
-
             this.events.emit('strengthChange', strengthA, strengthB);
 
             this.worker?.postMessage({
@@ -300,21 +354,16 @@ export class CoyoteBluetoothController {
         switch (message.type) {
             case 'onLoad':
                 // 连接到WebSocket
-                const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-                const wsUrl = `${protocol}://${window.location.host}/dglab_ws/${this.clientId}`;
-                this.worker?.postMessage({
-                    type: 'connect',
-                    url: wsUrl,
-                });
+                this.events.emit('workerInit');
                 break;
             case 'sendBluetoothData':
                 if (!this.gattServer) {
-                    console.error('No GATT server');
+                    // console.error('No GATT server');
                     return;
                 }
 
                 if (!this.mainService) {
-                    console.error('No mainService');
+                    // console.error('No mainService');
                     return;
                 }
 
@@ -322,7 +371,7 @@ export class CoyoteBluetoothController {
                     const dataMap = message.data;
                     let tasks: Promise<void>[] = [];
 
-                    console.log('发送数据: ', dataMap);
+                    // console.log('发送数据: ', dataMap);
 
                     // 将数据发送到蓝牙设备
                     for (let key in dataMap) {
@@ -364,6 +413,15 @@ export class CoyoteBluetoothController {
         } catch (error) {
             console.error('获取电量异常: ', error);
         }
+    }
+
+    public startWs() {
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = `${protocol}://${window.location.host}/dglab_ws/${this.clientId}`;
+        this.worker?.postMessage({
+            type: 'connect',
+            url: wsUrl,
+        });
     }
 
     public setStrengthLimit(strengthLimitA: number, strengthLimitB: number) {

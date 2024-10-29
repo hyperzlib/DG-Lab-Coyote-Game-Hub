@@ -69,6 +69,13 @@ watch(() => state.inputClientName, (value) => {
 
 <template>
   <Dialog v-model:visible="visible" modal header="连接信息" class="mx-4 w-full md:w-[40rem]">
+    <div class="flex items-center gap-2 mb-4">
+      <label class="font-semibold w-30">游戏连接码</label>
+      <InputGroup>
+        <InputText :value="gameConnectCode" id="input-gameConnectCode" class="w-full" readonly />
+        <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-gameConnectCode')"></Button>
+      </InputGroup>
+    </div>
     <div class="flex flex-col gap-2 mb-4">
       <div class="flex items-center gap-2">
         <label class="font-semibold w-30">客户端备注名</label>
@@ -80,16 +87,9 @@ watch(() => state.inputClientName, (value) => {
       <label class="font-semibold w-30">客户端ID</label>
       <InputText :value="props.clientId" class="w-full" readonly />
     </div>
-    <div class="flex items-center gap-2 mb-4">
+    <div class="flex items-center gap-2">
       <label class="font-semibold w-30">连接方式</label>
       <InputText :value="connectorTypeStr" class="w-full" readonly />
-    </div>
-    <div class="flex items-center gap-2">
-      <label class="font-semibold w-30">游戏连接码</label>
-      <InputGroup>
-        <InputText :value="gameConnectCode" id="input-gameConnectCode" class="w-full" readonly />
-        <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-gameConnectCode')"></Button>
-      </InputGroup>
     </div>
   </Dialog>
 </template>

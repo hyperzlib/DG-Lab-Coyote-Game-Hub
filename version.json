@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "1.3.0",
-    "description": "1. 增加蓝牙连接功能\n2. 增加郊狼2.0支持\n3. 优化多标签页连接多个设备的体验\n4. 增加更新提示在控制台页面显示的功能",
+    "version": "1.4.0",
+    "description": "1. 增加蓝牙重连功能\n2. 增加链接码显示\n3. 优化部分文本",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

@@ -4,6 +4,8 @@ import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import StatusChart from '../charts/Circle1.vue';
 
+import SelectButton from 'primevue/selectbutton';
+
 import { GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, PulsePlayMode, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
@@ -11,7 +13,7 @@ import { simpleObjDiff } from '../utils/utils';
 import { PulseItemInfo } from '../type/pulse';
 import { useConfirm } from 'primevue/useconfirm';
 import { ConnectorType, CoyoteDeviceVersion } from '../type/common';
-import CoyoteBluetoothPanel from '../components/partials/CoyoteBluetoothPanel.vue';
+import CoyoteBluetoothService from '../components/partials/CoyoteBluetoothService.vue';
 import PulseSettings from '../components/partials/PulseSettings.vue';
 import ClientInfoDialog from '../components/dialogs/ClientInfoDialog.vue';
 import { useClientsStore } from '../stores/ClientsStore';
@@ -19,6 +21,8 @@ import ConnectToSavedClientsDialog from '../components/dialogs/ConnectToSavedCli
 import { useRemoteNotificationStore } from '../stores/RemoteNotificationStore';
 
 export interface ControllerPageState {
+  controllerPage: 'strength' | 'pulse' | 'game';
+
   strengthVal: number;
   randomStrengthVal: number;
   strengthLimit: number;
@@ -48,6 +52,8 @@ export interface ControllerPageState {
 }
 
 const state = reactive<ControllerPageState>({
+  controllerPage: 'strength',
+
   strengthVal: 5,
   randomStrengthVal: 5,
   strengthLimit: 20,
@@ -87,7 +93,13 @@ const state = reactive<ControllerPageState>({
   showConnectToSavedClientsDialog: false,
 });
 
-const btPanelRef = ref<InstanceType<typeof CoyoteBluetoothPanel> | null>(null);
+const coyoteBTRef = ref<InstanceType<typeof CoyoteBluetoothService> | null>(null);
+
+const controllerPageTabs = [
+  { title: '强度配置', id: 'strength', icon: 'pi pi-bolt' },
+  { title: '波形配置', id: 'pulse', icon: 'pi pi-wave-pulse' },
+  { title: '游戏连接', id: 'game', icon: 'pi pi-map' },
+];
 
 // 在收到服务器的配置后设置为true，防止触发watch
 let receivedConfig = false;
@@ -430,7 +442,7 @@ const handleCancelSaveConfig = () => {
 };
 
 const handleStartBluetoothConnect = (deviceVersion: CoyoteDeviceVersion) => {
-  btPanelRef.value?.startBluetoothConnect(deviceVersion);
+  coyoteBTRef.value?.startBluetoothConnect(deviceVersion);
 };
 
 onMounted(async () => {
@@ -467,6 +479,7 @@ watch([gameConfig, strengthConfig], () => {
       </template>
     </Toast>
     <ConfirmDialog></ConfirmDialog>
+    <CoyoteBluetoothService :state="state" ref="coyoteBTRef"></CoyoteBluetoothService>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
         <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh"
@@ -475,90 +488,62 @@ watch([gameConfig, strengthConfig], () => {
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">
         <template #header>
-          <Toolbar class="controller-toolbar">
-            <template #start>
-              <Button icon="pi pi-qrcode" class="mr-2" severity="secondary" label="连接"
-                :disabled="state.clientStatus === 'connected'"
-                :title="state.clientStatus === 'connected' ? '请先断开当前设备连接' : '连接设备'"
-                @click="showConnectionDialog()"></Button>
-              <Button icon="pi pi-info-circle" class="mr-4" severity="secondary" label="信息"
-                :disabled="state.clientStatus === 'init'" @click="state.showClientInfoDialog = true"></Button>
-              <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
-                <i class="pi pi-circle-off"></i>
-                <span>未连接</span>
-              </span>
-              <span class="text-green-600 block flex items-center gap-1 mr-2"
-                v-else-if="state.clientStatus === 'connected'">
-                <i class="pi pi-circle-on"></i>
-                <span>已连接</span>
-              </span>
-              <span class="text-yellow-600 block flex items-center gap-1 mr-2" v-else>
-                <i class="pi pi-spin pi-spinner"></i>
-                <span>等待连接</span>
-              </span>
-            </template>
-            <template #end>
-              <Button icon="pi pi-file-export" class="mr-2" severity="secondary" label="添加到OBS"
-                @click="showLiveCompDialog()"></Button>
-              <Button icon="pi pi-play" class="mr-2" severity="secondary" label="启动输出" v-if="!state.gameStarted"
-                @click="handleStartGame()"></Button>
-              <Button icon="pi pi-pause" class="mr-2" severity="secondary" label="暂停输出" v-else
-                @click="handleStopGame()"></Button>
-            </template>
-          </Toolbar>
+          <div>
+            <Toolbar class="controller-toolbar">
+              <template #start>
+                <Button icon="pi pi-qrcode" class="mr-4" severity="secondary" label="连接设备"
+                  v-if="state.clientStatus !== 'connected'" @click="showConnectionDialog()"></Button>
+                <Button v-else icon="pi pi-info-circle" class="mr-4" severity="secondary" label="连接信息"
+                  @click="state.showClientInfoDialog = true"></Button>
+                <span class="text-red-600 block flex items-center gap-1 mr-2" v-if="state.clientStatus === 'init'">
+                  <i class="pi pi-circle-off"></i>
+                  <span>未连接</span>
+                </span>
+                <span class="text-green-600 block flex items-center gap-1 mr-2"
+                  v-else-if="state.clientStatus === 'connected'">
+                  <i class="pi pi-circle-on"></i>
+                  <span>已连接</span>
+                </span>
+                <span class="text-yellow-600 block flex items-center gap-1 mr-2" v-else>
+                  <i class="pi pi-spin pi-spinner"></i>
+                  <span>等待连接</span>
+                </span>
+              </template>
+              <template #end>
+                <Button icon="pi pi-file-export" class="mr-2" severity="secondary" label="添加到OBS"
+                  @click="showLiveCompDialog()"></Button>
+                <Button icon="pi pi-play" class="mr-2" severity="secondary" label="启动输出" v-if="!state.gameStarted"
+                  @click="handleStartGame()"></Button>
+                <Button icon="pi pi-pause" class="mr-2" severity="secondary" label="暂停输出" v-else
+                  @click="handleStopGame()"></Button>
+              </template>
+            </Toolbar>
+            <div class="w-full px-2 controller-page-tabs">
+              <SelectButton v-model="state.controllerPage" :options="controllerPageTabs" optionLabel="title" optionValue="id" dataKey="id"
+                :allowEmpty="false" aria-labelledby="custom">
+                <template #option="slotProps">
+                  <div class="flex flex-col items-center gap-2 px-2 py-1">
+                    <i :class="slotProps.option.icon"></i>
+                    <span>{{ slotProps.option.title }}</span>
+                  </div>
+                </template>
+              </SelectButton>
+            </div>
+          </div>
         </template>
 
         <template #content>
-          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-            <label class="font-semibold w-30 flex-shrink-0">强度变化频率</label>
-            <div class="w-full flex-shrink flex gap-2 flex-col lg:items-center lg:flex-row lg:gap-8">
-              <div class="h-6 lg:h-auto flex-grow flex items-center">
-                <Slider class="w-full" v-model="state.randomFreq" range :max="60" />
-              </div>
-              <div class="w-40">
-                <InputGroup class="input-small">
-                  <InputNumber class="input-text-center" v-model="state.randomFreq[0]" />
-                  <InputGroupAddon>-</InputGroupAddon>
-                  <InputNumber class="input-text-center" v-model="state.randomFreq[1]" />
-                </InputGroup>
-              </div>
+          <FadeAndSlideTransitionGroup>
+            <div v-if="state.controllerPage === 'strength'">
+              <StrengthSettings :state="state" />
             </div>
-          </div>
-          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-            <label class="font-semibold w-30">基础强度</label>
-            <InputNumber class="input-small" v-model="state.strengthVal" />
-            <div class="flex-grow flex-shrink"></div>
-          </div>
-          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-            <label class="font-semibold w-30">随机强度</label>
-            <InputNumber class="input-small" v-model="state.randomStrengthVal" />
-            <div class="flex-grow flex-shrink"></div>
-          </div>
-          <div class="flex gap-8 mb-4 w-full">
-            <div class="w-30"></div>
-            <div class="opacity-60 text-right">
-              强度范围：{{ state.strengthVal }} - {{ state.strengthVal + state.randomStrengthVal }}，强度上限请在DG-Lab中设置
+            <div v-else-if="state.controllerPage === 'pulse'">
+              <PulseSettings :state="state" @post-custom-pulse-config="postCustomPulseConfig" />
             </div>
-          </div>
-          <div class="flex items-center gap-2 lg:gap-8 mb-4 w-full">
-            <label class="font-semibold w-30">B通道</label>
-            <ToggleButton v-model="state.bChannelEnabled" onIcon="pi pi-circle-on" onLabel="已启用"
-              offIcon="pi pi-circle-off" offLabel="已禁用" />
-          </div>
-          <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-            <label class="font-semibold w-30">B通道强度倍数</label>
-            <InputNumber class="input-small" :disabled="!state.bChannelEnabled" v-model="state.bChannelMultiple" />
-            <div class="flex-grow flex-shrink"></div>
-          </div>
-          <div class="flex gap-8 mb-4 w-full">
-            <div class="w-30"></div>
-            <div class="opacity-60 text-right">
-              B通道的强度 = A通道强度 * 强度倍数
+            <div v-else-if="state.controllerPage === 'game'">
+              TODO: Game settings
             </div>
-          </div>
-          <CoyoteBluetoothPanel :state="state" ref="btPanelRef"></CoyoteBluetoothPanel>
-          <Divider></Divider>
-          <PulseSettings :state="state" @post-custom-pulse-config="postCustomPulseConfig" />
+          </FadeAndSlideTransitionGroup>
         </template>
       </Card>
     </div>
@@ -566,8 +551,8 @@ watch([gameConfig, strengthConfig], () => {
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId"
       @start-bluetooth-connect="handleStartBluetoothConnect" />
-    <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId" :controller-url="state.apiBaseHttpUrl"
-      :connector-type="state.connectorType" />
+    <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId"
+      :controller-url="state.apiBaseHttpUrl" :connector-type="state.connectorType" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
     <ConnectToSavedClientsDialog v-model:visible="state.showConnectToSavedClientsDialog"
@@ -578,7 +563,13 @@ watch([gameConfig, strengthConfig], () => {
   </div>
 </template>
 
-<style>
+<style lang="scss">
+$container-max-widths: (
+  md: 768px,
+  lg: 960px,
+  xl: 1100px,
+);
+
 body {
   background: #eff0f0;
 }
@@ -593,14 +584,6 @@ body {
 .popover-pulseTime::after {
   display: none;
 }
-</style>
-
-<style lang="scss">
-$container-max-widths: (
-  md: 768px,
-  lg: 960px,
-  xl: 1100px,
-);
 
 .page-container {
   margin-top: 2rem;
@@ -645,19 +628,20 @@ $container-max-widths: (
 }
 
 .controller-toolbar {
-  border-radius: 0;
-  border: none;
-  border-bottom: 1px solid #e0e0e0;
+  --p-toolbar-border-radius: 0;
+  border: none !important;
+  border-bottom: 1px solid var(--p-content-border-color) !important;
+}
+
+.controller-page-tabs {
+  background: var(--p-togglebutton-background);
+  border-bottom: 1px solid var(--p-content-border-color) !important;
 }
 
 @media (prefers-color-scheme: dark) {
   .controller-panel {
     background: #121212;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-  }
-
-  .controller-toolbar {
-    border-bottom: 1px solid #333;
   }
 }
 </style>

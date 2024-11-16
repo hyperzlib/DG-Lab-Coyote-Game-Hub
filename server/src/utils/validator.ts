@@ -12,6 +12,7 @@ class TypeValidator {
         this.validators.set('GameStrengthConfig', this.ajv.compile(await import('../schemas/GameStrengthConfig.json')));
         this.validators.set('GameCustomPulseConfig', this.ajv.compile(await import('../schemas/GameCustomPulseConfig.json')));
         this.validators.set('MainConfigType', this.ajv.compile(await import('../schemas/MainConfigType.json')));
+        this.validators.set('CustomSkinManifest', this.ajv.compile(await import('../schemas/CustomSkinManifest.json')));
     }
 
     public validate(type: string, data: any): boolean {
@@ -37,6 +38,10 @@ class TypeValidator {
 
     public get validateMainConfigType() {
         return this.validators.get('MainConfigType')!;
+    }
+
+    public get validateCustomSkinManifest() {
+        return this.validators.get('CustomSkinManifest')!;
     }
 }
 

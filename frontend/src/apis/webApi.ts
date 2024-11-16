@@ -1,3 +1,5 @@
+import { ChartParamDef } from "../charts/types/ChartParamDef";
+
 export type ServerInfoResData = {
     server: {
         wsUrl: string,
@@ -13,6 +15,17 @@ export type ClientConnectUrlInfo = {
 
 export type ClientConnectInfoResData = {
     clientId: string,
+};
+
+export type CustomSkinInfo = {
+    name: string;
+    url: string;
+    help?: string;
+    params?: ChartParamDef[];
+};
+
+export type CustomSkinsResData = {
+    customSkins: CustomSkinInfo[],
 };
 
 export type ApiResponse<T> = {

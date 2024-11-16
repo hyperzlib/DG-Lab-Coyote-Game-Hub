@@ -35,7 +35,7 @@
                 },
                 "apiBaseHttpUrl": {
                     "type": "string",
-                    "description": "API的基础URL，不需要“/api”，某些游戏插件可能不支持HTTPS，需要配置HTTP接口"
+                    "description": "API的基础URL，不需要“api”，末尾需要“/”，某些游戏插件可能不支持HTTPS，需要配置HTTP接口"
                 },
                 "pulseConfigPath": {
                     "type": "string",

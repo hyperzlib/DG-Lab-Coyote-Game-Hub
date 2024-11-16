@@ -124,31 +124,43 @@ export class WebWSClient {
             return;
         }
 
-        switch (message.action) {
-            case 'bindClient':
-                await this.handleBindClient(message);
-                break;
-            case 'updateStrengthConfig':
-                await this.handleUpdateStrengthConfig(message);
-                break;
-            case 'updateConfig':
-                await this.handleUpdateGameConfig(message);
-                break;
-            case 'startGame':
-                await this.handleStartGame(message);
-                break;
-            case 'stopGame':
-                await this.handleStopGame(message);
-                break;
-            case 'heartbeat':
-                this.prevHeartbeatTime = Date.now();
-                break;
-            default:
-                await this.sendResponse(message.requestId, {
-                    status: 0,
-                    message: '未知的 action: ' + message.action,
-                });
-                break;
+        try {
+            switch (message.action) {
+                case 'bindClient':
+                    await this.handleBindClient(message);
+                    break;
+                case 'kickClient':
+                    await this.handleKickClient(message);
+                    break;
+                case 'updateStrengthConfig':
+                    await this.handleUpdateStrengthConfig(message);
+                    break;
+                case 'updateConfig':
+                    await this.handleUpdateGameConfig(message);
+                    break;
+                case 'startGame':
+                    await this.handleStartGame(message);
+                    break;
+                case 'stopGame':
+                    await this.handleStopGame(message);
+                    break;
+                case 'heartbeat':
+                    this.prevHeartbeatTime = Date.now();
+                    break;
+                default:
+                    await this.sendResponse(message.requestId, {
+                        status: 0,
+                        message: '未知的 action: ' + message.action,
+                    });
+                    break;
+            }
+        } catch (error: any) {
+            console.error("Failed to handle message:", error);
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '错误: ' + error.message,
+                detail: error,
+            });
         }
     }
 
@@ -185,6 +197,30 @@ export class WebWSClient {
 
         let gameInstance = await CoyoteGameManager.instance.getOrCreateGame(this.clientId);
         this.connectToGame(gameInstance);
+
+        await this.sendResponse(message.requestId, {
+            status: 1,
+        });
+    }
+
+    private async handleKickClient(message: any) {
+        if (!this.gameInstance) {
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '游戏未连接',
+            });
+            return;
+        }
+
+        if (!this.gameInstance.client) {
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '客户端未连接',
+            });
+            return;
+        }
+
+        await this.gameInstance.client.close();
 
         await this.sendResponse(message.requestId, {
             status: 1,

@@ -9,6 +9,7 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
     router.get('/', WebController.index);
     router.get('/api/server_info', WebController.getServerInfo);
     router.get('/api/client/connect', WebController.getClientConnectInfo);
+    router.get('/api/custom_skins', WebController.getCustomSkinList);
 
     router.get('/api/game', GameApiController.gameApiInfo);
 
@@ -24,6 +25,8 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
 
     // v2
     router.get('/api/v2/pulse_list', GameApiController.getPulseList);
+    router.post('/api/v2/pair_game', WebController.notImplemented);
+
     router.get('/api/v2/game/:id', GameApiController.gameInfo);
     router.get('/api/v2/game/:id/strength', GameApiController.getGameStrength);
     router.post('/api/v2/game/:id/strength', GameApiController.setGameStrength);
@@ -32,6 +35,9 @@ export const setupRouter = (router: KoaRouter, wsRouter: WebSocketRouter) => {
     router.get('/api/v2/game/:id/pulse_list', GameApiController.getPulseList);
 
     router.post('/api/v2/game/:id/action/fire', GameApiController.startActionFire);
+
+    router.post('/api/v2/game/:id/gameplay/init', WebController.notImplemented);
+    router.post('/api/v2/game/:id/gameplay/:gameplayid/event/emit', WebController.notImplemented);
 
     wsRouter.get('/ws', async (ws, req) => {
         WebWSManager.instance.handleWebSocket(ws, req);

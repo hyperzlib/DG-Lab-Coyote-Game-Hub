@@ -19,6 +19,11 @@ export interface MainGameConfig {
     pulseChangeInterval: number;
 }
 
+export interface GameConnectionConfig {
+    /** 游戏链接码 */
+    connectCodeList: string[];
+}
+
 export interface GameCustomPulseConfig {
     customPulseList: any[];
 }

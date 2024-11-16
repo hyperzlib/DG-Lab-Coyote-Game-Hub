@@ -5,153 +5,21 @@ import Chip from 'primevue/chip';
 import BatteryIcon from '../../assets/battery.svg';
 
 import { ToastServiceMethods } from 'primevue/toastservice';
-import { CoyoteBluetoothController } from '../../utils/CoyoteBluetoothController';
 import { ConfirmationOptions } from 'primevue/confirmationoptions';
 import { ConnectorType, CoyoteDeviceVersion } from '../../type/common';
-import { Reactive } from 'vue';
-import { ControllerPageState } from '../../pages/Controller.vue';
+import { useCoyoteBTStore } from '../../stores/CoyoteBTStore';
 
 defineOptions({
   name: 'CoyoteBluetoothPanel',
 });
 
-const BT_CONFIG_STORAGE_KEY = 'CGH_BTClientConfig';
-
-const props = defineProps<{
-  state: any;
-}>();
-
-// 从父组件获取state
-let parentState: Reactive<ControllerPageState>;
-watch(() => props.state, (value) => {
-  parentState = value;
-}, { immediate: true });
-
-const state = reactive({
-  connected: false,
-
-  deviceBattery: 100,
-  deviceStrengthA: 0,
-  deviceStrengthB: 0,
-
-  freqBalance: 150,
-  inputLimitA: 20,
-  inputLimitB: 20,
-});
+const state = useCoyoteBTStore();
 
 const toast = inject<ToastServiceMethods>('parentToast');
 const confirm = inject<{
   require: (option: ConfirmationOptions) => void;
   close: () => void;
 }>('parentConfirm');
-
-/** 蓝牙控制器 */
-let bluetoothController: CoyoteBluetoothController | null = null;
-
-// 蓝牙连接相关
-const startBluetoothConnect = async (deviceVersion: CoyoteDeviceVersion) => {
-  parentState.showConnectionDialog = false;
-
-  if (!bluetoothController) {
-    bluetoothController = new CoyoteBluetoothController(deviceVersion, parentState.clientId);
-  }
-
-  try {
-    confirm?.require({
-      header: '蓝牙连接',
-      message: '扫描中，请在弹出窗口中选择扫描到的设备，然后点击“配对”按钮。',
-      acceptClass: 'd-none',
-      rejectClass: 'd-none',
-    });
-
-    await bluetoothController.scan();
-
-    confirm?.require({
-      header: '蓝牙连接',
-      message: '正在连接到蓝牙设备，这可能需要十几秒的时间',
-      acceptClass: 'd-none',
-      rejectClass: 'd-none',
-    });
-
-    await bluetoothController.connect();
-    bindBTControllerEvents();
-
-    confirm?.close();
-    toast?.add({ severity: 'success', summary: '连接成功', detail: '已连接到蓝牙控制器', life: 3000 });
-
-    if (deviceVersion === CoyoteDeviceVersion.V2) {
-      parentState.connectorType = ConnectorType.COYOTE_BLE_V2;
-    } else {
-      parentState.connectorType = ConnectorType.COYOTE_BLE_V3;
-    }
-
-    state.connected = true;
-    window.onbeforeunload = (event) => {
-      event.preventDefault();
-      return '确定要断开蓝牙连接吗？';
-    };
-  } catch (error: any) {
-    confirm?.close();
-    console.error('Cannot connect via bluetooth:', error);
-    toast?.add({ severity: 'error', summary: '连接失败', detail: error.message });
-  }
-};
-
-const bindBTControllerEvents = () => {
-  if (!bluetoothController) {
-    return;
-  }
-
-  bluetoothController.on('workerInit', () => {
-    bluetoothController?.setStrengthLimit(state.inputLimitA, state.inputLimitB);
-    bluetoothController?.setFreqBalance(state.freqBalance);
-    bluetoothController?.startWs();
-  });
-
-  bluetoothController.on('batteryLevelChange', (battery) => {
-    state.deviceBattery = battery;
-  });
-
-  bluetoothController.on('strengthChange', (strengthA, strengthB) => {
-    state.deviceStrengthA = strengthA;
-    state.deviceStrengthB = strengthB;
-  });
-
-  bluetoothController.on('reconnecting', () => {
-    confirm?.require({
-      header: '蓝牙连接',
-      message: '连接已断开，正在重新连接到蓝牙设备',
-      acceptClass: 'd-none',
-      rejectLabel: '取消',
-      rejectProps: {
-        severity: 'secondary',
-      },
-      reject: () => {
-        stopBluetoothConnect();
-        confirm?.close();
-      },
-    });
-  });
-
-  bluetoothController.on('connect', () => {
-    // 重连成功
-    confirm?.close();
-  });
-
-  bluetoothController.on('disconnect', () => {
-    state.connected = false;
-    window.onbeforeunload = null;
-    confirm?.close();
-  });
-};
-
-const stopBluetoothConnect = async () => {
-  bluetoothController?.cleanup();
-  bluetoothController = null;
-  state.connected = false;
-
-  window.onbeforeunload = null;
-};
 
 const handleStopBluetoothConnect = () => {
   confirm?.require({
@@ -164,74 +32,11 @@ const handleStopBluetoothConnect = () => {
       severity: 'secondary',
     },
     accept: async () => {
-      await stopBluetoothConnect();
+      state.disconnect();
       toast?.add({ severity: 'success', summary: '断开成功', detail: '已断开蓝牙连接', life: 3000 });
     },
   });
 };
-
-const saveLocalConfig = () => {
-  localStorage.setItem(BT_CONFIG_STORAGE_KEY, JSON.stringify({
-    freqBalance: state.freqBalance,
-    inputLimitA: state.inputLimitA,
-    inputLimitB: state.inputLimitB,
-  }));
-};
-
-const loadLocalConfig = () => {
-  const config = localStorage.getItem(BT_CONFIG_STORAGE_KEY);
-  if (!config) {
-    return;
-  }
-
-  const savedConfig = JSON.parse(config);
-  if (!savedConfig) {
-    return;
-  }
-
-  if (typeof savedConfig.freqBalance === 'number') {
-    state.freqBalance = Math.min(200, Math.max(0, savedConfig.freqBalance));
-  }
-
-  if (typeof savedConfig.inputLimitA === 'number') {
-    state.inputLimitA = Math.min(200, Math.max(1, savedConfig.inputLimitA));
-  }
-
-  if (typeof savedConfig.inputLimitB === 'number') {
-    state.inputLimitB = Math.min(200, Math.max(1, savedConfig.inputLimitB));
-  }
-};
-
-watch(() => parentState.clientId, async (newVal) => {
-  if (newVal) {
-    // 刷新客户端ID时断开蓝牙连接
-    await stopBluetoothConnect();
-  }
-});
-
-watch(() => [state.inputLimitA, state.inputLimitB], (newVal) => {
-  if (bluetoothController) {
-    bluetoothController.setStrengthLimit(newVal[0], newVal[1]);
-    saveLocalConfig();
-    toast?.add({ severity: 'success', summary: '设置成功', detail: '已更新强度上限', life: 3000 });
-  }
-}, { immediate: true });
-
-watch(() => state.freqBalance, (newVal) => {
-  if (bluetoothController && parentState.connectorType === ConnectorType.COYOTE_BLE_V2) {
-    bluetoothController.setFreqBalance(newVal);
-    saveLocalConfig();
-    toast?.add({ severity: 'success', summary: '设置成功', detail: '已更新频率平衡参数', life: 3000 });
-  }
-}, { immediate: true });
-
-onMounted(() => {
-  loadLocalConfig();
-});
-
-defineExpose({
-  startBluetoothConnect,
-});
 </script>
 
 <template>
@@ -272,7 +77,7 @@ defineExpose({
     </div>
 
     <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4"
-      v-if="parentState.connectorType === ConnectorType.COYOTE_BLE_V2">
+      v-if="state.deviceVersion === CoyoteDeviceVersion.V2">
       <label class="font-semibold w-30">频率平衡参数</label>
       <InputNumber class="input-small" v-model="state.freqBalance" :min="0" :max="200" />
     </div>

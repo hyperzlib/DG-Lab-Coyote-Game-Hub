@@ -143,8 +143,8 @@ const handleDeletePulse = async (pulseId: string) => {
 </script>
 
 <template>
-  <div class="flex flex-col justify-between gap-2 mt-4 mb-2 items-start md:flex-row md:items-center">
-    <h2 class="font-bold text-xl">波形选择</h2>
+  <div class="flex flex-col justify-between gap-2 mb-2 items-start md:flex-row md:items-center">
+    <h2 class="font-bold text-xl">波形列表</h2>
     <div class="flex gap-2 items-center">
       <Button icon="pi pi-sort-alpha-down" title="波形排序" severity="secondary" @click="state.showSortPulseDialog = true"
         v-if="parentState.pulseMode === 'sequence'"></Button>
@@ -156,17 +156,15 @@ const handleDeletePulse = async (pulseId: string) => {
         :allowEmpty="false" aria-labelledby="basic" />
     </div>
   </div>
-  <FadeAndSlideTransitionGroup>
-    <div v-if="parentState.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
-      <PulseCard v-for="pulse in fullPulseList" :key="pulse.id" :pulse-info="pulse"
-        :is-current-pulse="parentState.selectPulseIds.includes(pulse.id)"
-        :is-fire-pulse="pulse.id === parentState.firePulseId" @set-current-pulse="togglePulse"
-        @set-fire-pulse="setFirePulse" @delete-pulse="handleDeletePulse" @rename-pulse="handleRenamePulse" />
-    </div>
-    <div v-else class="flex justify-center py-4">
-      <ProgressSpinner />
-    </div>
-  </FadeAndSlideTransitionGroup>
+  <div v-if="parentState.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+    <PulseCard v-for="pulse in fullPulseList" :key="pulse.id" :pulse-info="pulse"
+      :is-current-pulse="parentState.selectPulseIds.includes(pulse.id)"
+      :is-fire-pulse="pulse.id === parentState.firePulseId" @set-current-pulse="togglePulse"
+      @set-fire-pulse="setFirePulse" @delete-pulse="handleDeletePulse" @rename-pulse="handleRenamePulse" />
+  </div>
+  <div v-else class="flex justify-center py-4">
+    <ProgressSpinner />
+  </div>
   <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="parentState.pulseList ?? []"
     v-model:modelValue="parentState.selectPulseIds" />
   <ImportPulseDialog v-model:visible="state.showImportPulseDialog" @on-pulse-imported="handlePulseImported" />

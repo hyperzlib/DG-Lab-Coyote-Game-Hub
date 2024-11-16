@@ -9,8 +9,10 @@ const transitionRef = ref<any | null>(null);
 
 const onEnter = (el: Element, done: () => void) => {
     const transitionContainer = transitionRef.value!.$el as HTMLElement;
-    const height = el.clientHeight;
-    transitionContainer.style.height = `${height}px`;
+    console.log('onEnter', el, transitionContainer);
+    let prevHeight = el.clientHeight;
+    transitionContainer.style.height = `${prevHeight}px`;
+
     setTimeout(() => {
         transitionContainer.style.height = '';
     }, 300);

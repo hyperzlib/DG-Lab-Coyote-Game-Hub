@@ -9,6 +9,9 @@
         "fileMd5": "767957c4f5c0bedfadc8b1389d22ba33"
     },
     "./src/schemas/MainConfigType.json": {
-        "fileMd5": "b35dc3c910e178d711532cbf2a31d5a6"
+        "fileMd5": "0af6fae41e565e20eebfee8c0cd0dec7"
+    },
+    "./src/schemas/CustomSkinManifest.json": {
+        "fileMd5": "d470a5cbc371ad4458f1fb9b4829a923"
     }
 }

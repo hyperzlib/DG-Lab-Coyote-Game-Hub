@@ -1,0 +1,69 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$ref": "#/definitions/CustomSkinManifest",
+    "definitions": {
+        "CustomSkinManifest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "main": {
+                    "type": "string"
+                },
+                "help": {
+                    "type": "string"
+                },
+                "params": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CustomSkinParamDef"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "main"
+            ],
+            "additionalProperties": false
+        },
+        "CustomSkinParamDef": {
+            "type": "object",
+            "properties": {
+                "prop": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "int",
+                        "boolean",
+                        "select"
+                    ]
+                },
+                "options": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "label",
+                        "value"
+                    ],
+                    "additionalProperties": false
+                }
+            },
+            "required": [
+                "prop",
+                "type"
+            ],
+            "additionalProperties": false
+        }
+    }
+}

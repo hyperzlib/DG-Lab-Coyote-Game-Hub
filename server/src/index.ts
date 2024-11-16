@@ -19,6 +19,7 @@ import { validator } from './utils/validator';
 import { CoyoteGameConfigService } from './services/CoyoteGameConfigService';
 import { SiteNotificationService } from './services/SiteNotificationService';
 import { checkUpdate } from './utils/checkUpdate';
+import { CustomSkinService } from './services/CustomSkinService';
 
 async function main() {
     // blocked((time, stack) => {
@@ -31,6 +32,7 @@ async function main() {
     await DGLabPulseService.instance.initialize();
     await CoyoteGameConfigService.instance.initialize();
     await SiteNotificationService.instance.initialize();
+    await CustomSkinService.instance.initialize();
 
     const app = new Koa();
     const httpServer = http.createServer(app.callback());

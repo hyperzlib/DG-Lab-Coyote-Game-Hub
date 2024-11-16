@@ -16,6 +16,10 @@ const typesList = [
     {
         file: './src/types/config.ts',
         types: ['MainConfigType']
+    },
+    {
+        file: './src/types/customSkin.ts',
+        types: ['CustomSkinManifest']
     }
 ];
 

@@ -22,6 +22,7 @@ const visible = defineModel('visible');
 const state = reactive({
   theme: 'default',
   chartParams: {} as Record<string, string>,
+  themeLoading: true,
 });
 
 const getThemeNameFromPath = (path: string) => {
@@ -100,6 +101,7 @@ const copyUrl = () => {
             :options="themeOptions"
             optionLabel="label"
             optionValue="value"
+            :loading="state.themeLoading"
             placeholder="请选择主题"
             class="w-full"
           ></Select>

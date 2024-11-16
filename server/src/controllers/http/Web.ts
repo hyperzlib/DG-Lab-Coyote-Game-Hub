@@ -3,6 +3,7 @@ import { Context } from 'koa';
 import { DGLabWSManager } from '../../managers/DGLabWSManager';
 import { MainConfig } from '../../config';
 import { LocalIPAddress } from '../../utils/utils';
+import { CustomSkinService } from '../../services/CustomSkinService';
 
 const DGLAB_WS_PREFIX = 'https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#';
 
@@ -58,6 +59,14 @@ export class WebController {
         };
     };
 
+    public static async getCustomSkinList(ctx: Context): Promise<void> {
+        ctx.body = {
+            status: 1,
+            code: 'OK',
+            customSkins: CustomSkinService.instance.skins,
+        };
+    }
+
     public static async getClientConnectInfo(ctx: Context): Promise<void> {
         let clientId: string = '';
         for (let i = 0; i < 10; i++) {
@@ -82,6 +91,14 @@ export class WebController {
             status: 1,
             code: 'OK',
             clientId,
+        };
+    }
+
+    public static async notImplemented(ctx: Context): Promise<void> {
+        ctx.body = {
+            status: 0,
+            code: 'ERR::NOT_IMPLEMENTED',
+            message: '此功能尚未实现',
         };
     }
 }

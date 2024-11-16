@@ -11,7 +11,7 @@ export type MainConfigType = {
     webWsBaseUrl?: string | null;
     /** DG-Lab客户端连接时的WebSocket URL */
     clientWsBaseUrl?: string | null;
-    /** API的基础URL，不需要“/api”，某些游戏插件可能不支持HTTPS，需要配置HTTP接口 */
+    /** API的基础URL，不需要“api”，末尾需要“/”，某些游戏插件可能不支持HTTPS，需要配置HTTP接口 */
     apiBaseHttpUrl?: string;
     /** 波形配置文件路径 */
     pulseConfigPath: string;

@@ -29,7 +29,6 @@ export class DGLabPulseService {
     public pulseList: DGLabPulseInfo[] = [];
     private pulseConfig: ReactiveConfig<DGLabPulseInfo[]>;
 
-    private pulseQRDir = 'data/pulse-qrcode';
     private pulseConfigPath = 'data/pulse.json5';
 
     private events = new EventEmitter<DGLabPulseServiceEvents>();

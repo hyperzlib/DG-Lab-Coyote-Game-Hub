@@ -6,7 +6,7 @@ import BatteryIcon from '../../assets/battery.svg';
 
 import { ToastServiceMethods } from 'primevue/toastservice';
 import { ConfirmationOptions } from 'primevue/confirmationoptions';
-import { ConnectorType, CoyoteDeviceVersion } from '../../type/common';
+import { CoyoteDeviceVersion } from '../../type/common';
 import { useCoyoteBTStore } from '../../stores/CoyoteBTStore';
 
 defineOptions({

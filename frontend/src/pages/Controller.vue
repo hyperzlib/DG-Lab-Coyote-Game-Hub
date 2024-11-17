@@ -14,7 +14,6 @@ import { PulseItemInfo } from '../type/pulse';
 import { useConfirm } from 'primevue/useconfirm';
 import { ConnectorType, CoyoteDeviceVersion } from '../type/common';
 import CoyoteBluetoothService from '../components/partials/CoyoteBluetoothService.vue';
-import PulseSettings from '../components/partials/PulseSettings.vue';
 import ClientInfoDialog from '../components/dialogs/ClientInfoDialog.vue';
 import { useClientsStore } from '../stores/ClientsStore';
 import ConnectToSavedClientsDialog from '../components/dialogs/ConnectToSavedClientsDialog.vue';
@@ -93,6 +92,8 @@ const state = reactive<ControllerPageState>({
   showConnectToSavedClientsDialog: false,
 });
 
+const router = useRouter();
+
 const coyoteBTRef = ref<InstanceType<typeof CoyoteBluetoothService> | null>(null);
 
 const controllerPageTabs = [
@@ -100,6 +101,10 @@ const controllerPageTabs = [
   { title: '波形配置', id: 'pulse', icon: 'pi pi-wave-pulse' },
   { title: '游戏连接', id: 'game', icon: 'pi pi-map' },
 ];
+
+watch(() => state.controllerPage, (newVal) => {
+  router.push({ path: newVal });
+});
 
 // 在收到服务器的配置后设置为true，防止触发watch
 let receivedConfig = false;
@@ -391,6 +396,7 @@ const postCustomPulseConfig = async () => {
     console.error('Cannot post custom pulse config:', error);
   }
 };
+provide('postCustomPulseConfig', postCustomPulseConfig);
 
 const handleStartGame = async () => {
   if (!dgClientConnected) {
@@ -533,17 +539,13 @@ watch([gameConfig, strengthConfig], () => {
         </template>
 
         <template #content>
-          <FadeAndSlideTransitionGroup>
-            <div v-if="state.controllerPage === 'strength'">
-              <StrengthSettings :state="state" />
-            </div>
-            <div v-else-if="state.controllerPage === 'pulse'">
-              <PulseSettings :state="state" @post-custom-pulse-config="postCustomPulseConfig" />
-            </div>
-            <div v-else-if="state.controllerPage === 'game'">
-              TODO: Game settings
-            </div>
-          </FadeAndSlideTransitionGroup>
+          <RouterView>
+            <template #default="{ Component }">
+              <FadeAndSlideTransitionGroup>
+                <component :is="Component" :state="state" />
+              </FadeAndSlideTransitionGroup>
+            </template>
+          </RouterView>
         </template>
       </Card>
     </div>

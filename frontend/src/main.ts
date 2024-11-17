@@ -20,7 +20,15 @@ import App from './App.vue'
 const appName = '战败惩罚';
 
 const routes: RouteRecordRaw[] = [
-    { path: '/', component: () => import('./pages/Controller.vue'), name: '控制器' },
+    {
+        path: '/', component: () => import('./pages/Controller.vue'), name: '控制器',
+        children: [
+            { path: '', redirect: 'strength' },
+            { path: 'strength', component: () => import('./pages/controller/StrengthSettings.vue'), name: '控制器 - 强度设置' },
+            { path: 'pulse', component: () => import('./pages/controller/PulseSettings.vue'), name: '控制器 - 波形设置' },
+            { path: 'game', component: () => import('./pages/controller/GameConnection.vue'), name: '控制器 - 游戏连接' },
+        ],
+    },
 ];
 
 const router = createRouter({

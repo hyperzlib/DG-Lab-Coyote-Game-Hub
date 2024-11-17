@@ -18,6 +18,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'chartRoutes': ['./src/charts/chartRoutes.ts'],
+          'dg-pulse-helper': ['./src/lib/dg-pulse-helper/index.ts'],
         }
       }
     },

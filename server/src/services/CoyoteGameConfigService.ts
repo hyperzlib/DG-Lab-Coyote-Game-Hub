@@ -6,6 +6,11 @@ import { ExEventEmitter } from "../utils/ExEventEmitter";
 import { GameCustomPulseConfig, MainGameConfig } from '../types/game';
 import { DGLabPulseService } from './DGLabPulse';
 import { CoyoteGamePlayConfig, CoyoteGamePlayUserConfig } from '../types/gamePlay';
+import { MainGameConfigUpdater } from '../model/config/MainGameConfigUpdater';
+import { CustomPulseConfigUpdater } from '../model/config/CustomPulseConfigUpdater';
+import { GamePlayConfigUpdater } from '../model/config/GamePlayConfigUpdater';
+import { GamePlayUserConfigUpdater } from '../model/config/GamePlayUserConfigUpdater';
+import { ObjectUpdater } from '../utils/ObjectUpdater';
 
 export enum GameConfigType {
     MainGame = 'main-game',
@@ -25,19 +30,19 @@ export type GameConfigTypeMap = {
     [GameConfigType.GamePlayUserConfig]: CoyoteGamePlayUserConfig,
 };
 
-export const CoyoteGameConfigList = [
-    GameConfigType.MainGame,
-    GameConfigType.CustomPulse,
-    GameConfigType.GamePlay,
-    GameConfigType.GamePlayUserConfig,
-];
-
 export class CoyoteGameConfigService {
     private static _instance: CoyoteGameConfigService;
 
     private gameConfigDir = 'data/game-config';
 
     public events = new ExEventEmitter<CoyoteLiveGameManagerEvents>();
+
+    public configUpdaters: Record<string, ObjectUpdater> = {
+        [GameConfigType.MainGame]: new MainGameConfigUpdater(),
+        [GameConfigType.CustomPulse]: new CustomPulseConfigUpdater(),
+        [GameConfigType.GamePlay]: new GamePlayConfigUpdater(),
+        [GameConfigType.GamePlayUserConfig]: new GamePlayUserConfigUpdater(),
+    };
     
     private configCache: LRUCache<string, any> = new LRUCache({
         max: 1000,
@@ -61,39 +66,25 @@ export class CoyoteGameConfigService {
         }
     }
 
-    public getDefaultConfig(type: GameConfigType) {
-        switch (type) {
-            case GameConfigType.MainGame:
-                return {
-                    strengthChangeInterval: [15, 30],
-                    enableBChannel: false,
-                    bChannelStrengthMultiplier: 1,
-                    pulseId: DGLabPulseService.instance.getDefaultPulse().id,
-                    pulseMode: 'single',
-                    pulseChangeInterval: 60,
-                } as MainGameConfig;
-            case GameConfigType.CustomPulse:
-                return {
-                    customPulseList: [],
-                } as GameCustomPulseConfig;
-            case GameConfigType.GamePlay:
-                return {
-                    gamePlayList: [],
-                } as CoyoteGamePlayConfig;
-            case GameConfigType.GamePlayUserConfig:
-                return {
-                    configList: {},
-                } as CoyoteGamePlayUserConfig;
-            default:
-                return {};
-        }
+    public getDefaultConfig(type: GameConfigType | string) {
+        return this.configUpdaters[type]?.getDefaultEmptyObject();
     }
 
     public async set<TKey extends keyof GameConfigTypeMap>(clientId: string, type: GameConfigType, newConfig: GameConfigTypeMap[TKey]) {
+        const configUpdater = this.configUpdaters[type];
+        if (!configUpdater) {
+            throw new Error(`Config type not found: ${type}`);
+        }
+        
         const cacheKey = `${clientId}/${type}`;
         this.configCache.set(cacheKey, newConfig);
 
-        await fs.promises.writeFile(path.join(this.gameConfigDir, `${clientId}.${type}.json`), JSON.stringify(newConfig, null, 4), { encoding: 'utf-8' });
+        let storeConfig = {
+            ...newConfig,
+            version: configUpdater.getCurrentVersion(),
+        };
+
+        await fs.promises.writeFile(path.join(this.gameConfigDir, `${clientId}.${type}.json`), JSON.stringify(storeConfig, null, 4), { encoding: 'utf-8' });
 
         this.events.emitSub('configUpdated', cacheKey, type, newConfig);
         this.events.emitSub('configUpdated', clientId, type, newConfig);
@@ -107,18 +98,31 @@ export class CoyoteGameConfigService {
             return this.configCache.get(cacheKey);
         }
 
+        const configUpdater = this.configUpdaters[type];
+        if (!configUpdater) {
+            throw new Error(`Config type not found: ${type}`);
+        }
+
         const configPath = path.join(this.gameConfigDir, `${clientId}.${type}.json`);
         if (fs.existsSync(configPath)) {
             const fileContent = await fs.promises.readFile(configPath, { encoding: 'utf-8' });
             const config = JSON.parse(fileContent);
-            this.configCache.set(cacheKey, config);
-            return config;
+
+            let updatedConfig = config;
+            // 在获取配置时，如果版本不一致，则更新配置schema
+            if (config.version !== configUpdater.getCurrentVersion()) {
+                updatedConfig = configUpdater.updateObject(config);
+                await fs.promises.writeFile(configPath, JSON.stringify(updatedConfig, null, 4), { encoding: 'utf-8' });
+            }
+
+            this.configCache.set(cacheKey, updatedConfig);
+            return updatedConfig;
         }
 
         if (useDefault) {
-            const defaultConfig = this.getDefaultConfig(type);
+            const defaultConfig = configUpdater.getDefaultEmptyObject();
             this.configCache.set(cacheKey, defaultConfig);
-            return defaultConfig as any;
+            return defaultConfig;
         }
 
         return undefined;
@@ -157,10 +161,10 @@ export class CoyoteGameConfigService {
      * @param toClientId 
      */
     public async copyAllConfigs(fromClientId: string, toClientId: string) {
-        for (const type of CoyoteGameConfigList) {
-            const config = await this.get(fromClientId, type, false);
+        for (const type of Object.keys(this.configUpdaters)) {
+            const config = await this.get(fromClientId, type as keyof GameConfigTypeMap, false);
             if (config) {
-                await this.set(toClientId, type, config);
+                await this.set(toClientId, type as keyof GameConfigTypeMap, config);
             }
         }
     }

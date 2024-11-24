@@ -73,6 +73,17 @@ export const simpleObjDiff = (obj1: any, obj2: any) => {
         return false;
     }
 }
+
+export function simpleArrayDiff<T>(arr1: T[], arr2: T[]): { added: T[], removed: T[] } {
+    const set1 = new Set(arr1);
+    const set2 = new Set(arr2);
+
+    const added = arr2.filter(item => !set1.has(item));
+    const removed = arr1.filter(item => !set2.has(item));
+
+    return { added, removed };
+}
+
 export class LocalIPAddress {
     private static ipAddrList?: string[];
 

@@ -1,9 +1,9 @@
-import { EventEmitter } from "events";
 import { CoyoteGameController } from "../controllers/game/CoyoteGameController";
 import { DGLabWSClient } from "../controllers/ws/DGLabWS";
 import { DGLabWSManager } from "./DGLabWSManager";
 import { LRUCache } from "lru-cache";
 import { ExEventEmitter } from "../utils/ExEventEmitter";
+import { MultipleLinkedMap } from "../utils/MultipleLinkedMap";
 
 export interface CoyoteGameManagerEvents {
     
@@ -13,6 +13,7 @@ export class CoyoteGameManager {
     private static _instance: CoyoteGameManager;
 
     private games: Map<string, CoyoteGameController>;
+    private gameIdentifiers: MultipleLinkedMap<string, string> = new MultipleLinkedMap();
 
     private events = new ExEventEmitter<CoyoteGameManagerEvents>();
 
@@ -56,6 +57,11 @@ export class CoyoteGameManager {
 
         game.once('close', () => {
             this.games.delete(clientId);
+            this.gameIdentifiers.removeField(clientId);
+        });
+
+        game.on('identifiersUpdated', (newIdentifiers) => {
+            this.gameIdentifiers.setFieldValues(clientId, newIdentifiers);
         });
 
         this.games.set(clientId, game);
@@ -63,8 +69,18 @@ export class CoyoteGameManager {
         return game;
     }
 
-    public getGame(clientId: string) {
-        return this.games.get(clientId);
+    public getGame(id: string, identifyType: 'id' | 'readonly' | 'gameplay' = 'id') {
+        if (identifyType === 'id') {
+            return this.games.get(id);
+        }
+
+        // 根据不同的标识类型查找游戏ID
+        const gameId = this.gameIdentifiers.getFieldKey(`${identifyType}:${id}`);
+        if (!gameId) {
+            return undefined;
+        }
+
+        return this.games.get(gameId);
     }
 
     public async getOrCreateGame(clientId: string) {

@@ -22,6 +22,7 @@ export interface CoyoteGameEvents {
     close: [];
     strengthChanged: [strength: GameStrengthInfo];
     strengthConfigUpdated: [config: GameStrengthConfig];
+    identifiersUpdated: [identifiers: string[]];
     clientConnected: [];
     clientDisconnected: [];
     gameStarted: [];

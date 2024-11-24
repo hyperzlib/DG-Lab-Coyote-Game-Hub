@@ -5,10 +5,13 @@ import { LRUCache } from "lru-cache";
 import { ExEventEmitter } from "../utils/ExEventEmitter";
 import { GameCustomPulseConfig, MainGameConfig } from '../types/game';
 import { DGLabPulseService } from './DGLabPulse';
+import { CoyoteGamePlayConfig, CoyoteGamePlayUserConfig } from '../types/gamePlay';
 
 export enum GameConfigType {
     MainGame = 'main-game',
     CustomPulse = 'custom-pulse',
+    GamePlay = 'game-play',
+    GamePlayUserConfig = 'game-play-config',
 }
 
 export interface CoyoteLiveGameManagerEvents {
@@ -18,7 +21,16 @@ export interface CoyoteLiveGameManagerEvents {
 export type GameConfigTypeMap = {
     [GameConfigType.MainGame]: MainGameConfig,
     [GameConfigType.CustomPulse]: GameCustomPulseConfig,
+    [GameConfigType.GamePlay]: CoyoteGamePlayConfig,
+    [GameConfigType.GamePlayUserConfig]: CoyoteGamePlayUserConfig,
 };
+
+export const CoyoteGameConfigList = [
+    GameConfigType.MainGame,
+    GameConfigType.CustomPulse,
+    GameConfigType.GamePlay,
+    GameConfigType.GamePlayUserConfig,
+];
 
 export class CoyoteGameConfigService {
     private static _instance: CoyoteGameConfigService;
@@ -50,19 +62,30 @@ export class CoyoteGameConfigService {
     }
 
     public getDefaultConfig(type: GameConfigType) {
-        if (type === GameConfigType.MainGame) {
-            return {
-                strengthChangeInterval: [15, 30],
-                enableBChannel: false,
-                bChannelStrengthMultiplier: 1,
-                pulseId: DGLabPulseService.instance.getDefaultPulse().id,
-                pulseMode: 'single',
-                pulseChangeInterval: 60,
-            };
-        } else if (type === GameConfigType.CustomPulse) {
-            return {
-                customPulseList: [],
-            };
+        switch (type) {
+            case GameConfigType.MainGame:
+                return {
+                    strengthChangeInterval: [15, 30],
+                    enableBChannel: false,
+                    bChannelStrengthMultiplier: 1,
+                    pulseId: DGLabPulseService.instance.getDefaultPulse().id,
+                    pulseMode: 'single',
+                    pulseChangeInterval: 60,
+                } as MainGameConfig;
+            case GameConfigType.CustomPulse:
+                return {
+                    customPulseList: [],
+                } as GameCustomPulseConfig;
+            case GameConfigType.GamePlay:
+                return {
+                    gamePlayList: [],
+                } as CoyoteGamePlayConfig;
+            case GameConfigType.GamePlayUserConfig:
+                return {
+                    configList: {},
+                } as CoyoteGamePlayUserConfig;
+            default:
+                return {};
         }
     }
 
@@ -114,6 +137,32 @@ export class CoyoteGameConfigService {
         };
 
         await this.set(clientId, type, updatedConfig);
+    }
+
+    public async delete(clientId: string, type: GameConfigType) {
+        const cacheKey = `${clientId}/${type}`;
+        this.configCache.delete(cacheKey);
+
+        const configPath = path.join(this.gameConfigDir, `${clientId}.${type}.json`);
+        if (fs.existsSync(configPath)) {
+            await fs.promises.unlink(configPath);
+        }
+
+        this.events.emitSub('configUpdated', clientId, type, null);
+    }
+
+    /**
+     * Copy all configs from one client to another
+     * @param fromClientId 
+     * @param toClientId 
+     */
+    public async copyAllConfigs(fromClientId: string, toClientId: string) {
+        for (const type of CoyoteGameConfigList) {
+            const config = await this.get(fromClientId, type, false);
+            if (config) {
+                await this.set(toClientId, type, config);
+            }
+        }
     }
 
     public on = this.events.on.bind(this.events);

@@ -96,7 +96,7 @@ watch(() => props.clientId, (newVal) => {
           <TabPanels>
             <FadeAndSlideTransitionGroup>
               <div v-if="state.selectedTab === 'dglab'">
-                <div class="w-full flex flex-col items-top gap-2 mb-4">
+                <!-- <div class="w-full flex flex-col items-top gap-2 mb-4">
                   <label class="font-semibold">当前客户端ID</label>
                   <InputGroup>
                     <InputText :value="props.clientId" read-only></InputText>
@@ -105,7 +105,7 @@ watch(() => props.clientId, (newVal) => {
                   </InputGroup>
                   <span class="block text-sm text-gray-500">将客户端ID复制给他人，可以让他们远程连接到此设备。</span>
                   <span class="block text-sm text-gray-500">若是客户端ID泄露，可以点击“重置”按钮。</span>
-                </div>
+                </div> -->
                 <span class="block font-semibold mb-2">请使用DG-Lab扫描以下二维码：</span>
                 <div class="flex justify-center mb-4 min-h-256px">
                   <VueQrcode v-if="wsUrlList[state.selectedWsUrlIndex].connectUrl"

@@ -144,6 +144,9 @@ export class WebWSClient {
                 case 'stopGame':
                     await this.handleStopGame(message);
                     break;
+                case 'changeClientId':
+                    await this.handleChangeClientId(message);
+                    break;
                 case 'heartbeat':
                     this.prevHeartbeatTime = Date.now();
                     break;
@@ -293,6 +296,26 @@ export class WebWSClient {
         }
         
         CoyoteGameConfigService.instance.set(this.clientId, message.type, message.config);
+    }
+
+    private async handleChangeClientId(message: any) {
+        if (!message.clientId) {
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '数据包错误：newClientId 不存在',
+            });
+            return;
+        }
+
+        let oldClientId = this.clientId;
+        this.clientId = message.newClientId;
+        
+        await CoyoteGameConfigService.instance.copyAllConfigs(oldClientId, this.clientId);
+
+        await this.sendResponse(message.requestId, {
+            status: 1,
+        });
+        // 网页将会断开连接，所以无需重新绑定游戏实例
     }
 
     private async handleStartGame(message: any) {

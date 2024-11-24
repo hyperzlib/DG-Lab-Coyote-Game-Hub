@@ -212,6 +212,12 @@ export class SocketApi {
         });
     }
 
+    public kickClient() {
+        return this.sendRequest({
+            action: "kickClient",
+        });
+    }
+
     public updateStrengthConfig(config: GameStrengthConfig) {
         return this.sendRequest({
             action: "updateStrengthConfig",
@@ -236,6 +242,13 @@ export class SocketApi {
     public stopGame() {
         return this.sendRequest({
             action: "stopGame",
+        });
+    }
+
+    public changeClientId(clientId: string) {
+        return this.sendRequest({
+            action: "changeClientId",
+            clientId,
         });
     }
 

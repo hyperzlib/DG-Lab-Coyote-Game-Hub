@@ -52,6 +52,10 @@ const copyInput = (inputId: string) => {
   toast.add({ severity: 'success', summary: '提示', detail: '复制成功', life: 3000 });
 };
 
+const onKickClient = () => {
+  
+};
+
 watch(() => visible.value, (value) => {
   if (value) {
     const clientInfo = clientsStore.getClientInfo(props.clientId);
@@ -90,6 +94,9 @@ watch(() => state.inputClientName, (value) => {
     <div class="flex items-center gap-2">
       <label class="font-semibold w-30">连接方式</label>
       <InputText :value="connectorTypeStr" class="w-full" readonly />
+    </div>
+    <div class="flex justify-end mt-4 gap-4">
+      <Button label="断开连接" severity="danger" @click="onKickClient"></Button>
     </div>
   </Dialog>
 </template>

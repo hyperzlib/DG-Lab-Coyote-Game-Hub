@@ -44,3 +44,27 @@
 
 - ```server```：服务器端代码
 - ```frontend```：前端代码
+
+## 构建
+
+### 环境准备
+在全局环境安装下面的包：
+```
+npm install -g nexe 
+npm install -g vite
+npm install -g pkg
+```
+
+### 构建工程
+按顺序运行下面的指令
+```
+npm run build
+npm run build:pkg
+npm run build:pkg:assets
+npm run build:pkg:nodejs
+npm run build:pkg:linux
+npm run build:pkg
+```
+
+### 产物位置
+之后可以在 `build/` 目录下发现构建的产物

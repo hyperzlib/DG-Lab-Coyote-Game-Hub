@@ -56,7 +56,7 @@ const wsUrlList = computed(() => {
     }
   });
 });
-
+/* error TS6133: 'handleResetClientId' is declared but its value is never read.
 const handleResetClientId = async () => {
   if (state.clientIdResetting) {
     return;
@@ -67,6 +67,7 @@ const handleResetClientId = async () => {
   state.clientIdResetting = true;
   emit('resetClientId');
 };
+*/
 
 const handleSetClientId = () => {
   emit('update:clientId', state.formClientId);

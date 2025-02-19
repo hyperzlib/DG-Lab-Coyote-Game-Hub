@@ -2,6 +2,7 @@ import http from 'http';
 import Koa from 'koa';
 import WebSocket from 'ws';
 import KoaRouter from 'koa-router';
+import cors from '@koa/cors';
 import { WebSocketRouter } from './utils/WebSocketRouter';
 import { setupWebSocketServer } from './utils/websocket';
 import { setupRouter as initRouter } from './router';
@@ -35,6 +36,7 @@ async function main() {
     await CustomSkinService.instance.initialize();
 
     const app = new Koa();
+    app.use(cors());
     const httpServer = http.createServer(app.callback());
 
     // 在HTTP服务器上创建WebSocket服务器

@@ -1,14 +1,15 @@
 <script lang="ts" setup>
 import { ToastServiceMethods } from 'primevue/toastservice';
-import { CoyoteBluetoothController } from '../../utils/CoyoteBluetoothController';
+import { CoyoteBluetoothController } from '../../controllers/CoyoteBluetoothController';
 import { ConfirmationOptions } from 'primevue/confirmationoptions';
 import { ConnectorType, CoyoteDeviceVersion } from '../../type/common';
 import { Reactive } from 'vue';
 import { ControllerPageState } from '../../pages/Controller.vue';
-import { useCoyoteBTStore } from '../../stores/CoyoteBTStore';
+import { useCoyoteLocalConnStore } from '../../stores/CoyoteLocalConnStore';
+import { CoyoteDebugDeviceController } from '../../controllers/CoyoteDebugDeviceController';
 
 defineOptions({
-  name: 'CoyoteBluetoothService',
+  name: 'CoyoteLocalConnectService',
 });
 
 const props = defineProps<{
@@ -21,7 +22,7 @@ watch(() => props.state, (value) => {
   parentState = value;
 }, { immediate: true });
 
-const state = useCoyoteBTStore();
+const state = useCoyoteLocalConnStore();
 
 const toast = inject<ToastServiceMethods>('parentToast');
 const confirm = inject<{
@@ -70,6 +71,34 @@ const startBluetoothConnect = async (deviceVersion: CoyoteDeviceVersion) => {
     console.error('Cannot connect via bluetooth:', error);
     toast?.add({ severity: 'error', summary: '连接失败', detail: error.message });
   }
+};
+
+const startLocalDebugConnect = async () => {
+  parentState.showConnectionDialog = false;
+
+  if (!state.controller) {
+    state.controller = new CoyoteDebugDeviceController(parentState.clientId);
+  }
+
+  confirm?.require({
+    header: '本地调试',
+    message: '请允许通知权限',
+    acceptClass: 'd-none',
+    rejectClass: 'd-none',
+  });
+  
+  try {
+    await state.controller.connect();
+    bindBTControllerEvents();
+    confirm?.close();
+    toast?.add({ severity: 'success', summary: '连接成功', detail: '已连接到本地调试控制器', life: 3000 });
+  } catch (error: any) {
+    confirm?.close();
+    console.error('Cannot connect via local debug:', error);
+    toast?.add({ severity: 'error', summary: '连接失败', detail: error.message });
+  }
+
+  parentState.connectorType = ConnectorType.COYOTE_BLE_V3;
 };
 
 const bindBTControllerEvents = () => {
@@ -129,6 +158,7 @@ watch(() => state.freqBalance, (newVal) => {
 
 defineExpose({
   startBluetoothConnect,
+  startLocalDebugConnect,
 });
 </script>
 

@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
-import { CoyoteBluetoothController } from '../utils/CoyoteBluetoothController';
 import { CoyoteDeviceVersion } from '../type/common';
+import { CoyoteLocalConnController } from '../controllers/CoyoteLocalConnController';
 
-export const useCoyoteBTStore = defineStore('coyoteBTStore', {
+export const useCoyoteLocalConnStore = defineStore('coyoteLocalConnStore', {
     state: () => ({
         connected: false,
 
@@ -16,7 +16,7 @@ export const useCoyoteBTStore = defineStore('coyoteBTStore', {
         inputLimitA: 20,
         inputLimitB: 20,
 
-        controller: null as null | CoyoteBluetoothController,
+        controller: null as null | CoyoteLocalConnController,
     }),
     actions: {
         initConnection() {

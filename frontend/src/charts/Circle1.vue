@@ -25,12 +25,6 @@ const state = reactive({
     valLimit: props.valLimit,
 });
 
-const emit = defineEmits<{
-    (name: 'update:valLow', value: number): void;
-    (name: 'update:valHigh', value: number): void;
-    (name: 'update:valLimit', value: number): void;
-}>();
-
 const circleOffset = computed(() => {
     return {
         valLow: strokeDasharray - (strokeDasharray * (state.valLow / state.valLimit)),

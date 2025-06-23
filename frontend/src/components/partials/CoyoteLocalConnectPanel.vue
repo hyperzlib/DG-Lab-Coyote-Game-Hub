@@ -7,13 +7,13 @@ import BatteryIcon from '../../assets/battery.svg';
 import { ToastServiceMethods } from 'primevue/toastservice';
 import { ConfirmationOptions } from 'primevue/confirmationoptions';
 import { CoyoteDeviceVersion } from '../../type/common';
-import { useCoyoteBTStore } from '../../stores/CoyoteBTStore';
+import { useCoyoteLocalConnStore } from '../../stores/CoyoteLocalConnStore';
 
 defineOptions({
   name: 'CoyoteBluetoothPanel',
 });
 
-const state = useCoyoteBTStore();
+const state = useCoyoteLocalConnStore();
 
 const toast = inject<ToastServiceMethods>('parentToast');
 const confirm = inject<{

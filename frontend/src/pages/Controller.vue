@@ -13,7 +13,7 @@ import { simpleObjDiff } from '../utils/utils';
 import { PulseItemInfo } from '../type/pulse';
 import { useConfirm } from 'primevue/useconfirm';
 import { ConnectorType, CoyoteDeviceVersion } from '../type/common';
-import CoyoteBluetoothService from '../components/partials/CoyoteBluetoothService.vue';
+import CoyoteLocalConnectService from '../components/partials/CoyoteLocalConnectService.vue';
 import ClientInfoDialog from '../components/dialogs/ClientInfoDialog.vue';
 import { useClientsStore } from '../stores/ClientsStore';
 import ConnectToSavedClientsDialog from '../components/dialogs/ConnectToSavedClientsDialog.vue';
@@ -94,7 +94,7 @@ const state = reactive<ControllerPageState>({
 
 const router = useRouter();
 
-const coyoteBTRef = ref<InstanceType<typeof CoyoteBluetoothService> | null>(null);
+const coyoteLocalRef = ref<InstanceType<typeof CoyoteLocalConnectService> | null>(null);
 
 const controllerPageTabs = [
   { title: '强度配置', id: 'strength', icon: 'pi pi-bolt' },
@@ -448,7 +448,11 @@ const handleCancelSaveConfig = () => {
 };
 
 const handleStartBluetoothConnect = (deviceVersion: CoyoteDeviceVersion) => {
-  coyoteBTRef.value?.startBluetoothConnect(deviceVersion);
+  coyoteLocalRef.value?.startBluetoothConnect(deviceVersion);
+};
+
+const handleStartDebugConnect = () => {
+  coyoteLocalRef.value?.startLocalDebugConnect();
 };
 
 onMounted(async () => {
@@ -485,7 +489,7 @@ watch([gameConfig, strengthConfig], () => {
       </template>
     </Toast>
     <ConfirmDialog></ConfirmDialog>
-    <CoyoteBluetoothService :state="state" ref="coyoteBTRef"></CoyoteBluetoothService>
+    <CoyoteLocalConnectService :state="state" ref="coyoteLocalRef"></CoyoteLocalConnectService>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex">
         <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh"
@@ -552,7 +556,8 @@ watch([gameConfig, strengthConfig], () => {
 
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId"
-      @start-bluetooth-connect="handleStartBluetoothConnect" />
+      @start-bluetooth-connect="handleStartBluetoothConnect"
+      @start-debug-connect="handleStartDebugConnect" />
     <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId"
       :controller-url="state.apiBaseHttpUrl" :connector-type="state.connectorType" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />

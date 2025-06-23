@@ -22,10 +22,13 @@ const props = defineProps<{
 
 const visible = defineModel<boolean>('visible');
 
+const debugMode = import.meta.env.DEV;
+
 const emit = defineEmits<{
   (name: 'resetClientId'): void;
   (name: 'update:clientId', value: string): void;
   (name: 'startBluetoothConnect', version: CoyoteDeviceVersion): void;
+  (name: 'startDebugConnect'): void;
 }>();
 
 const state = reactive({
@@ -76,6 +79,10 @@ const handleStartBluetoothConnect = (version: CoyoteDeviceVersion) => {
   emit('startBluetoothConnect', version);
 };
 
+const handleStartDebugConnect = () => {
+  emit('startDebugConnect');
+};
+
 watch(() => props.clientId, (newVal) => {
   if (newVal) {
     state.clientIdResetting = false;
@@ -92,6 +99,7 @@ watch(() => props.clientId, (newVal) => {
             <Tab value="dglab">连接 DG-Lab</Tab>
             <Tab value="coyoteble">蓝牙连接郊狼</Tab>
             <Tab value="clientId">通过客户端ID连接</Tab>
+            <Tab value="debugConnect" v-if="debugMode">无设备调试</Tab>
           </TabList>
           <TabPanels>
             <FadeAndSlideTransitionGroup>
@@ -155,6 +163,15 @@ watch(() => props.clientId, (newVal) => {
                     <InputText v-model="state.formClientId" placeholder="请输入目标客户端ID"></InputText>
                     <Button icon="pi pi-link" label="连接" @click="handleSetClientId"></Button>
                   </InputGroup>
+                </div>
+              </div>
+              <div v-if="state.selectedTab === 'debugConnect'">
+                <div class="w-full flex flex-col items-top gap-2">
+                  <Message severity="info" class="m-1">
+                    <p>此功能用于在没有设备的情况下进行调试。</p>
+                    <p>主要用于开发插件时调试，郊狼事件将会通过桌面通知发送，如果没有通知，请检测桌面通知权限。</p>
+                  </Message>
+                  <Button label="开始本地调试" @click="handleStartDebugConnect()"></Button>
                 </div>
               </div>
             </FadeAndSlideTransitionGroup>

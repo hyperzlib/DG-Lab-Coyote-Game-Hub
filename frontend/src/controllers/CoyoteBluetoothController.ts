@@ -1,20 +1,21 @@
 import { EventEmitter } from "eventemitter3";
 import { CoyoteDeviceVersion } from "../type/common";
+import { CoyoteLocalConnController, CoyoteLocalConnControllerEventListeners } from "./CoyoteLocalConnController";
 
 import SocketToCoyote3Worker from '../workers/SocketToCoyote3?worker';
 import SocketToCoyote2Worker from '../workers/SocketToCoyote2?worker';
 
-import { EventAddListenerFunc, EventRemoveListenerFunc } from "./event";
-import { asleep } from "./utils";
+import { EventAddListenerFunc, EventRemoveListenerFunc } from "../utils/event";
+import { asleep } from "../utils/utils";
 
 /** 设备扫描前缀 */
-export const devicePrefixMap = {
+export const devicePrefixMap: Record<number, string> = {
     [CoyoteDeviceVersion.V2]: 'D-LAB',
     [CoyoteDeviceVersion.V3]: '47',
 }
 
 /** 蓝牙服务ID */
-export const serviceIdMap = {
+export const serviceIdMap: Record<number, { main: string, battery: string}> = {
     [CoyoteDeviceVersion.V2]: {
         main: '955a180b-0fe2-f5aa-a094-84b8d4f3e8ad',
         battery: '955a180a-0fe2-f5aa-a094-84b8d4f3e8ad',
@@ -25,17 +26,7 @@ export const serviceIdMap = {
     },
 };
 
-export type CoyoteBluetoothControllerEventListeners = {
-    connect: [],
-    workerInit: [],
-    disconnect: [],
-    reconnecting: [],
-    batteryLevelChange: [level: number],
-    strengthChange: [strengthA: number, strengthB: number],
-    error: [error: Error],
-};
-
-export class CoyoteBluetoothController {
+export class CoyoteBluetoothController implements CoyoteLocalConnController {
     public deviceVersion: CoyoteDeviceVersion = CoyoteDeviceVersion.V3;
     public clientId: string = '';
 
@@ -59,9 +50,9 @@ export class CoyoteBluetoothController {
         this.clientId = clientId;
     }
 
-    public on: EventAddListenerFunc<CoyoteBluetoothControllerEventListeners> = this.events.on.bind(this.events);
-    public once: EventAddListenerFunc<CoyoteBluetoothControllerEventListeners> = this.events.once.bind(this.events);
-    public off: EventRemoveListenerFunc<CoyoteBluetoothControllerEventListeners> = this.events.off.bind(this.events);
+    public on: EventAddListenerFunc<CoyoteLocalConnControllerEventListeners> = this.events.on.bind(this.events);
+    public once: EventAddListenerFunc<CoyoteLocalConnControllerEventListeners> = this.events.once.bind(this.events);
+    public off: EventRemoveListenerFunc<CoyoteLocalConnControllerEventListeners> = this.events.off.bind(this.events);
 
     public async scan() {
         if (!('bluetooth' in navigator)) {
@@ -391,7 +382,7 @@ export class CoyoteBluetoothController {
                 }
                 break;
             default:
-                console.error('Unknown message type');
+                console.error('Unknown message type', message);
                 break;
         }
     }

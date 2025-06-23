@@ -1,6 +1,7 @@
 export enum CoyoteDeviceVersion {
     V2 = 2,
     V3 = 3,
+    SIMULATOR = 100,
 }
 
 export enum ConnectorType {

@@ -2,7 +2,7 @@
 import { ControllerPageState } from '../../pages/Controller.vue';
 import { Reactive } from 'vue';
 
-import CoyoteBluetoothPanel from '../../components/partials/CoyoteBluetoothPanel.vue';
+import CoyoteLocalConnectPanel from '../../components/partials/CoyoteLocalConnectPanel.vue';
 
 defineOptions({
   name: 'StrengthSettings',
@@ -70,6 +70,6 @@ watch(() => props.state, (value) => {
         B通道的强度 = A通道强度 * 强度倍数
       </div>
     </div>
-    <CoyoteBluetoothPanel></CoyoteBluetoothPanel>
+    <CoyoteLocalConnectPanel></CoyoteLocalConnectPanel>
   </div>
 </template>

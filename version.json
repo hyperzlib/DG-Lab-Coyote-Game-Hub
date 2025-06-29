@@ -1,6 +1,6 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
-    "version": "1.4.0",
+    "version": "2.0.0",
     "description": "1. 增加蓝牙重连功能\n2. 增加链接码显示\n3. 优化部分文本",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",

@@ -1,6 +1,6 @@
-import { ExEventEmitter } from "../utils/ExEventEmitter";
-import { RemoteNotificationInfo } from "../types/server";
-import { MainConfig } from "../config";
+import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { RemoteNotificationInfo } from "#app/types/server.js";
+import { MainConfig } from "#app/config.js";
 
 export interface SiteNotificationManagerService {
     newNotification: [notification: RemoteNotificationInfo];

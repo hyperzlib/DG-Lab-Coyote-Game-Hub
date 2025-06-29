@@ -1,4 +1,4 @@
-import { AbstractGameAction } from "./AbstractGameAction";
+import { AbstractGameAction } from "./AbstractGameAction.js";
 
 export type GameFireActionConfig = {
     /** 一键开火的强度 */
@@ -11,8 +11,11 @@ export type GameFireActionConfig = {
     updateMode: "replace" | "append";
 };
 
-export const FIRE_MAX_STRENGTH = 40;
-export const FIRE_MAX_DURATION = 30000;
+export const SAFE_FIRE_STRENGTH = 30; // 一键开火首次强度
+export const FIRE_BOOST_STRENGTH = 5; // 一键开火每次增加的强度
+
+export const FIRE_MAX_STRENGTH = 200;
+export const FIRE_MAX_DURATION = 300000;
 
 export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
     /** 一键开火强度 */
@@ -24,25 +27,64 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
     /** 一键开火波形（可能是临时的） */
     public firePulseId: string = '';
 
+    /** 当前一键开火的强度 */
+    public currentFireStrength: number = 0;
+
     initialize() {
-        this.fireStrength = Math.min(this.config.strength, FIRE_MAX_STRENGTH);
+        this.fireStrength = Math.min(this.config.strength, this.game.gameConfig.fireStrengthLimit || FIRE_MAX_STRENGTH);
         this.fireEndTimestamp = Date.now() + Math.min(this.config.time, FIRE_MAX_DURATION);
         this.firePulseId = this.config.pulseId || this.game.gameConfig.firePulseId || this.game.pulsePlayList.getCurrentPulseId();
 
-        this.game.tempStrength = this.fireStrength;
+        this.game.tempStrength = Math.min(this.fireStrength, SAFE_FIRE_STRENGTH);
     }
 
     async execute(ab: AbortController, harvest: () => void, done: () => void): Promise<void> {
-        let strength = Math.min(this.game.strengthConfig.strength + this.fireStrength, this.game.gameStrength.limit);
+        this.currentFireStrength = Math.min(this.fireStrength, SAFE_FIRE_STRENGTH);
+        this.game.tempStrength = this.currentFireStrength;
+
+        let absoluteStrength = 0;
+
         let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
 
-        await this.game.setClientStrength(strength);
+        absoluteStrength = Math.min(this.game.strengthConfig.strength + this.fireStrength, this.game.gameStrength.limit);
+        await this.game.setClientStrength(absoluteStrength);
+
+        // 如果目标强度大于初始强度，则逐渐增加强度
+        let boostAb = new AbortController();
+        
+        let setStrengthInterval = setInterval(() => {
+            if (boostAb.signal.aborted) { // 任务被中断
+                clearInterval(setStrengthInterval);
+                return;
+            }
+
+            absoluteStrength = Math.min(this.game.strengthConfig.strength + this.currentFireStrength, this.game.clientStrength.limit);
+            if (this.currentFireStrength >= this.fireStrength || absoluteStrength >= this.game.clientStrength.limit) {
+                return; // 达到最大强度或限制，不再增加
+            }
+
+            if (this.fireStrength < this.currentFireStrength) {
+                // 降低强度，直接设置
+                this.game.setClientStrength(this.game.strengthConfig.strength).catch((error) => {
+                    console.error('Failed to set strength:', error);
+                });
+            } else {
+                // 逐渐增加强度
+                this.currentFireStrength = Math.min(this.currentFireStrength + FIRE_BOOST_STRENGTH, this.fireStrength);
+                this.game.tempStrength = this.currentFireStrength;
+
+                this.game.setClientStrength(absoluteStrength).catch((error) => {
+                    console.error('Failed to set strength:', error);
+                });
+            }
+        }, 200);
 
         await this.game.client?.outputPulse(this.firePulseId, outputTime, {
             abortController: ab,
             bChannel: this.game.gameConfig.enableBChannel,
             onTimeEnd: () => {
                 if (this.fireStrength && Date.now() > this.fireEndTimestamp) { // 一键开火结束
+                    boostAb.abort(); // 停止增加强度
                     // 提前降低强度
                     this.game.setClientStrength(this.game.strengthConfig.strength).catch((error) => {
                         console.error('Failed to set strength:', error);
@@ -61,11 +103,17 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
         this.config = config;
 
         if (config.strength) {
-            this.fireStrength = Math.min(config.strength, FIRE_MAX_STRENGTH);
-            const strength = Math.min(this.game.strengthConfig.strength + this.fireStrength, this.game.clientStrength.limit);
-            this.game.setClientStrength(strength).catch((error) => {
-                console.error('Failed to set strength:', error);
-            });
+            this.fireStrength = Math.min(config.strength, this.game.gameConfig.fireStrengthLimit || FIRE_MAX_STRENGTH);
+        }
+
+        if (config.updateMode === 'replace') {
+            this.fireEndTimestamp = Date.now() + Math.min(config.time, FIRE_MAX_DURATION);
+        } else if (config.updateMode === 'append') {
+            this.fireEndTimestamp += Math.min(config.time, FIRE_MAX_DURATION);
+        }
+
+        if (config.pulseId) {
+            this.firePulseId = config.pulseId;
         }
     }
 }

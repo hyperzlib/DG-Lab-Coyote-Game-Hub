@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-
 import { LRUCache } from "lru-cache";
-import { ExEventEmitter } from "../utils/ExEventEmitter";
-import { GameCustomPulseConfig, MainGameConfig } from '../types/game';
-import { DGLabPulseService } from './DGLabPulse';
+
+import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { GameCustomPulseConfig, GameCustomPulseConfigSchema, MainGameConfig, MainGameConfigSchema } from '#app/types/game.js';
+import { DGLabPulseService } from './DGLabPulse.js';
+import { z } from 'koa-swagger-decorator';
 
 export enum GameConfigType {
     MainGame = 'main-game',
@@ -52,17 +53,18 @@ export class CoyoteGameConfigService {
     public getDefaultConfig(type: GameConfigType) {
         if (type === GameConfigType.MainGame) {
             return {
+                fireStrengthLimit: 30,
                 strengthChangeInterval: [15, 30],
                 enableBChannel: false,
                 bChannelStrengthMultiplier: 1,
                 pulseId: DGLabPulseService.instance.getDefaultPulse().id,
                 pulseMode: 'single',
                 pulseChangeInterval: 60,
-            };
+            } as MainGameConfig;
         } else if (type === GameConfigType.CustomPulse) {
             return {
                 customPulseList: [],
-            };
+            } as GameCustomPulseConfig;
         }
     }
 
@@ -87,7 +89,28 @@ export class CoyoteGameConfigService {
         const configPath = path.join(this.gameConfigDir, `${clientId}.${type}.json`);
         if (fs.existsSync(configPath)) {
             const fileContent = await fs.promises.readFile(configPath, { encoding: 'utf-8' });
-            const config = JSON.parse(fileContent);
+            let config = JSON.parse(fileContent);
+
+            try {
+                switch (type) {
+                    case GameConfigType.MainGame:
+                        config = MainGameConfigSchema.parse(config);
+                        break;
+                    case GameConfigType.CustomPulse:
+                        config = GameCustomPulseConfigSchema.parse(config);
+                        break;
+                }
+            } catch (error: any) {
+                if (error instanceof z.ZodError) {
+                    console.error(`Config validation failed for ${cacheKey}:`, error.errors);
+                } else {
+                    console.error(`Error parsing config for ${cacheKey}:`, error);
+                }
+
+                // 使用默认配置
+                config = this.getDefaultConfig(type);
+            }
+
             this.configCache.set(cacheKey, config);
             return config;
         }

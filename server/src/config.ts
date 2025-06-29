@@ -1,7 +1,7 @@
 import yaml from 'js-yaml';
 import * as fs from 'fs';
-import { MainConfigType } from './types/config';
-import { validator } from './utils/validator';
+import { MainConfigSchema, MainConfigType } from './types/config.js';
+import { z } from 'koa-swagger-decorator';
 
 export class Config<ConfigType = any> {
     public value: ConfigType | null = null;
@@ -44,10 +44,19 @@ export class MainConfig {
         MainConfig.instance = new Config<MainConfigType>('config.yaml');
         await MainConfig.instance.load();
 
-        if (!validator.validateMainConfigType(MainConfig.value)) {
-            console.error('MainConfig validation failed.');
-            console.error(validator.validateMainConfigType.errors);
-            throw new Error(`MainConfig validation failed.`);
+        try {
+            MainConfig.instance.value = MainConfigSchema.parse(MainConfig.instance.value);
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                console.error('MainConfig validation failed:', error.errors);
+                throw new Error(`MainConfig validation failed: ${error.errors.map(e => e.message).join(', ')}`);
+            } else if (error instanceof Error) {
+                console.error('MainConfig validation failed:', error.message);
+                throw new Error(`MainConfig validation failed: ${error.message}`);
+            } else {
+                console.error('MainConfig validation failed:', error);
+                throw new Error('MainConfig validation failed: Unknown error');
+            }
         }
     }
 

@@ -55,6 +55,7 @@ export interface GameStrengthConfig {
 }
 
 export interface MainGameConfig {
+    fireStrengthLimit: number;
     strengthChangeInterval: [number, number];
 
     enableBChannel: boolean;

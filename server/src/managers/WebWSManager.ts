@@ -2,9 +2,9 @@ import { EventEmitter } from 'events';
 import { IncomingMessage } from 'http';
 import { WebSocket } from 'ws';
 
-import { OnExit } from '../utils/onExit';
-import { WebWSClient } from '../controllers/ws/WebWS';
-import { wrapAsyncWebSocket } from '../utils/WebSocketAsync';
+import { OnExit } from '#app/utils/onExit.js';
+import { WebWSClient } from '#app/controllers/ws/WebWS.js';
+import { wrapAsyncWebSocket } from '#app/utils/WebSocketAsync.js';
 
 export interface WebWSManagerEventsListener {
     clientConnected: [client: WebWSClient];

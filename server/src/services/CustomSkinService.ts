@@ -1,10 +1,6 @@
-import { CustomSkinManifest } from "../types/customSkin";
 import * as fs from 'fs';
-import { validator } from "../utils/validator";
-
-export type CustomSkinInfo = CustomSkinManifest & {
-    url: string;
-}
+import { CustomSkinInfo, CustomSkinManifest, CustomSkinManifestSchema } from "#app/types/customSkin.js";
+import { z } from 'koa-swagger-decorator';
 
 export class CustomSkinService {
     private static _instance: CustomSkinService;
@@ -48,12 +44,18 @@ export class CustomSkinService {
             }
 
             const manifestContent = await fs.promises.readFile(manifestPath, { encoding: 'utf-8' });
-            const manifest: CustomSkinManifest = JSON.parse(manifestContent);
+            let manifest: CustomSkinManifest = JSON.parse(manifestContent);
 
-            if (!validator.validateCustomSkinManifest(manifest)) {
-                console.error(`Invalid manifest for skin ${skinDir}`);
-                console.error(validator.validateCustomSkinManifest.errors);
-                continue;
+            try {
+                manifest = CustomSkinManifestSchema.parse(manifest);
+            } catch (error: any) {
+                if (error instanceof z.ZodError) {
+                    console.error(`Invalid manifest for skin ${skinDir}:`, error.errors);
+                    continue;
+                } else {
+                    console.error(`Error parsing manifest for skin ${skinDir}:`, error);
+                    continue;
+                }
             }
 
             let skinIndexUrl = `${this.skinsBaseUrl}/${skinDir}/${manifest.main}`;

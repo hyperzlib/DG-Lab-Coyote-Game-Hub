@@ -1,13 +1,34 @@
 import { Context } from 'koa';
 import { RouterContext } from 'koa-router';
-import { CoyoteGameManager } from '../../managers/CoyoteGameManager';
-import { GameStrengthConfig, MainGameConfig } from '../../types/game';
-import { CoyoteGameController } from '../game/CoyoteGameController';
-import { MainConfig } from '../../config';
-import { DGLabPulseService } from '../../services/DGLabPulse';
-import { asleep } from '../../utils/utils';
-import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
-import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction';
+import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
+import { GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
+import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import { MainConfig } from '#app/config.js';
+import { DGLabPulseService } from '#app/services/DGLabPulse.js';
+import { asleep } from '#app/utils/utils.js';
+import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
+import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction.js';
+import { body, responses, routeConfig, z } from 'koa-swagger-decorator';
+import {
+    ClientIdSchema,
+    GetGameApiInfoResponse,
+    GetGameApiInfoResponseSchema,
+    GetGameInfoResponse,
+    GetGameInfoResponseSchema,
+    GetGameStrengthConfigResponse,
+    GetGameStrengthConfigResponseSchema,
+    GetPulseIdResponse,
+    GetPulseIdResponseSchema,
+    GetPulseListResponse,
+    GetPulseListResponseSchema,
+    SetConfigResponse,
+    SetConfigResponseSchema,
+    SetPulseIdRequest,
+    SetPulseIdRequestSchema,
+    SetStrengthConfigRequestSchema,
+    StartFireActionRequest,
+    StartFireActionRequestSchema
+} from './schemas/GameApi.js';
 
 export type SetStrengthConfigRequest = {
     strength?: {
@@ -145,7 +166,7 @@ export class GameStrengthUpdateQueue {
 const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
 export class GameApiController {
-    private static async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {
+    private async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {
         if (!ctx.params.id) {
             apiResponse(ctx, {
                 status: 0,
@@ -154,6 +175,8 @@ export class GameApiController {
             });
             return null;
         }
+
+        console.log('params', ctx.params);
 
         const game = CoyoteGameManager.instance.getGame(ctx.params.id);
         if (!game) {
@@ -168,17 +191,38 @@ export class GameApiController {
         return game;
     }
 
-    public static async gameApiInfo(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'get',
+        path: '/api/game',
+        summary: '获取游戏API信息',
+        operationId: 'Get Game API Info',
+        tags: ['Game V1'],
+    })
+    @responses(GetGameApiInfoResponseSchema)
+    public async gameApiInfo(ctx: RouterContext): Promise<void> {
         apiResponse(ctx, {
             status: 1,
             code: 'OK',
             message: 'Coyote Live 游戏API',
             minApiVersion: 1,
             maxApiVersion: 1,
-        });
+        } as GetGameApiInfoResponse);
     };
 
-    public static async gameInfo(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'get',
+        path: '/api/game/{id}',
+        summary: '获取游戏信息',
+        operationId: 'Get Game Info',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetGameInfoResponseSchema)
+    public async gameInfo(ctx: RouterContext): Promise<void> {
         let game: CoyoteGameController | null = null;
         let clientId = '';
         if (ctx.params.id === 'all') {
@@ -194,7 +238,7 @@ export class GameApiController {
             game = CoyoteGameManager.instance.getGameList().next().value;
             clientId = game!.clientId;
         } else {
-            game = await GameApiController.requestGameInstance(ctx);
+            game = await this.requestGameInstance(ctx);
             clientId = ctx.params.id;
         }
 
@@ -217,7 +261,7 @@ export class GameApiController {
                 gameConfig,
                 clientStrength: game.clientStrength,
                 currentPulseId: game.pulsePlayList.getCurrentPulseId(),
-            });
+            } as GetGameInfoResponse);
         } else {
             apiResponse(ctx, {
                 status: 1,
@@ -225,11 +269,25 @@ export class GameApiController {
                 strengthConfig: null,
                 gameConfig,
                 clientStrength: null,
-            });
+                currentPulseId: '',
+            } as GetGameInfoResponse);
         }
     }
 
-    public static async getGameStrength(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'get',
+        path: '/api/game/{id}/strength_config',
+        summary: '获取游戏强度配置',
+        operationId: 'Get Game Strength Info',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetGameStrengthConfigResponseSchema)
+    public async getGameStrength(ctx: RouterContext): Promise<void> {
         let game: CoyoteGameController | null = null;
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
@@ -243,7 +301,7 @@ export class GameApiController {
 
             game = CoyoteGameManager.instance.getGameList().next().value;
         } else {
-            game = await GameApiController.requestGameInstance(ctx);
+            game = await this.requestGameInstance(ctx);
         }
         
         if (!game) {
@@ -259,15 +317,24 @@ export class GameApiController {
             status: 1,
             code: 'OK',
             strengthConfig: game.strengthConfig,
-        });
+        } as GetGameStrengthConfigResponse);
     }
 
-    /**
-     * 设置游戏强度
-     * @param ctx 
-     * @returns 
-     */
-    public static async setGameStrength(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'post',
+        path: '/api/game/{id}/strength_config',
+        summary: '设置游戏强度配置',
+        operationId: 'Set Game Strength Info',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @body(SetStrengthConfigRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async setGameStrength(ctx: RouterContext): Promise<void> {
         if (!ctx.params.id) {
             apiResponse(ctx, {
                 status: 0,
@@ -277,25 +344,16 @@ export class GameApiController {
             return;
         }
 
-        if (!ctx.request.body || Object.keys(ctx.request.body).length === 0) {
+        let postBody: SetStrengthConfigRequest;
+        try {
+            postBody = SetStrengthConfigRequestSchema.parse(ctx.request.body);
+        } catch (err: any) {
             apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
-                message: '无效的请求，参数为空',
+                message: `无效的请求，参数错误: ${err.message}`,
             });
             return;
-        }
-
-        // fix for x-www-form-urlencoded
-        const postBody = ctx.request.body;
-        for (const key1 in postBody) {
-            if (typeof postBody[key1] === 'object') {
-                for (const key2 in postBody[key1]) {
-                    if (postBody[key1][key2]) {
-                        postBody[key1][key2] = parseInt(postBody[key1][key2]);
-                    }
-                }
-            }
         }
 
         let gameList: Iterable<CoyoteGameController> = [];
@@ -339,7 +397,7 @@ export class GameApiController {
             code: 'OK',
             message: `成功设置了 ${successClientIds.size} 个游戏的强度配置`,
             successClientIds: Array.from(successClientIds),
-        });
+        } as SetConfigResponse);
     }
 
     /**
@@ -347,7 +405,20 @@ export class GameApiController {
      * @param ctx 
      * @returns 
      */
-    public static async getPulseId(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'get',
+        path: '/api/game/{id}/pulse_id',
+        summary: '获取游戏当前波形ID和波形播放列表',
+        operationId: 'Get Game Pulse ID',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetPulseIdResponseSchema)
+    public async getPulseId(ctx: RouterContext): Promise<void> {
         let clientId: string = '';
         if (ctx.params.id === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
@@ -396,7 +467,7 @@ export class GameApiController {
             code: 'OK',
             currentPulseId,
             pulseId: gameConfig.pulseId,
-        });
+        } as GetPulseIdResponse);
     }
 
     /**
@@ -404,7 +475,21 @@ export class GameApiController {
      * @param ctx 
      * @returns 
      */
-    public static async setPulseId(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'post',
+        path: '/api/game/{id}/pulse_id',
+        summary: '设置游戏波形播放列表',
+        operationId: 'Set Game Pulse ID',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @body(SetPulseIdRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async setPulseId(ctx: RouterContext): Promise<void> {
         if (!ctx.params.id) {
             apiResponse(ctx, {
                 status: 0,
@@ -423,9 +508,19 @@ export class GameApiController {
             return;
         }
 
-        const req = ctx.request.body as { pulseId: string | string[] };
+        let postBody: SetPulseIdRequest;
+        try {
+            postBody = SetPulseIdRequestSchema.parse(ctx.request.body);
+        } catch (err: any) {
+            apiResponse(ctx, {
+                status: 0,
+                code: 'ERR::INVALID_REQUEST',
+                message: `无效的请求，参数错误: ${err.message}`,
+            });
+            return;
+        }
 
-        if (!req.pulseId) {
+        if (!postBody.pulseId) {
             apiResponse(ctx, {
                 status: 0,
                 code: 'ERR::INVALID_REQUEST',
@@ -456,7 +551,7 @@ export class GameApiController {
         let successClientIds = new Set<string>();
         for (const clientId of clientIdList) {
             CoyoteGameConfigService.instance.update(clientId, GameConfigType.MainGame, {
-                pulseId: req.pulseId,
+                pulseId: postBody.pulseId,
             });
 
             successClientIds.add(clientId);
@@ -467,14 +562,27 @@ export class GameApiController {
             code: 'OK',
             message: `成功设置了 ${successClientIds.size} 个游戏的波形ID`,
             successClientIds: Array.from(successClientIds),
-        });
+        } as SetConfigResponse);
     }
 
     /**
      * 获取波形列表
      * @param ctx 
      */
-    public static async getPulseList(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'get',
+        path: '/api/game/{id}/pulse_list',
+        summary: '获取游戏波形列表',
+        operationId: 'Get Game Pulse List',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetPulseListResponseSchema)
+    public async getPulseList(ctx: RouterContext): Promise<void> {
         let pulseList: any[] = DGLabPulseService.instance.pulseList;
 
         if (ctx.params.id && ctx.params.id !== 'all') {
@@ -499,10 +607,24 @@ export class GameApiController {
             status: 1,
             code: 'OK',
             pulseList,
-        });
+        } as GetPulseListResponse);
     }
 
-    public static async startActionFire(ctx: RouterContext): Promise<void> {
+    @routeConfig({
+        method: 'post',
+        path: '/api/game/{id}/fire',
+        summary: '一键开火',
+        operationId: 'Start Action Fire',
+        tags: ['Game V1'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        },
+    })
+    @body(StartFireActionRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async startActionFire(ctx: RouterContext): Promise<void> {
         if (!ctx.params.id) {
             apiResponse(ctx, {
                 status: 0,
@@ -521,15 +643,16 @@ export class GameApiController {
             return;
         }
 
-        // fix for x-www-form-urlencoded
-        const postBody = ctx.request.body;
-        for (const key in postBody) {
-            if (['strength', 'time'].includes(key) && postBody[key]) {
-                postBody[key] = parseInt(postBody[key]);
-            } else if (['override'].includes(key) && postBody[key]) {
-                const val = postBody[key];
-                postBody[key] = val === 'true' || val === '1';
-            }
+        let postBody: StartFireActionRequest;
+        try {
+            postBody = await StartFireActionRequestSchema.parseAsync(ctx.request.body);
+        } catch (err: any) {
+            apiResponse(ctx, {
+                status: 0,
+                code: 'ERR::INVALID_REQUEST',
+                message: `无效的请求，参数错误: ${err.message}`,
+            });
+            return;
         }
 
         const req = postBody as FireRequest;
@@ -608,6 +731,6 @@ export class GameApiController {
             message: `成功向 ${successClientIds.size} 个游戏发送了一键开火指令`,
             successClientIds: Array.from(successClientIds),
             warnings,
-        });
+        } as SetConfigResponse);
     }
 }

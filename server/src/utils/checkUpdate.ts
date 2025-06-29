@@ -58,7 +58,7 @@ export async function checkUpdate(): Promise<UpdateInfo | false> {
         for (const api of apis) {
             try {
                 const res = await got(api.version.replace('{repo}', versionInfo.repo), {
-                    timeout: 5000,
+                    timeout: { request: 5000 },
                 }).json<VersionInfo>();
 
                 if (res.version && compareVersion(versionInfo.version, res.version)) {

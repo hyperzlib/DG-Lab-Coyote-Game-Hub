@@ -1,9 +1,9 @@
 import { EventEmitter } from "events";
-import { CoyoteGameController } from "../controllers/game/CoyoteGameController";
-import { DGLabWSClient } from "../controllers/ws/DGLabWS";
-import { DGLabWSManager } from "./DGLabWSManager";
 import { LRUCache } from "lru-cache";
-import { ExEventEmitter } from "../utils/ExEventEmitter";
+import { CoyoteGameController } from "#app/controllers/game/CoyoteGameController.js";
+import { DGLabWSClient } from "#app/controllers/ws/DGLabWS.js";
+import { DGLabWSManager } from "./DGLabWSManager.js";
+import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
 
 export interface CoyoteGameManagerEvents {
     

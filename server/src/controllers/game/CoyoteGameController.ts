@@ -1,18 +1,18 @@
 import { EventEmitter } from 'events';
 
-import { Channel } from '../../types/dg';
-import { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS';
-import { Task } from '../../utils/task';
-import { asleep, randomInt, simpleObjDiff } from '../../utils/utils';
-import { EventStore } from '../../utils/EventStore';
-import { CoyoteGameManager } from '../../managers/CoyoteGameManager';
-import { MainGameConfig, GameStrengthConfig } from '../../types/game';
-import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
-import { PulsePlayList } from '../../utils/PulsePlayList';
-import { AbstractGameAction } from './actions/AbstractGameAction';
-import { WebWSClient } from '../ws/WebWS';
-import { DGLabPulseInfo } from '../../services/DGLabPulse';
-import { LatencyLogger } from '../../utils/latencyLogger';
+import { Channel } from '#app/types/dg.js';
+import { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS.js';
+import { Task } from '#app/utils/task.js';
+import { asleep, randomInt, simpleObjDiff } from '#app/utils/utils.js';
+import { EventStore } from '#app/utils/EventStore.js';
+import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
+import { MainGameConfig, GameStrengthConfig } from '#app/types/game.js';
+import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
+import { PulsePlayList } from '#app/utils/PulsePlayList.js';
+import { AbstractGameAction } from './actions/AbstractGameAction.js';
+import { WebWSClient } from '../ws/WebWS.js';
+import { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
+import { LatencyLogger } from '#app/utils/latencyLogger.js';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;

@@ -1,5 +1,3 @@
-
-
 export class PulsePlayList {
     public mode: 'single' | 'sequence' | 'random' = 'single';
 

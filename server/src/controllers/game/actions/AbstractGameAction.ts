@@ -1,4 +1,4 @@
-import { CoyoteGameController } from "../CoyoteGameController";
+import { CoyoteGameController } from "../CoyoteGameController.js";
 
 export abstract class AbstractGameAction<ActionConfig = any> {
     /** 游戏动作的默认权重 */

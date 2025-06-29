@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
-import { asleep } from "./utils";
-import { LatencyLogger } from "./latencyLogger";
+import { asleep } from "./utils.js";
+import { LatencyLogger } from "./latencyLogger.js";
 
 export class TaskAbortedError extends Error {
     constructor() {

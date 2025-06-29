@@ -1,0 +1,155 @@
+{
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 8920,
+      "description": "服务器端口号，范围1-65535，默认8920"
+    },
+    "host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "服务器主机名或IP地址，默认localhost"
+    },
+    "reverseProxy": {
+      "type": "boolean",
+      "default": false,
+      "description": "是否启用反向代理，默认false"
+    },
+    "webBaseUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "网页控制台的Base URL"
+    },
+    "webWsBaseUrl": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "not": {}
+            },
+            {
+              "type": "string",
+              "format": "uri"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "网页控制台的WebSocket Base URL"
+    },
+    "clientWsBaseUrl": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "not": {}
+            },
+            {
+              "type": "string",
+              "format": "uri"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "DG-Lab客户端连接时的WebSocket URL"
+    },
+    "apiBaseHttpUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "API的基础URL"
+    },
+    "enableAccessLogger": {
+      "type": "boolean",
+      "default": false,
+      "description": "是否启用访问日志记录，默认false"
+    },
+    "pulseConfigPath": {
+      "type": "string",
+      "default": "pulse.json",
+      "description": "波形配置文件路径"
+    },
+    "openBrowser": {
+      "type": "boolean",
+      "default": false,
+      "description": "服务器启动后是否自动打开浏览器，默认false"
+    },
+    "allowBroadcastToClients": {
+      "type": "boolean",
+      "default": false,
+      "description": "是否允许插件API向所有客户端发送指令，默认false"
+    },
+    "hideWebUpdateNotification": {
+      "type": "boolean",
+      "default": false,
+      "description": "是否在网页控制台隐藏更新通知，默认false"
+    },
+    "siteNotifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "通知标题"
+          },
+          "message": {
+            "type": "string",
+            "description": "通知内容"
+          },
+          "icon": {
+            "type": "string",
+            "description": "通知图标"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "success",
+              "info",
+              "warn",
+              "error",
+              "secondary",
+              "contrast"
+            ],
+            "description": "通知类型"
+          },
+          "ignoreId": {
+            "type": "string",
+            "description": "通知的ID，如果存在则此通知可以忽略"
+          },
+          "sticky": {
+            "type": "boolean",
+            "default": false,
+            "description": "阻止通知自动关闭"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "点击通知后打开的URL"
+          },
+          "urlLabel": {
+            "type": "string",
+            "description": "打开URL的按钮文本"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "远程通知信息"
+      },
+      "default": [],
+      "description": "站点通知列表"
+    }
+  },
+  "additionalProperties": true,
+  "description": "服务器主配置",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

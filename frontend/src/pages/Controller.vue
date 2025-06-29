@@ -25,6 +25,7 @@ export interface ControllerPageState {
   strengthVal: number;
   randomStrengthVal: number;
   strengthLimit: number;
+  fireStrengthLimit: number;
   tempStrength: number;
   randomFreq: number[];
   bChannelEnabled: boolean;
@@ -55,6 +56,7 @@ const state = reactive<ControllerPageState>({
 
   strengthVal: 5,
   randomStrengthVal: 5,
+  fireStrengthLimit: 30,
   strengthLimit: 20,
 
   tempStrength: 0,
@@ -113,6 +115,7 @@ let oldGameConfig: MainGameConfig | null = null;
 const gameConfig = computed<MainGameConfig>({
   get: () => {
     return {
+      fireStrengthLimit: state.fireStrengthLimit,
       strengthChangeInterval: state.randomFreq,
       enableBChannel: state.bChannelEnabled,
       bChannelStrengthMultiplier: state.bChannelMultiple,
@@ -123,6 +126,7 @@ const gameConfig = computed<MainGameConfig>({
     } as MainGameConfig;
   },
   set: (value) => {
+    state.fireStrengthLimit = value.fireStrengthLimit;
     state.randomFreq = value.strengthChangeInterval;
     state.bChannelEnabled = value.enableBChannel;
     state.bChannelMultiple = value.bChannelStrengthMultiplier;

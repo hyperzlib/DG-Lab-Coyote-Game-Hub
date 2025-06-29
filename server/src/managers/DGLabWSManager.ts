@@ -1,11 +1,11 @@
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import { IncomingMessage } from 'http';
-import { wrapAsyncWebSocket } from '../utils/WebSocketAsync';
-import { RetCode } from '../types/dg';
-import { DGLabWSClient } from '../controllers/ws/DGLabWS';
-import { OnExit } from '../utils/onExit';
-import { Config, MainConfig } from '../config';
+import { wrapAsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import { RetCode } from '#app/types/dg.js';
+import { DGLabWSClient } from '#app/controllers/ws/DGLabWS.js';
+import { OnExit } from '#app/utils/onExit.js';
+import { Config, MainConfig } from '#app/config.js';
 
 export interface DGLabWSManagerEventsListener {
     clientConnected: [client: DGLabWSClient];

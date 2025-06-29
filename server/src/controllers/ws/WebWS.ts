@@ -1,13 +1,14 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { AsyncWebSocket } from '../../utils/WebSocketAsync';
-import { EventStore } from '../../utils/EventStore';
-import { CoyoteGameManager } from '../../managers/CoyoteGameManager';
-import { CoyoteGameController } from '../game/CoyoteGameController';
-import { validator } from '../../utils/validator';
-import { CoyoteGameConfigService, GameConfigType } from '../../services/CoyoteGameConfigService';
-import { DGLabPulseService } from '../../services/DGLabPulse';
-import { SiteNotificationService } from '../../services/SiteNotificationService';
+import { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import { EventStore } from '#app/utils/EventStore.js';
+import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
+import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
+import { DGLabPulseService } from '#app/services/DGLabPulse.js';
+import { SiteNotificationService } from '#app/services/SiteNotificationService.js';
+import { GameCustomPulseConfigSchema, GameStrengthConfig, GameStrengthConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
+import { z } from 'koa-swagger-decorator';
 
 export type WebWSPostMessage = {
     event: string;
@@ -242,13 +243,27 @@ export class WebWSClient {
                 message: '数据包错误：config 不存在',
             });
             return;
-        } else if (!validator.validateGameStrengthConfig(message.config)) {
-            await this.sendResponse(message.requestId, {
-                status: 0,
-                message: '数据包错误：config 格式错误',
-                detail: validator.validateMainGameConfig.errors,
-            });
-            return;
+        }
+
+        let strengthConfig: GameStrengthConfig;
+        try {
+            strengthConfig = GameStrengthConfigSchema.parse(message.config);
+        } catch (error: any) {
+            if (error instanceof z.ZodError) {
+                await this.sendResponse(message.requestId, {
+                    status: 0,
+                    message: '数据包错误：config 格式错误',
+                    detail: error.errors,
+                });
+                return;
+            } else {
+                await this.sendResponse(message.requestId, {
+                    status: 0,
+                    message: '数据包错误：config 格式错误',
+                    detail: error,
+                });
+                return;
+            }
         }
 
         await this.gameInstance.updateStrengthConfig(message.config);
@@ -265,22 +280,42 @@ export class WebWSClient {
 
         switch (message.type) {
             case GameConfigType.MainGame:
-                if (!validator.validateMainGameConfig(message.config)) {
-                    await this.sendResponse(message.requestId, {
-                        status: 0,
-                        message: '数据包错误：config 格式错误',
-                        detail: validator.validateMainGameConfig.errors,
-                    });
+                try {
+                    message.config = MainGameConfigSchema.parse(message.config);
+                } catch (error: any) {
+                    if (error instanceof z.ZodError) {
+                        await this.sendResponse(message.requestId, {
+                            status: 0,
+                            message: '数据包错误：config 格式错误',
+                            detail: error.errors,
+                        });
+                    } else {
+                        await this.sendResponse(message.requestId, {
+                            status: 0,
+                            message: '数据包错误：config 格式错误',
+                            detail: error,
+                        });
+                    }
                     return;
                 }
                 break;
             case GameConfigType.CustomPulse:
-                if (!validator.validateGameCustomPulseConfig(message.config)) {
-                    await this.sendResponse(message.requestId, {
-                        status: 0,
-                        message: '数据包错误：config 格式错误',
-                        detail: validator.validateGameCustomPulseConfig.errors,
-                    });
+                try {
+                    message.config = GameCustomPulseConfigSchema.parse(message.config);
+                } catch (error: any) {
+                    if (error instanceof z.ZodError) {
+                        await this.sendResponse(message.requestId, {
+                            status: 0,
+                            message: '数据包错误：config 格式错误',
+                            detail: error.errors,
+                        });
+                    } else {
+                        await this.sendResponse(message.requestId, {
+                            status: 0,
+                            message: '数据包错误：config 格式错误',
+                            detail: error,
+                        });
+                    }
                     return;
                 }
                 break;

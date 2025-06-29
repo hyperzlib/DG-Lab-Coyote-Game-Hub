@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "update-lock": "npm i --package-lock-only",
     "build:schema": "tsx cli/build-schema.js",
     "build:ts": "tsc",
     "build": "npm run build:schema && npm run build:ts"

@@ -1,0 +1,16 @@
+{
+  "name": "coyote-game-hub",
+  "version": "1.5.0",
+  "description": "战败惩罚——郊狼游戏控制器",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "keywords": [
+    "DG-Lab",
+    "obs"
+  ],
+  "author": "Hyperzlib",
+  "license": "MIT"
+}

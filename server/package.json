@@ -9,7 +9,8 @@
     "update-lock": "npm i --package-lock-only",
     "build:schema": "tsx cli/build-schema.js",
     "build:ts": "tsc",
-    "build": "npm run build:schema && npm run build:ts"
+    "build": "npm run build:schema && npm run build:ts",
+    "build:bundled": "ncc build dist/index.js -o dist-bundled --license licenses.txt"
   },
   "bin": "dist/index.js",
   "pkg": {
@@ -37,6 +38,7 @@
     "@types/koa-static": "^4.0.4",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
+    "@vercel/ncc": "^0.38.3",
     "ts-json-schema-generator": "^2.3.0",
     "tsx": "^4.15.7",
     "typescript": "^5.4.5"

@@ -7,6 +7,7 @@ node_modules/
 
 /server/config.yaml
 /server/dist
+/server/dist-bundled
 /server/public
 !/server/public/.gitkeep
 

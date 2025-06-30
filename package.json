@@ -6,10 +6,11 @@
   "scripts": {
     "build:frontend": "cd frontend && npm run build && cd ..",
     "build:server": "cd server && npm run build && cd ..",
+    "build:server:bundled": "cd server && npm run build:bundled && cd ..",
     "build:migrate": "shx cp -r frontend/dist/* server/public",
-    "build": "npm run build:frontend && npm run build:server && npm run build:migrate",
+    "build": "npm run build:frontend && npm run build:server && npm run build:server:bundled && npm run build:migrate",
     "build:pkg:assets": "shx mkdir -p build && shx cp -r server/data build && shx cp -r server/public build && shx cp server/config.example.yaml build && shx cp version.json build",
-    "build:pkg:nodejs": "shx cp -r server/dist build/server && shx cp package-dist.json build/package.json",
+    "build:pkg:nodejs": "shx cp -r server/dist-bundled build/server && shx mv build/server/package.json build/package.json",
     "build:pkg:win": "npm run build:pkg:nodejs && cd build && npm install --omit=dev && shx cp ../release-res/start.bat .",
     "build:pkg:clean": "shx rm -rf build",
     "start": "cd server && node dist/index.js"

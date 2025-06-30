@@ -49,17 +49,23 @@ jobs:
     - name: Build nodejs release
       run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:nodejs
     - name: Move Files to artifact dir
-      run: mkdir -p artifacts && mv build artifacts/coyote-game-hub
+      run: mkdir -p artifacts && cp -r build artifacts/coyote-game-hub
     - name: Archive nodejs artifact
       uses: actions/upload-artifact@v4
       with:
         name: coyote-game-hub-nodejs-server
         path: |
           artifacts
-    - name: Clean up
+    - name: Clean up artifacts
       run: rm -rf artifacts
-    - name: Build Windows executable
-      run: npm run build:pkg:clean && npm run build:pkg:assets && npm run build:pkg:win
+    - name: Build Windows distribution
+      run: npm run build:pkg:win
+    - name: Download Node.js runtime for Windows
+      run: |
+        mkdir -p build/bin
+        curl -o nodejs.zip https://nodejs.org/dist/v22.12.0/node-v22.12.0-win-x64.zip
+        unzip -j nodejs.zip node-v22.12.0-win-x64/node.exe -d build/bin/
+        rm nodejs.zip
     - name: Move Files to artifact dir
       run: mkdir -p artifacts && mv build artifacts/coyote-game-hub
     - name: Archive Windows artifact

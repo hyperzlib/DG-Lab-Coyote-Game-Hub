@@ -40,7 +40,7 @@ jobs:
       run: npm ci
       working-directory: ./server
     - name: Build server
-      run: npm run build --if-present
+      run: npm run build --if-present && npm run build:bundled --if-present
       working-directory: ./server
     - name: Install root packages
       run: npm ci

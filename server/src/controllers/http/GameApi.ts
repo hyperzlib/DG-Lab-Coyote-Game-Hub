@@ -205,9 +205,21 @@ export class GameApiController {
             code: 'OK',
             message: 'Coyote Live 游戏API',
             minApiVersion: 1,
-            maxApiVersion: 1,
+            maxApiVersion: 2,
         } as GetGameApiInfoResponse);
     };
+
+    @routeConfig({
+        method: 'get',
+        path: '/api/v2/game',
+        summary: '获取游戏API信息',
+        operationId: 'Get Game API Info V2',
+        tags: ['Game V2'],
+    })
+    @responses(GetGameApiInfoResponseSchema)
+    public async gameApiInfoV2(ctx: RouterContext): Promise<void> {
+        return await this.gameApiInfo(ctx);
+    }
 
     @routeConfig({
         method: 'get',
@@ -276,6 +288,23 @@ export class GameApiController {
 
     @routeConfig({
         method: 'get',
+        path: '/api/v2/game/{id}',
+        summary: '获取游戏信息',
+        operationId: 'Get Game Info V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetGameInfoResponseSchema)
+    public async gameInfoV2(ctx: RouterContext): Promise<void> {
+        return await this.gameInfo(ctx);
+    }
+
+    @routeConfig({
+        method: 'get',
         path: '/api/game/{id}/strength_config',
         summary: '获取游戏强度配置',
         operationId: 'Get Game Strength Info',
@@ -318,6 +347,23 @@ export class GameApiController {
             code: 'OK',
             strengthConfig: game.strengthConfig,
         } as GetGameStrengthConfigResponse);
+    }
+
+    @routeConfig({
+        method: 'get',
+        path: '/api/v2/game/{id}/strength',
+        summary: '获取游戏强度配置',
+        operationId: 'Get Game Strength Info V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetGameStrengthConfigResponseSchema)
+    public async getGameStrengthV2(ctx: RouterContext): Promise<void> {
+        return await this.getGameStrength(ctx);
     }
 
     @routeConfig({
@@ -400,6 +446,24 @@ export class GameApiController {
         } as SetConfigResponse);
     }
 
+    @routeConfig({
+        method: 'post',
+        path: '/api/v2/game/{id}/strength',
+        summary: '设置游戏强度配置',
+        operationId: 'Set Game Strength Info V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @body(SetStrengthConfigRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async setGameStrengthV2(ctx: RouterContext): Promise<void> {
+        return await this.setGameStrength(ctx);
+    }
+
     /**
      * 获取当前波形
      * @param ctx 
@@ -468,6 +532,23 @@ export class GameApiController {
             currentPulseId,
             pulseId: gameConfig.pulseId,
         } as GetPulseIdResponse);
+    }
+
+    @routeConfig({
+        method: 'get',
+        path: '/api/v2/game/{id}/pulse',
+        summary: '获取游戏当前波形ID和波形播放列表',
+        operationId: 'Get Game Pulse ID V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetPulseIdResponseSchema)
+    public async getPulseIdV2(ctx: RouterContext): Promise<void> {
+        return await this.getPulseId(ctx);
     }
 
     /**
@@ -565,6 +646,25 @@ export class GameApiController {
         } as SetConfigResponse);
     }
 
+    
+    @routeConfig({
+        method: 'post',
+        path: '/api/v2/game/{id}/pulse',
+        summary: '设置游戏波形播放列表',
+        operationId: 'Set Game Pulse ID V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @body(SetPulseIdRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async setPulseIdV2(ctx: RouterContext): Promise<void> {
+        return await this.setPulseId(ctx);
+    }
+
     /**
      * 获取波形列表
      * @param ctx 
@@ -608,6 +708,23 @@ export class GameApiController {
             code: 'OK',
             pulseList,
         } as GetPulseListResponse);
+    }
+
+    @routeConfig({
+        method: 'get',
+        path: '/api/v2/game/{id}/pulse_list',
+        summary: '获取游戏波形列表',
+        operationId: 'Get Game Pulse List V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        }
+    })
+    @responses(GetPulseListResponseSchema)
+    public async getPulseListV2(ctx: RouterContext): Promise<void> {
+        return await this.getPulseList(ctx);
     }
 
     @routeConfig({
@@ -732,5 +849,23 @@ export class GameApiController {
             successClientIds: Array.from(successClientIds),
             warnings,
         } as SetConfigResponse);
+    }
+
+    @routeConfig({
+        method: 'post',
+        path: '/api/v2/game/{id}/action/fire',
+        summary: '一键开火',
+        operationId: 'Start Action Fire V2',
+        tags: ['Game V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        },
+    })
+    @body(StartFireActionRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async startActionFireV2(ctx: RouterContext): Promise<void> {
+        return await this.startActionFire(ctx);
     }
 }

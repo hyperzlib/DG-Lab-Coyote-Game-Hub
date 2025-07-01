@@ -312,7 +312,8 @@ export class McpApiController {
             gameId: session.gameId!,
             isStarted: game?.running || false,
             currentStrength: game?.strengthConfig.strength || 0,
-            strengthLimit: 200,
+            randomStrengthRange: game?.strengthConfig.randomStrength || 0,
+            strengthLimit: game?.clientStrength.limit || 0,
             currentPulseId: Array.isArray(gameConfig?.pulseId) ? gameConfig.pulseId[0] : (gameConfig?.pulseId || 'default'),
             message: game ? this.getStrengthStatusMessage(game, "获取游戏状态") : '未连接到游戏（控制器）',
         };
@@ -769,7 +770,7 @@ export class McpApiController {
     private static async handleResourcesRead(session: SSESession, params: any) {
         const { uri } = ResourcesReadParamsSchema.parse(params);
 
-        if (uri === `game://${session.gameId}/strength`) {
+        if (uri === `game://strength`) {
             const validation = this.validateGame(session.gameId!);
             if (!validation.valid) {
                 throw validation.error;
@@ -851,7 +852,7 @@ export class McpApiController {
      */
     private static getStrengthStatusMessage(game: CoyoteGameController, operation: string, oldStrength?: number, newStrength?: number): string {
         const current = newStrength ?? game.strengthConfig.strength ?? 0;
-        const limit = 200;
+        const limit = game.clientStrength.limit ?? 20;
         const random = game.strengthConfig.randomStrength ?? 0;
         const started = game.running ? "已启动" : "未启动";
 
@@ -859,15 +860,17 @@ export class McpApiController {
         if (oldStrength !== undefined && newStrength !== undefined) {
             message += `强度从 ${oldStrength} 调整到 ${newStrength}。`;
         }
-        message += `当前电量: ${current}/${limit}，随机电量范围: ±${random}，电击状态: ${started}。`;
+        message += `当前电量: ${current}/上限: ${limit}，随机电量范围: ±${random}，电击状态: ${started}。`;
 
-        if (current === 0) {
+        let strengthPercentage = limit !== 0 ? (current / limit) * 100 : 0;
+
+        if (strengthPercentage === 0) {
             message += " 当前没有电击输出。";
-        } else if (current < 50) {
+        } else if (strengthPercentage < 25) {
             message += " 当前电击强度较低。";
-        } else if (current < 100) {
+        } else if (strengthPercentage < 50) {
             message += " 当前电击强度中等。";
-        } else if (current < 150) {
+        } else if (strengthPercentage < 75) {
             message += " 当前电击强度较高。";
         } else {
             message += " 当前电击强度很高！";

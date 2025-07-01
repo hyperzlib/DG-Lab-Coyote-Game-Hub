@@ -22,7 +22,7 @@ const visible = defineModel('visible');
 const state = reactive({
   theme: 'default',
   chartParams: {} as Record<string, string>,
-  themeLoading: true,
+  themeLoading: false,
 });
 
 const getThemeNameFromPath = (path: string) => {

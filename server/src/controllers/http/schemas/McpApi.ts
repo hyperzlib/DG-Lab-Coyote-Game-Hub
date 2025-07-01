@@ -108,6 +108,7 @@ export const GameStatusSchema = z.object({
     gameId: z.string().describe("游戏 ID"),
     isStarted: z.boolean().describe("电击是否已启动"),
     currentStrength: z.number().int().min(0).max(200).describe("当前电击强度"),
+    randomStrengthRange: z.number().int().min(0).max(200).describe("随机电击强度范围"),
     strengthLimit: z.number().int().min(0).max(200).describe("电击强度限制"),
     currentPulseId: z.string().optional().describe("当前波形 ID"),
     message: z.string().optional().describe("状态消息"),

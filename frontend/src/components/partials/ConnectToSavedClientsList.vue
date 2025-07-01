@@ -59,6 +59,10 @@ const connectToClient = (clientId: string) => {
 .clientsList-container {
   --p-dataview-content-background: var(--p-surface-50);
 
+  @media (prefers-color-scheme: dark) {
+    --p-dataview-content-background: var(--p-surface-950);
+  }
+
   height: 50vh;
   overflow-y: auto;
   scrollbar-width: thin;

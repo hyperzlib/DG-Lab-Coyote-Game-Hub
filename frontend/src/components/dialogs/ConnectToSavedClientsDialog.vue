@@ -37,5 +37,9 @@ const onConnectToClient = (clientId: string) => {
 <style lang="scss">
 .connectedToSavedClients-dialog {
   --p-dialog-background: var(--p-surface-50);
+
+  @media (prefers-color-scheme: dark) {
+    --p-dialog-background: var(--p-surface-950);
+  }
 }
 </style>

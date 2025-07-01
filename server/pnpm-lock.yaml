@@ -90,9 +90,6 @@ importers:
       '@vercel/ncc':
         specifier: ^0.38.3
         version: 0.38.3
-      esbuild:
-        specifier: ^0.25.5
-        version: 0.25.5
       ts-json-schema-generator:
         specifier: ^2.3.0
         version: 2.4.0

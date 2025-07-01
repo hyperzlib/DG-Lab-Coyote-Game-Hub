@@ -46,6 +46,14 @@ const gameConnectCode = computed(() => {
   }
 });
 
+const mcpApiUrl = computed(() => {
+  if (props.controllerUrl) {
+    return `${props.controllerUrl}/api/mcp/${props.clientId}`;
+  }
+
+  return '';
+});
+
 const copyInput = (inputId: string) => {
   const input = document.getElementById(inputId) as HTMLInputElement;
   inputToClipboard(input);
@@ -87,9 +95,19 @@ watch(() => state.inputClientName, (value) => {
       <label class="font-semibold w-30">客户端ID</label>
       <InputText :value="props.clientId" class="w-full" readonly />
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 mb-4">
       <label class="font-semibold w-30">连接方式</label>
       <InputText :value="connectorTypeStr" class="w-full" readonly />
+    </div>
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <label class="font-semibold w-30">MCP API</label>
+        <InputText :value="mcpApiUrl" class="w-full" readonly />
+      </div>
+      <span class="text-gray-500 ml-28">可以使用支持MCP的AI客户端连接，如
+        <a href="https://www.cherry-ai.com/">Cherry Studio</a>,
+        <a href="https://cline.bot/">Cline</a>
+      </span>
     </div>
   </Dialog>
 </template>

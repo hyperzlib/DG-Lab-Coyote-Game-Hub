@@ -88,6 +88,11 @@ export const GetGameStrengthConfigResponseSchema = ApiResponseSchema.extend({
 }).describe('获取游戏强度配置响应格式');
 export type GetGameStrengthConfigResponse = z.infer<typeof GetGameStrengthConfigResponseSchema>;
 
+export const ConnectGameRequestSchema = z.object({
+    gameId: z.string().describe('游戏ID'),
+}).describe('连接游戏请求格式');
+export type ConnectGameRequest = z.infer<typeof ConnectGameRequestSchema>;
+
 export const SetStrengthConfigRequestSchema = z.object({
     strength: z.object({
         add: AutoCastInt(z.number()).optional().describe('增加的强度'),

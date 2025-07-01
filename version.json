@@ -1,7 +1,7 @@
 {
     "repo": "hyperzlib/DG-Lab-Coyote-Game-Hub",
     "version": "2.0.0",
-    "description": "1. 增加蓝牙重连功能\n2. 增加链接码显示\n3. 优化部分文本",
+    "description": "1. 将API重写为OpenAPI规范的MCP API\n2. 支持Model Control Protocol (MCP) API，现在可以使用支持MCP的AI客户端连接",
     "releaseFile": {
         "windows": "coyote-game-hub-windows-amd64-dist.zip",
         "linux": "coyote-game-hub-nodejs-server.zip",

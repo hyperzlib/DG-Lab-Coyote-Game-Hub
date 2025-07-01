@@ -6,6 +6,7 @@ import { WebController } from './controllers/http/Web.js';
 import { WebWSManager } from './managers/WebWSManager.js';
 import { MainConfigType } from './types/config.js';
 import { GameApiController } from './controllers/http/GameApi.js';
+import { McpApiController } from './controllers/http/McpApi.js';
 
 export const createSwaggerRouter = (config: MainConfigType) => {
     let publicUrl = config.webBaseUrl || `http://localhost:${config.port}`;
@@ -37,6 +38,7 @@ export const createSwaggerRouter = (config: MainConfigType) => {
 
     swaggerRouter.applyRoute(WebController);
     swaggerRouter.applyRoute(GameApiController);
+    swaggerRouter.applyRoute(McpApiController);
 
     return swaggerRouter;
 };

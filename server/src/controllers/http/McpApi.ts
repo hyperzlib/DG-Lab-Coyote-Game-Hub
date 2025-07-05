@@ -265,210 +265,6 @@ export class McpApiController {
     }
 
     /**
-     * 验证游戏是否存在
-     */
-    private static validateGame(gameId?: string): { valid: boolean; game?: CoyoteGameController; error?: { code: number; message: string } } {
-        if (!gameId) {
-            return {
-                valid: false,
-                error: {
-                    code: MCP_ERROR_CODES.GAME_NOT_CONNECTED,
-                    message: "未连接到任何游戏，请先使用 connect_game 连接游戏"
-                }
-            };
-        }
-
-        if (gameId === 'all') {
-            return { valid: true };
-        }
-
-        const game = CoyoteGameManager.instance.getGame(gameId);
-        if (!game) {
-            return {
-                valid: false,
-                error: {
-                    code: MCP_ERROR_CODES.GAME_NOT_FOUND,
-                    message: `游戏 ${gameId} 不存在`
-                }
-            };
-        }
-
-        return { valid: true, game };
-    }
-
-    /**
-     * 获取游戏状态
-     */
-    private static async handleGetGameStatus(session: SSESession, params: any): Promise<GameStatus> {
-        const validation = this.validateGame(session.gameId);
-        if (!validation.valid) {
-            throw validation.error;
-        }
-
-        const game = validation.game;
-        const gameConfig = await CoyoteGameConfigService.instance.get(session.gameId!, GameConfigType.MainGame);
-
-        const status: GameStatus = {
-            gameId: session.gameId!,
-            isStarted: game?.running || false,
-            currentStrength: game?.strengthConfig.strength || 0,
-            randomStrengthRange: game?.strengthConfig.randomStrength || 0,
-            strengthLimit: game?.clientStrength.limit || 0,
-            currentPulseId: Array.isArray(gameConfig?.pulseId) ? gameConfig.pulseId[0] : (gameConfig?.pulseId || 'default'),
-            message: game ? this.getStrengthStatusMessage(game, "获取游戏状态") : '未连接到游戏（控制器）',
-        };
-
-        return status;
-    }
-
-    /**
-     * 设置强度
-     */
-    private static async handleSetStrength(session: SSESession, params: any) {
-        const validation = this.validateGame(session.gameId);
-        if (!validation.valid) {
-            throw validation.error;
-        }
-
-        const { strength } = SetStrengthParamsSchema.parse(params);
-
-        if (strength < 0 || strength > 200) {
-            throw {
-                code: MCP_ERROR_CODES.INVALID_STRENGTH,
-                message: `强度值必须在 0-200 之间，当前值: ${strength}`
-            };
-        }
-
-        // 获取游戏实例
-        const game = CoyoteGameManager.instance.getGame(session.gameId!);
-        if (!game) {
-            throw {
-                code: MCP_ERROR_CODES.GAME_NOT_FOUND,
-                message: `游戏 ${session.gameId} 不存在`
-            };
-        }
-
-        const oldStrength = game.strengthConfig?.strength || 0;
-
-        // 设置强度
-        game.updateStrengthConfig({
-            strength: strength,
-            randomStrength: game.strengthConfig.randomStrength,
-        });
-
-        // 发送资源更新通知
-        await this.notifyResourceUpdate(session.gameId!);
-
-        return {
-            success: true,
-            oldStrength,
-            newStrength: strength,
-            strengthLimit: 200,
-            randomStrength: game.strengthConfig.randomStrength || 0,
-            message: this.getStrengthStatusMessage(game, "设置电量", oldStrength, strength)
-        };
-    }
-
-    /**
-     * 设置波形
-     */
-    private static async handleSetPulse(session: SSESession, params: any) {
-        const validation = this.validateGame(session.gameId!);
-        if (!validation.valid) {
-            throw validation.error;
-        }
-
-        const { pulseId } = SetPulseParamsSchema.parse(params);
-
-        // 验证波形是否存在
-        const pulseList = DGLabPulseService.instance.pulseList;
-        const pulseExists = pulseList.some((pulse: any) => pulse.id === pulseId);
-
-        if (!pulseExists) {
-            throw {
-                code: MCP_ERROR_CODES.INVALID_PULSE_ID,
-                message: `波形 ${pulseId} 不存在`
-            };
-        }
-
-        // 更新游戏配置
-        CoyoteGameConfigService.instance.update(session.gameId!, GameConfigType.MainGame, {
-            pulseId
-        });
-
-        return {
-            success: true,
-            newPulseId: pulseId
-        };
-    }
-
-    /**
-     * 开火动作
-     */
-    private static async handleFireAction(session: SSESession, params: any) {
-        const validation = this.validateGame(session.gameId!);
-        if (!validation.valid) {
-            throw validation.error;
-        }
-
-        const { strength, duration = 5000, pulseId } = FireActionParamsSchema.parse(params);
-
-        const game = validation.game;
-        if (!game) {
-            throw {
-                code: MCP_ERROR_CODES.GAME_NOT_CONNECTED,
-                message: `游戏 ${session.gameId} 未连接`
-            };
-        }
-
-        // 生成开火 ID
-        const fireActionId = `fire_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-        try {
-            // 创建开火动作
-            const { GameFireAction } = await import('#app/controllers/game/actions/GameFireAction.js');
-
-            const fireAction = new GameFireAction({
-                strength,
-                time: duration,
-                pulseId: pulseId,
-                updateMode: 'append',
-            });
-
-            await game.startAction(fireAction);
-
-            // 发送资源更新通知
-            await this.notifyResourceUpdate(session.gameId!);
-
-            return {
-                success: true,
-                fireActionId,
-                actualDuration: duration,
-                message: `开火动作已启动！强度: ${strength}，持续时间: ${duration}ms。${this.getStrengthStatusMessage(game, "开火动作")}`
-            };
-        } catch (error) {
-            throw {
-                code: MCP_ERROR_CODES.OPERATION_FAILED,
-                message: `开火操作失败: ${error}`
-            };
-        }
-    }
-
-    /**
-     * 获取波形列表
-     */
-    private static async handleGetPulseList(session: SSESession, params: any) {
-        const pulseList = DGLabPulseService.instance.pulseList;
-
-        return {
-            pulses: pulseList.map((pulse: any) => ({
-                id: pulse.id,
-                name: pulse.name
-            }))
-        };
-    }
-
-    /**
      * 处理标准MCP初始化
      */
     private static async handleInitialize(params: any) {
@@ -749,6 +545,38 @@ export class McpApiController {
     }
 
     /**
+     * 验证游戏是否存在
+     */
+    private static validateGame(gameId?: string): { valid: boolean; game?: CoyoteGameController; error?: { code: number; message: string } } {
+        if (!gameId) {
+            return {
+                valid: false,
+                error: {
+                    code: MCP_ERROR_CODES.GAME_NOT_CONNECTED,
+                    message: "未连接到任何游戏，请先使用 connect_game 连接游戏"
+                }
+            };
+        }
+
+        if (gameId === 'all') {
+            return { valid: true };
+        }
+
+        const game = CoyoteGameManager.instance.getGame(gameId);
+        if (!game) {
+            return {
+                valid: false,
+                error: {
+                    code: MCP_ERROR_CODES.GAME_NOT_FOUND,
+                    message: `游戏 ${gameId} 不存在`
+                }
+            };
+        }
+
+        return { valid: true, game };
+    }
+
+    /**
      * 处理资源列表请求
      */
     private static async handleResourcesList(session: SSESession) {
@@ -911,6 +739,81 @@ export class McpApiController {
     }
 
     /**
+     * 获取游戏状态
+     */
+    private static async handleGetGameStatus(session: SSESession, params: any): Promise<GameStatus> {
+        const validation = this.validateGame(session.gameId);
+        if (!validation.valid) {
+            throw validation.error;
+        }
+
+        const game = validation.game;
+        const gameConfig = await CoyoteGameConfigService.instance.get(session.gameId!, GameConfigType.MainGame);
+
+        const status: GameStatus = {
+            gameId: session.gameId!,
+            isStarted: game?.running || false,
+            currentStrength: game?.strengthConfig.strength || 0,
+            randomStrengthRange: game?.strengthConfig.randomStrength || 0,
+            strengthLimit: game?.clientStrength.limit || 0,
+            currentPulseId: Array.isArray(gameConfig?.pulseId) ? gameConfig.pulseId[0] : (gameConfig?.pulseId || 'default'),
+            message: game ? this.getStrengthStatusMessage(game, "获取游戏状态") : '未连接到游戏（控制器）',
+        };
+
+        return status;
+    }
+
+    /**
+     * 设置强度
+     */
+    private static async handleSetStrength(session: SSESession, params: any) {
+        const validation = this.validateGame(session.gameId);
+        if (!validation.valid) {
+            throw validation.error;
+        }
+
+        let { strength } = SetStrengthParamsSchema.parse(params);
+
+        if (strength < 0 || strength > 200) {
+            throw {
+                code: MCP_ERROR_CODES.INVALID_STRENGTH,
+                message: `强度值必须在 0-200 之间，当前值: ${strength}`
+            };
+        }
+
+        // 获取游戏实例
+        const game = CoyoteGameManager.instance.getGame(session.gameId!);
+        if (!game) {
+            throw {
+                code: MCP_ERROR_CODES.GAME_NOT_FOUND,
+                message: `游戏 ${session.gameId} 不存在`
+            };
+        }
+
+        const oldStrength = game.strengthConfig?.strength || 0;
+
+        strength = Math.min(Math.max(strength, 0), game.clientStrength.limit); // 确保强度不超过限制
+
+        // 设置强度
+        game.updateStrengthConfig({
+            strength: strength,
+            randomStrength: game.strengthConfig.randomStrength,
+        });
+
+        // 发送资源更新通知
+        await this.notifyResourceUpdate(session.gameId!);
+
+        return {
+            success: true,
+            oldStrength,
+            newStrength: strength,
+            strengthLimit: 200,
+            randomStrength: game.strengthConfig.randomStrength || 0,
+            message: this.getStrengthStatusMessage(game, "设置电量", oldStrength, strength)
+        };
+    }
+
+    /**
      * 增加强度
      */
     private static async handleIncreaseStrength(session: SSESession, params: any) {
@@ -930,11 +833,11 @@ export class McpApiController {
         }
 
         const oldStrength = game.strengthConfig?.strength || 0;
-        const newStrength = Math.min(oldStrength + amount, 200);
+        const strength = Math.min(Math.max(oldStrength + amount, 0), game.clientStrength.limit); // 确保强度不超过限制
 
         // 设置强度
         game.updateStrengthConfig({
-            strength: newStrength,
+            strength: strength,
             randomStrength: game.strengthConfig.randomStrength,
         });
 
@@ -944,10 +847,10 @@ export class McpApiController {
         return {
             success: true,
             oldStrength,
-            newStrength,
+            newStrength: strength,
             strengthLimit: 200,
             randomStrength: game.strengthConfig.randomStrength || 0,
-            message: this.getStrengthStatusMessage(game, "增加电量", oldStrength, newStrength)
+            message: this.getStrengthStatusMessage(game, "增加电量", oldStrength, strength)
         };
     }
 
@@ -971,11 +874,11 @@ export class McpApiController {
         }
 
         const oldStrength = game.strengthConfig?.strength || 0;
-        const newStrength = Math.max(oldStrength - amount, 0);
+        const strength = Math.min(Math.max(oldStrength - amount, 0), game.clientStrength.limit); // 确保强度不超过限制
 
         // 设置强度
         game.updateStrengthConfig({
-            strength: newStrength,
+            strength: strength,
             randomStrength: game.strengthConfig.randomStrength,
         });
 
@@ -985,10 +888,109 @@ export class McpApiController {
         return {
             success: true,
             oldStrength,
-            newStrength,
+            newStrength: strength,
             strengthLimit: 200,
             randomStrength: game.strengthConfig.randomStrength || 0,
-            message: this.getStrengthStatusMessage(game, "减少电量", oldStrength, newStrength)
+            message: this.getStrengthStatusMessage(game, "减少电量", oldStrength, strength)
+        };
+    }
+
+    /**
+     * 设置波形
+     */
+    private static async handleSetPulse(session: SSESession, params: any) {
+        const validation = this.validateGame(session.gameId!);
+        if (!validation.valid) {
+            throw validation.error;
+        }
+
+        const { pulseId } = SetPulseParamsSchema.parse(params);
+
+        // 验证波形是否存在
+        const pulseList = DGLabPulseService.instance.pulseList;
+        const pulseExists = pulseList.some((pulse: any) => pulse.id === pulseId);
+
+        if (!pulseExists) {
+            throw {
+                code: MCP_ERROR_CODES.INVALID_PULSE_ID,
+                message: `波形 ${pulseId} 不存在`
+            };
+        }
+
+        // 更新游戏配置
+        CoyoteGameConfigService.instance.update(session.gameId!, GameConfigType.MainGame, {
+            pulseId
+        });
+
+        return {
+            success: true,
+            newPulseId: pulseId
+        };
+    }
+
+    /**
+     * 开火动作
+     */
+    private static async handleFireAction(session: SSESession, params: any) {
+        const validation = this.validateGame(session.gameId!);
+        if (!validation.valid) {
+            throw validation.error;
+        }
+
+        const { strength, duration = 5000, pulseId } = FireActionParamsSchema.parse(params);
+
+        const game = validation.game;
+        if (!game) {
+            throw {
+                code: MCP_ERROR_CODES.GAME_NOT_CONNECTED,
+                message: `游戏 ${session.gameId} 未连接`
+            };
+        }
+
+        // 生成开火 ID
+        const fireActionId = `fire_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        try {
+            // 创建开火动作
+            const { GameFireAction } = await import('#app/controllers/game/actions/GameFireAction.js');
+
+            const fireAction = new GameFireAction({
+                strength,
+                time: duration,
+                pulseId: pulseId,
+                updateMode: 'append',
+            });
+
+            await game.startAction(fireAction);
+
+            // 发送资源更新通知
+            await this.notifyResourceUpdate(session.gameId!);
+
+            return {
+                success: true,
+                fireActionId,
+                actualDuration: duration,
+                message: `开火动作已启动！强度: ${strength}，持续时间: ${duration}ms。${this.getStrengthStatusMessage(game, "开火动作")}`
+            };
+        } catch (error) {
+            throw {
+                code: MCP_ERROR_CODES.OPERATION_FAILED,
+                message: `开火操作失败: ${error}`
+            };
+        }
+    }
+
+    /**
+     * 获取波形列表
+     */
+    private static async handleGetPulseList(session: SSESession, params: any) {
+        const pulseList = DGLabPulseService.instance.pulseList;
+
+        return {
+            pulses: pulseList.map((pulse: any) => ({
+                id: pulse.id,
+                name: pulse.name
+            }))
         };
     }
 
@@ -1136,9 +1138,7 @@ export class McpApiController {
                     break;
 
                 case MCP_METHODS.PING:
-                    result = {
-                        message: 'pong'
-                    }
+                    result = {}
                     break;
 
                 case MCP_METHODS.TOOLS_LIST:

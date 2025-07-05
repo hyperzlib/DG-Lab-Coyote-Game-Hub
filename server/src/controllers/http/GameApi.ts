@@ -163,7 +163,7 @@ export class GameStrengthUpdateQueue {
     }
 }
 
-const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
+export const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
 export class GameApiController {
     private async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {

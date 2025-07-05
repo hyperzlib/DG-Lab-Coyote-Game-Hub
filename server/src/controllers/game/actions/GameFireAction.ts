@@ -46,11 +46,15 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
 
         let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
 
-        absoluteStrength = Math.min(this.game.strengthConfig.strength + this.fireStrength, this.game.gameStrength.limit);
+        absoluteStrength = Math.min(this.game.strengthConfig.strength + this.currentFireStrength, this.game.gameStrength.limit);
         await this.game.setClientStrength(absoluteStrength);
 
         // 如果目标强度大于初始强度，则逐渐增加强度
         let boostAb = new AbortController();
+
+        ab.signal.addEventListener('abort', () => {
+            boostAb.abort(); // 中断增加强度的任务
+        });
         
         let setStrengthInterval = setInterval(() => {
             if (boostAb.signal.aborted) { // 任务被中断
@@ -58,7 +62,6 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
                 return;
             }
 
-            absoluteStrength = Math.min(this.game.strengthConfig.strength + this.currentFireStrength, this.game.clientStrength.limit);
             if (this.currentFireStrength >= this.fireStrength || absoluteStrength >= this.game.clientStrength.limit) {
                 return; // 达到最大强度或限制，不再增加
             }
@@ -72,6 +75,7 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
                 // 逐渐增加强度
                 this.currentFireStrength = Math.min(this.currentFireStrength + FIRE_BOOST_STRENGTH, this.fireStrength);
                 this.game.tempStrength = this.currentFireStrength;
+                absoluteStrength = Math.min(this.game.strengthConfig.strength + this.currentFireStrength, this.game.clientStrength.limit);
 
                 this.game.setClientStrength(absoluteStrength).catch((error) => {
                     console.error('Failed to set strength:', error);
@@ -83,8 +87,8 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
             abortController: ab,
             bChannel: this.game.gameConfig.enableBChannel,
             onTimeEnd: () => {
+                boostAb.abort(); // 停止增加强度
                 if (this.fireStrength && Date.now() > this.fireEndTimestamp) { // 一键开火结束
-                    boostAb.abort(); // 停止增加强度
                     // 提前降低强度
                     this.game.setClientStrength(this.game.strengthConfig.strength).catch((error) => {
                         console.error('Failed to set strength:', error);

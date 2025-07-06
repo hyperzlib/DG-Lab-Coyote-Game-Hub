@@ -6,7 +6,6 @@ import { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { MainConfig } from '#app/config.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { asleep } from '#app/utils/utils.js';
-import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction.js';
 import { body, responses, routeConfig, z } from 'koa-swagger-decorator';
 import {
@@ -29,6 +28,8 @@ import {
     StartFireActionRequest,
     StartFireActionRequestSchema
 } from './schemas/GameApi.js';
+import { GameModel } from '#app/models/GameModel.js';
+import { CustomPulseModel } from '#app/models/CustomPulseModel.js';
 
 export type SetStrengthConfigRequest = {
     strength?: {
@@ -176,8 +177,6 @@ export class GameApiController {
             return null;
         }
 
-        console.log('params', ctx.params);
-
         const game = CoyoteGameManager.instance.getGame(ctx.params.id);
         if (!game) {
             apiResponse(ctx, {
@@ -263,7 +262,7 @@ export class GameApiController {
             return;
         }
 
-        let gameConfig = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.MainGame, false);
+        let gameConfig = await GameModel.getByGameId(ctx.database, clientId);
 
         if (game) {
             apiResponse(ctx, {
@@ -509,7 +508,7 @@ export class GameApiController {
             return;
         }
 
-        const gameConfig = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.MainGame, false);
+        const gameConfig = await GameModel.getByGameId(ctx.database, clientId);
         if (!gameConfig) {
             apiResponse(ctx, {
                 status: 0,
@@ -631,7 +630,7 @@ export class GameApiController {
         
         let successClientIds = new Set<string>();
         for (const clientId of clientIdList) {
-            CoyoteGameConfigService.instance.update(clientId, GameConfigType.MainGame, {
+            await GameModel.update(ctx.database, clientId, {
                 pulseId: postBody.pulseId,
             });
 
@@ -686,9 +685,12 @@ export class GameApiController {
         let pulseList: any[] = DGLabPulseService.instance.pulseList;
 
         if (ctx.params.id && ctx.params.id !== 'all') {
-            const customPulseList = await CoyoteGameConfigService.instance.get(ctx.params.id, GameConfigType.CustomPulse, false);
+            const customPulseList = await CustomPulseModel.getPulseListByGameId(ctx.database, ctx.params.id);
             if (customPulseList) {
-                pulseList.push(...customPulseList.customPulseList);
+                for (const pulse of customPulseList) {
+                    // 将自定义波形添加到波形列表中
+                    pulseList.push(pulse.getBasePulseData());
+                }
             }
         }
         

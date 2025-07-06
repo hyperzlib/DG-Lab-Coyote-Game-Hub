@@ -1,5 +1,4 @@
 import { GameStrengthConfigSchema, MainGameConfigSchema } from "#app/types/game.js";
-import def from "ajv/dist/vocabularies/applicator/additionalItems.js";
 import { z } from "koa-swagger-decorator";
 
 

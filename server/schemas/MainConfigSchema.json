@@ -13,6 +13,100 @@
       "default": "localhost",
       "description": "服务器主机名或IP地址，默认localhost"
     },
+    "databaseType": {
+      "type": "string",
+      "enum": [
+        "mysql",
+        "sqlite",
+        "postgres"
+      ],
+      "description": "数据库类型，支持mysql、sqlite和postgresql，默认sqlite",
+      "default": "sqlite"
+    },
+    "databaseConfig": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "default": "data/database.sqlite",
+              "description": "SQLite数据库文件路径，默认data/database.sqlite"
+            }
+          },
+          "additionalProperties": false,
+          "description": "SQLite数据库配置"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "default": "localhost",
+              "description": "MySQL服务器主机名或IP地址，默认localhost"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 3306,
+              "description": "MySQL服务器端口号，范围1-65535，默认3306"
+            },
+            "username": {
+              "type": "string",
+              "default": "root",
+              "description": "MySQL用户名，默认root"
+            },
+            "password": {
+              "type": "string",
+              "description": "MySQL密码"
+            },
+            "database": {
+              "type": "string",
+              "default": "dg_lab",
+              "description": "MySQL数据库名称，默认dg_lab"
+            }
+          },
+          "additionalProperties": false,
+          "description": "MySQL数据库配置"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "default": "localhost",
+              "description": "PostgreSQL服务器主机名或IP地址，默认localhost"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 5432,
+              "description": "PostgreSQL服务器端口号，范围1-65535，默认5432"
+            },
+            "username": {
+              "type": "string",
+              "default": "postgres",
+              "description": "PostgreSQL用户名，默认postgres"
+            },
+            "password": {
+              "type": "string",
+              "description": "PostgreSQL密码"
+            },
+            "database": {
+              "type": "string",
+              "default": "dg_lab",
+              "description": "PostgreSQL数据库名称，默认dg_lab"
+            }
+          },
+          "additionalProperties": false,
+          "description": "PostgreSQL数据库配置"
+        }
+      ],
+      "default": {},
+      "description": "数据库配置，根据databaseType自动选择对应的配置"
+    },
     "reverseProxy": {
       "type": "boolean",
       "default": false,

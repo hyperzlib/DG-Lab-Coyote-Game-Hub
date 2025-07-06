@@ -1,4 +1,5 @@
 import { z } from "koa-swagger-decorator";
+import { DataSource } from "typeorm";
 
 export const RemoteNotificationInfoSchema = z.object({
     /** 通知标题 */
@@ -21,3 +22,7 @@ export const RemoteNotificationInfoSchema = z.object({
     urlLabel: z.string().optional().describe('打开URL的按钮文本'),
 }).describe('远程通知信息');
 export type RemoteNotificationInfo = z.infer<typeof RemoteNotificationInfoSchema>;
+
+export type ServerContext = {
+    database: DataSource;
+};

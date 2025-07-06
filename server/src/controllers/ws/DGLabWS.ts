@@ -8,6 +8,7 @@ import { asleep } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { DGLabPulseBaseInfo, DGLabPulseInfo, DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { createHarvest } from '#app/utils/task.js';
+import { ServerContext } from '#app/types/server.js';
 
 const HEARTBEAT_INTERVAL = 20.0;
 const HEARTBEAT_TIMEOUT = 20.0;
@@ -34,6 +35,8 @@ export interface DGLabWSEvents {
 };
 
 export class DGLabWSClient {
+    private ctx: ServerContext;
+
     public clientId: string = '';
     public targetId: string = '';
     public strength: StrengthInfo = { strength: 0, limit: 0 };
@@ -49,7 +52,8 @@ export class DGLabWSClient {
     private events = new EventEmitter<DGLabWSEvents>();
     private heartbeatTask: NodeJS.Timeout | null = null;
 
-    public constructor(socket: AsyncWebSocket, client_id: string | null) {
+    public constructor(ctx: ServerContext, socket: AsyncWebSocket, client_id: string | null) {
+        this.ctx = ctx;
         this.socket = socket;
         this.clientId = client_id || uuidv4();
     }

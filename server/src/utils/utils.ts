@@ -28,6 +28,27 @@ export const asleep = (ms: number, abortController?: AbortController) => {
     }
 };
 
+export const debounce = <T extends (...args: any[]) => void>(func: T, wait: number): T => {
+    let timeout: NodeJS.Timeout | null = null;
+    return function (this: any, ...args: any[]) {
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    } as T;
+};
+
+export const throttle = <T extends (...args: any[]) => void>(func: T, limit: number): T => {
+    let lastCall = 0;
+    return function (this: any, ...args: any[]) {
+        const now = Date.now();
+        if (now - lastCall >= limit) {
+            lastCall = now;
+            func.apply(this, args);
+        }
+    } as T;
+};
+
 export const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export const openBrowser = (url: string) => {

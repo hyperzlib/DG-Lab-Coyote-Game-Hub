@@ -3,16 +3,18 @@ import { EventEmitter } from 'events';
 import { Channel } from '#app/types/dg.js';
 import { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS.js';
 import { Task } from '#app/utils/task.js';
-import { asleep, randomInt, simpleObjDiff } from '#app/utils/utils.js';
+import { asleep, debounce, randomInt, simpleObjDiff, throttle } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { MainGameConfig, GameStrengthConfig } from '#app/types/game.js';
-import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { PulsePlayList } from '#app/utils/PulsePlayList.js';
 import { AbstractGameAction } from './actions/AbstractGameAction.js';
 import { WebWSClient } from '../ws/WebWS.js';
 import { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
 import { LatencyLogger } from '#app/utils/latencyLogger.js';
+import { ServerContext } from '#app/types/server.js';
+import { GameModel } from '#app/models/GameModel.js';
+import { CustomPulseModel } from '#app/models/CustomPulseModel.js';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;
@@ -29,6 +31,8 @@ export interface CoyoteGameEvents {
 }
 
 export class CoyoteGameController {
+    private ctx: ServerContext;
+
     /** 在线Socket的ID列表，用于判断是否可以释放Game */
     private onlineSockets = new Set<string>();
 
@@ -46,8 +50,6 @@ export class CoyoteGameController {
         strength: 5,
         randomStrength: 5,
     };
-
-    public gameConfigService = CoyoteGameConfigService.instance;
 
     public gameConfig!: MainGameConfig;
 
@@ -98,15 +100,14 @@ export class CoyoteGameController {
         };
     }
 
-    constructor(clientId: string) {
+    constructor(ctx: ServerContext, clientId: string) {
+        this.ctx = ctx;
         this.clientId = clientId;
     }
 
     async initialize(): Promise<void> {
-        this.gameConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame, true);
-        
-        const customPulseConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.CustomPulse, true);
-        this.customPulseList = customPulseConfig.customPulseList ?? [];
+        this.gameConfig = await GameModel.getOrCreateByGameId(this.ctx.database, this.clientId);
+        this.customPulseList = await CustomPulseModel.getPulseListByGameId(this.ctx.database, this.clientId) ?? [];
 
         // 初始化波形列表
         let pulseList = typeof this.gameConfig.pulseId === 'string' ? [this.gameConfig.pulseId] : this.gameConfig.pulseId;
@@ -129,14 +130,16 @@ export class CoyoteGameController {
         }
 
         // 监听游戏配置更新事件
-        const configEvents = this.eventStore.wrap(this.gameConfigService);
-        configEvents.on('configUpdated', `${this.clientId}/${GameConfigType.MainGame}`, (type, newConfig) => {
+        const gameConfigEvents = this.eventStore.wrap(GameModel.events);
+        gameConfigEvents.on('configUpdated', this.clientId, throttle((newConfig) => {
             this.handleConfigUpdated(newConfig);
-        });
+        }, 100));
 
-        configEvents.on('configUpdated', `${this.clientId}/${GameConfigType.CustomPulse}`, (type, newConfig) => {
-            this.customPulseList = newConfig.customPulseList;
-        });
+        const pulseEvents = this.eventStore.wrap(CustomPulseModel.events);
+        pulseEvents.on('pulseListUpdated', this.clientId, throttle(async () => {
+            // 重新加载自定义波形列表
+            this.customPulseList = await CustomPulseModel.getPulseListByGameId(this.ctx.database, this.clientId);
+        }, 100));
     }
 
     public get running() {

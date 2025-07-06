@@ -5,12 +5,15 @@ import { WebSocket } from 'ws';
 import { OnExit } from '#app/utils/onExit.js';
 import { WebWSClient } from '#app/controllers/ws/WebWS.js';
 import { wrapAsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import { ServerContext } from '#app/types/server.js';
 
 export interface WebWSManagerEventsListener {
     clientConnected: [client: WebWSClient];
 }
 
 export class WebWSManager {
+    private ctx!: ServerContext;
+
     private static _instance: WebWSManager;
 
     private clientList: WebWSClient[] = [];
@@ -34,10 +37,14 @@ export class WebWSManager {
         return this._instance;
     }
 
+    public async initialize(ctx: ServerContext): Promise<void> {
+        this.ctx = ctx;
+    }
+
     public async handleWebSocket(rawWs: WebSocket, req: IncomingMessage): Promise<void> {
         const ws = wrapAsyncWebSocket(rawWs);
 
-        const client = new WebWSClient(ws);
+        const client = new WebWSClient(this.ctx, ws);
         await client.initialize();
 
         this.clientList.push(client);

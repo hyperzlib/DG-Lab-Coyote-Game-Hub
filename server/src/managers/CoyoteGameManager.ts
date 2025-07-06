@@ -4,12 +4,15 @@ import { CoyoteGameController } from "#app/controllers/game/CoyoteGameController
 import { DGLabWSClient } from "#app/controllers/ws/DGLabWS.js";
 import { DGLabWSManager } from "./DGLabWSManager.js";
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { ServerContext } from "#app/types/server.js";
 
 export interface CoyoteGameManagerEvents {
     
 }
 
 export class CoyoteGameManager {
+    private ctx!: ServerContext;
+
     private static _instance: CoyoteGameManager;
 
     private games: Map<string, CoyoteGameController>;
@@ -41,6 +44,10 @@ export class CoyoteGameManager {
         return this._instance;
     }
 
+    public async initialize(ctx: ServerContext): Promise<void> {
+        this.ctx = ctx;
+    }
+
     public async handleCoyoteClientConnected(client: DGLabWSClient) {
         try {
             const game = await this.getOrCreateGame(client.clientId);
@@ -51,7 +58,7 @@ export class CoyoteGameManager {
     }
 
     public async createGame(clientId: string) {
-        const game = new CoyoteGameController(clientId);
+        const game = new CoyoteGameController(this.ctx, clientId);
         await game.initialize();
 
         game.once('close', () => {

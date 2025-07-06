@@ -1,5 +1,10 @@
 import { z } from 'koa-swagger-decorator';
 
+export enum GameConfigType {
+    MainGame = 'main-game',
+    CustomPulse = 'custom-pulse',
+}
+
 export const PulsePlayModeSchema = z.enum(['single', 'sequence', 'random'])
 export type PulsePlayMode = z.infer<typeof PulsePlayModeSchema>;
 
@@ -12,7 +17,7 @@ export type GameStrengthConfig = z.infer<typeof GameStrengthConfigSchema>;
 export const MainGameConfigSchema = z.object({
     fireStrengthLimit: z.number().int().min(1).default(30)
         .describe('一键开火强度限制，默认30'),
-    strengthChangeInterval: z.tuple([z.number().int().min(1), z.number().int().min(1)])
+    strengthChangeInterval: z.tuple([z.number().int().min(10), z.number().int().min(30)])
         .describe('强度变化间隔，单位秒'),
     enableBChannel: z.boolean().default(false).describe('是否启用B通道'),
     bChannelStrengthMultiplier: z.number().int().min(1).default(1)
@@ -33,7 +38,14 @@ export const GameConnectionConfigSchema = z.object({
 }).describe('游戏连接配置');
 export type GameConnectionConfig = z.infer<typeof GameConnectionConfigSchema>;
 
+export const PulseDataSchema = z.object({
+    id: z.string().describe('波形ID'),
+    name: z.string().describe('波形名称'),
+    pulseData: z.array(z.string()).describe('波形数据'),
+}).describe('波形数据');
+export type PulseData = z.infer<typeof PulseDataSchema>;
+
 export const GameCustomPulseConfigSchema = z.object({
-    customPulseList: z.array(z.any()).describe('自定义波形列表'),
+    customPulseList: z.array(PulseDataSchema).describe('自定义波形列表'),
 }).describe('游戏自定义波形配置');
 export type GameCustomPulseConfig = z.infer<typeof GameCustomPulseConfigSchema>;

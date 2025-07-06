@@ -27,9 +27,10 @@ import {
 } from './schemas/McpApi.js';
 import { ConnectGameRequestSchema } from './schemas/GameApi.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import { ServerContext } from '#app/types/server.js';
+import { GameModel } from '#app/models/GameModel.js';
 
 type RouterContext = Router.RouterContext;
 
@@ -267,7 +268,7 @@ export class McpApiController {
     /**
      * 处理标准MCP初始化
      */
-    private static async handleInitialize(params: any) {
+    private static async handleInitialize(ctx: RouterContext, params: any) {
         const { protocolVersion, capabilities, clientInfo } = InitializeRequestParamsSchema.parse(params);
 
         // 支持的协议版本
@@ -303,7 +304,7 @@ export class McpApiController {
     /**
      * 处理工具列表请求
      */
-    private static async handleToolsList(specifiedGame: boolean = false) {
+    private static async handleToolsList(ctx: RouterContext, specifiedGame: boolean = false) {
         let tools: Tool[] = []
 
         if (!specifiedGame) {
@@ -470,7 +471,7 @@ export class McpApiController {
     /**
      * 处理工具调用请求
      */
-    private static async handleToolsCall(session: SSESession, params: any) {
+    private static async handleToolsCall(ctx: RouterContext, session: SSESession, params: any) {
         const { name, arguments: args = {} } = ToolsCallParamsSchema.parse(params);
 
         try {
@@ -478,41 +479,41 @@ export class McpApiController {
 
             switch (name) {
                 case "connect_game":
-                    result = await this.handleConnectGame(session, { gameId: args.gameId });
+                    result = await this.handleConnectGame(ctx, session, { gameId: args.gameId });
                     break;
                 case "disconnect_game":
-                    result = await this.handleDisconnectGame(session);
+                    result = await this.handleDisconnectGame(ctx, session);
                     break;
                 case "get_game_status":
-                    result = await this.handleGetGameStatus(session, {});
+                    result = await this.handleGetGameStatus(ctx, session, {});
                     break;
                 case "set_strength":
-                    result = await this.handleSetStrength(session, { strength: args.strength });
+                    result = await this.handleSetStrength(ctx, session, { strength: args.strength });
                     break;
                 case "increase_strength":
-                    result = await this.handleIncreaseStrength(session, { amount: args.amount });
+                    result = await this.handleIncreaseStrength(ctx, session, { amount: args.amount });
                     break;
                 case "decrease_strength":
-                    result = await this.handleDecreaseStrength(session, { amount: args.amount });
+                    result = await this.handleDecreaseStrength(ctx, session, { amount: args.amount });
                     break;
                 case "set_pulse":
-                    result = await this.handleSetPulse(session, { pulseId: args.pulseId });
+                    result = await this.handleSetPulse(ctx, session, { pulseId: args.pulseId });
                     break;
                 case "fire_action":
-                    result = await this.handleFireAction(session, {
+                    result = await this.handleFireAction(ctx, session, {
                         strength: args.strength,
                         duration: args.duration,
                         pulseId: args.pulseId
                     });
                     break;
                 case "get_pulse_list":
-                    result = await this.handleGetPulseList(session, {});
+                    result = await this.handleGetPulseList(ctx, session, {});
                     break;
                 case "get_resources_list":
-                    result = await this.handleResourcesList(session);
+                    result = await this.handleResourcesList(ctx, session);
                     break;
                 case "get_resource":
-                    result = await this.handleResourcesRead(session, {
+                    result = await this.handleResourcesRead(ctx, session, {
                         uri: args.uri
                     });
                     break;
@@ -579,7 +580,7 @@ export class McpApiController {
     /**
      * 处理资源列表请求
      */
-    private static async handleResourcesList(session: SSESession) {
+    private static async handleResourcesList(ctx: RouterContext, session: SSESession) {
         const resources = [
             {
                 uri: `game://strength`,
@@ -595,7 +596,7 @@ export class McpApiController {
     /**
      * 处理资源读取请求
      */
-    private static async handleResourcesRead(session: SSESession, params: any) {
+    private static async handleResourcesRead(ctx: RouterContext, session: SSESession, params: any) {
         const { uri } = ResourcesReadParamsSchema.parse(params);
 
         if (uri === `game://strength`) {
@@ -635,7 +636,7 @@ export class McpApiController {
     /**
      * 处理提示列表请求
      */
-    private static async handlePromptsList(session: SSESession, params: any) {
+    private static async handlePromptsList(ctx: RouterContext, session: SSESession, params: any) {
         return {
             prompts: []
         };
@@ -644,7 +645,7 @@ export class McpApiController {
     /**
      * 处理资源订阅请求
      */
-    private static async handleResourcesSubscribe(session: SSESession, params: any) {
+    private static async handleResourcesSubscribe(ctx: RouterContext, session: SSESession, params: any) {
         const { uri } = z.object({
             uri: z.string().url()
         }).parse(params);
@@ -661,7 +662,7 @@ export class McpApiController {
     /**
      * 处理资源取消订阅请求
      */
-    private static async handleResourcesUnsubscribe(session: SSESession, params: any) {
+    private static async handleResourcesUnsubscribe(ctx: RouterContext, session: SSESession, params: any) {
         const { uri } = z.object({
             uri: z.string().url()
         }).parse(params);
@@ -707,7 +708,7 @@ export class McpApiController {
         return message;
     }
 
-    private static async handleConnectGame(session: SSESession, params: any) {
+    private static async handleConnectGame(ctx: RouterContext, session: SSESession, params: any) {
         const { gameId } = ConnectGameRequestSchema.parse(params);
         if (!gameId) {
             throw {
@@ -731,7 +732,7 @@ export class McpApiController {
         };
     }
 
-    private static async handleDisconnectGame(session: SSESession) {
+    private static async handleDisconnectGame(ctx: RouterContext, session: SSESession) {
         session.unbindGame();
         return {
             success: true
@@ -741,14 +742,14 @@ export class McpApiController {
     /**
      * 获取游戏状态
      */
-    private static async handleGetGameStatus(session: SSESession, params: any): Promise<GameStatus> {
+    private static async handleGetGameStatus(ctx: RouterContext, session: SSESession, params: any): Promise<GameStatus> {
         const validation = this.validateGame(session.gameId);
         if (!validation.valid) {
             throw validation.error;
         }
 
         const game = validation.game;
-        const gameConfig = await CoyoteGameConfigService.instance.get(session.gameId!, GameConfigType.MainGame);
+        const gameConfig = await GameModel.getByGameId(ctx.database, session.gameId!);
 
         const status: GameStatus = {
             gameId: session.gameId!,
@@ -766,7 +767,7 @@ export class McpApiController {
     /**
      * 设置强度
      */
-    private static async handleSetStrength(session: SSESession, params: any) {
+    private static async handleSetStrength(ctx: RouterContext, session: SSESession, params: any) {
         const validation = this.validateGame(session.gameId);
         if (!validation.valid) {
             throw validation.error;
@@ -816,7 +817,7 @@ export class McpApiController {
     /**
      * 增加强度
      */
-    private static async handleIncreaseStrength(session: SSESession, params: any) {
+    private static async handleIncreaseStrength(ctx: RouterContext, session: SSESession, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -857,7 +858,7 @@ export class McpApiController {
     /**
      * 减少强度
      */
-    private static async handleDecreaseStrength(session: SSESession, params: any) {
+    private static async handleDecreaseStrength(ctx: RouterContext, session: SSESession, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -898,7 +899,7 @@ export class McpApiController {
     /**
      * 设置波形
      */
-    private static async handleSetPulse(session: SSESession, params: any) {
+    private static async handleSetPulse(ctx: RouterContext, session: SSESession, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -918,8 +919,8 @@ export class McpApiController {
         }
 
         // 更新游戏配置
-        CoyoteGameConfigService.instance.update(session.gameId!, GameConfigType.MainGame, {
-            pulseId
+        await GameModel.update(ctx.database, session.gameId!, {
+            pulseId: pulseId
         });
 
         return {
@@ -931,7 +932,7 @@ export class McpApiController {
     /**
      * 开火动作
      */
-    private static async handleFireAction(session: SSESession, params: any) {
+    private static async handleFireAction(ctx: RouterContext, session: SSESession, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -983,7 +984,7 @@ export class McpApiController {
     /**
      * 获取波形列表
      */
-    private static async handleGetPulseList(session: SSESession, params: any) {
+    private static async handleGetPulseList(ctx: RouterContext, session: SSESession, params: any) {
         const pulseList = DGLabPulseService.instance.pulseList;
 
         return {
@@ -1134,7 +1135,7 @@ export class McpApiController {
 
             switch (method) {
                 case MCP_METHODS.INITIALIZE:
-                    result = await McpApiController.handleInitialize(params);
+                    result = await McpApiController.handleInitialize(ctx, params);
                     break;
 
                 case MCP_METHODS.PING:
@@ -1142,31 +1143,31 @@ export class McpApiController {
                     break;
 
                 case MCP_METHODS.TOOLS_LIST:
-                    result = await McpApiController.handleToolsList(!!session.gameId);
+                    result = await McpApiController.handleToolsList(ctx, !!session.gameId);
                     break;
 
                 case MCP_METHODS.TOOLS_CALL:
-                    result = await McpApiController.handleToolsCall(session, params);
+                    result = await McpApiController.handleToolsCall(ctx, session, params);
                     break;
 
                 case MCP_METHODS.RESOURCES_LIST:
-                    result = await McpApiController.handleResourcesList(session);
+                    result = await McpApiController.handleResourcesList(ctx, session);
                     break;
 
                 case MCP_METHODS.RESOURCES_READ:
-                    result = await McpApiController.handleResourcesRead(session, params);
+                    result = await McpApiController.handleResourcesRead(ctx, session, params);
                     break;
 
                 case MCP_METHODS.RESOURCES_SUBSCRIBE:
-                    result = await McpApiController.handleResourcesSubscribe(session, params);
+                    result = await McpApiController.handleResourcesSubscribe(ctx, session, params);
                     break;
 
                 case MCP_METHODS.RESOURCES_UNSUBSCRIBE:
-                    result = await McpApiController.handleResourcesUnsubscribe(session, params);
+                    result = await McpApiController.handleResourcesUnsubscribe(ctx, session, params);
                     break;
 
                 case MCP_METHODS.PROMPTS_LIST:
-                    result = await McpApiController.handlePromptsList(session, params);
+                    result = await McpApiController.handlePromptsList(ctx, session, params);
                     break;
 
                 default:

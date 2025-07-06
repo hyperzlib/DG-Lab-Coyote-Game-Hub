@@ -1,3 +1,5 @@
+import 'reflect-metadata'; // 反射元数据
+
 import http from 'http';
 import Koa from 'koa';
 import { WebSocketServer } from 'ws';
@@ -16,10 +18,14 @@ import './managers/DGLabWSManager.js';
 import './managers/CoyoteGameManager.js';
 import { DGLabPulseService } from './services/DGLabPulse.js';
 import { LocalIPAddress, openBrowser } from './utils/utils.js';
-import { CoyoteGameConfigService } from './services/CoyoteGameConfigService.js';
 import { SiteNotificationService } from './services/SiteNotificationService.js';
 import { checkUpdate } from './utils/checkUpdate.js';
 import { CustomSkinService } from './services/CustomSkinService.js';
+import { createDatabaseConnection } from './database.js';
+import { CoyoteGameManager } from './managers/CoyoteGameManager.js';
+import { ServerContext } from './types/server.js';
+import { DGLabWSManager } from './managers/DGLabWSManager.js';
+import { WebWSManager } from './managers/WebWSManager.js';
 
 async function main() {
     // blocked((time, stack) => {
@@ -28,18 +34,28 @@ async function main() {
 
     await MainConfig.initialize();
 
-    await DGLabPulseService.instance.initialize();
-    await CoyoteGameConfigService.instance.initialize();
-    await SiteNotificationService.instance.initialize();
-    await CustomSkinService.instance.initialize();
-
     const app = new Koa();
     const httpServer = http.createServer(app.callback());
+    
+    const database = await createDatabaseConnection(MainConfig.value);
+    app.context.database = database; // 将数据库连接挂载到Koa上下文中
 
     // 在HTTP服务器上创建WebSocket服务器
     const wsServer = new WebSocketServer({
         server: httpServer
     });
+
+    await DGLabPulseService.instance.initialize();
+    await SiteNotificationService.instance.initialize();
+    await CustomSkinService.instance.initialize();
+
+    const serverContext = {
+        database,
+    } as ServerContext;
+
+    await CoyoteGameManager.instance.initialize(serverContext);
+    await DGLabWSManager.instance.initialize(serverContext);
+    await WebWSManager.instance.initialize(serverContext);
 
     // 静态资源
     app.use(serveStatic('public'));

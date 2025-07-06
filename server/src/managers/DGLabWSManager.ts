@@ -6,12 +6,15 @@ import { RetCode } from '#app/types/dg.js';
 import { DGLabWSClient } from '#app/controllers/ws/DGLabWS.js';
 import { OnExit } from '#app/utils/onExit.js';
 import { Config, MainConfig } from '#app/config.js';
+import { ServerContext } from '#app/types/server.js';
 
 export interface DGLabWSManagerEventsListener {
     clientConnected: [client: DGLabWSClient];
 };
 
 export class DGLabWSManager {
+    private ctx!: ServerContext;
+
     private static _instance: DGLabWSManager;
 
     private clientIdToClient: Map<string, DGLabWSClient> = new Map();
@@ -33,6 +36,10 @@ export class DGLabWSManager {
     static get instance(): DGLabWSManager {
         this.createInstance();
         return this._instance;
+    }
+
+    public async initialize(ctx: ServerContext): Promise<void> {
+        this.ctx = ctx;
     }
 
     async handleWebSocket(rawWs: WebSocket, req: IncomingMessage, routeParams: Record<string, string>): Promise<void> {
@@ -74,7 +81,7 @@ export class DGLabWSManager {
             console.log('If you are running this program as a public server, please set allowBroadcastToClients to false in config.yaml');
         }
         
-        const client = new DGLabWSClient(ws, clientId);
+        const client = new DGLabWSClient(this.ctx, ws, clientId);
         await client.initialize();
         
         this.events.emit('clientConnected', client);

@@ -4,11 +4,13 @@ import { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
-import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { SiteNotificationService } from '#app/services/SiteNotificationService.js';
-import { GameCustomPulseConfigSchema, GameStrengthConfig, GameStrengthConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
+import { GameConfigType, GameCustomPulseConfigSchema, GameStrengthConfig, GameStrengthConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
 import { z } from 'koa-swagger-decorator';
+import { GameModel } from '#app/models/GameModel.js';
+import { ServerContext } from '#app/types/server.js';
+import { CustomPulseModel } from '#app/models/CustomPulseModel.js';
 
 export type WebWSPostMessage = {
     event: string;
@@ -21,6 +23,8 @@ export interface WebWSClientEvents {
 };
 
 export class WebWSClient {
+    private ctx: ServerContext;
+
     public socket: AsyncWebSocket;
 
     public clientId: string = '';
@@ -35,7 +39,8 @@ export class WebWSClient {
 
     private gameInstance: CoyoteGameController | null = null;
 
-    public constructor(socket: AsyncWebSocket) {
+    public constructor(ctx: ServerContext, socket: AsyncWebSocket) {
+        this.ctx = ctx;
         this.socket = socket;
     }
 
@@ -177,7 +182,7 @@ export class WebWSClient {
         this.clientId = message.clientId;
 
         // 发送服务器存储的配置信息
-        const gameConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.MainGame);
+        const gameConfig = await GameModel.getByGameId(this.ctx.database, this.clientId);
         await this.send({
             event: 'gameConfigUpdated',
             data: {
@@ -187,12 +192,14 @@ export class WebWSClient {
         });
 
         // 发送服务器存储的自定义波形
-        const customPulseConfig = await CoyoteGameConfigService.instance.get(this.clientId, GameConfigType.CustomPulse);
+        const customPulseConfig = await CustomPulseModel.getPulseListByGameId(this.ctx.database, this.clientId);
         await this.send({
             event: 'gameConfigUpdated',
             data: {
                 type: GameConfigType.CustomPulse,
-                config: customPulseConfig,
+                config: {
+                    customPulseList: customPulseConfig.map(pulse => pulse.getBasePulseData()),
+                },
             },
         });
 
@@ -281,7 +288,8 @@ export class WebWSClient {
         switch (message.type) {
             case GameConfigType.MainGame:
                 try {
-                    message.config = MainGameConfigSchema.parse(message.config);
+                    const config = MainGameConfigSchema.parse(message.config);
+                    await GameModel.update(this.ctx.database, this.clientId, config);
                 } catch (error: any) {
                     if (error instanceof z.ZodError) {
                         await this.sendResponse(message.requestId, {
@@ -301,7 +309,8 @@ export class WebWSClient {
                 break;
             case GameConfigType.CustomPulse:
                 try {
-                    message.config = GameCustomPulseConfigSchema.parse(message.config);
+                    const config = GameCustomPulseConfigSchema.parse(message.config);
+                    await CustomPulseModel.update(this.ctx.database, this.clientId, config.customPulseList);
                 } catch (error: any) {
                     if (error instanceof z.ZodError) {
                         await this.sendResponse(message.requestId, {
@@ -326,8 +335,6 @@ export class WebWSClient {
                 });
                 return;
         }
-        
-        CoyoteGameConfigService.instance.set(this.clientId, message.type, message.config);
     }
 
     private async handleStartGame(message: any) {
@@ -387,15 +394,29 @@ export class WebWSClient {
     private async connectToGame(gameInstance: CoyoteGameController) {
         this.gameInstance = gameInstance;
 
-        const gameConfigServiceEvents = this.gameEventStore.wrap(CoyoteGameConfigService.instance);
-
         // 监听配置更新事件
-        gameConfigServiceEvents.on("configUpdated", this.clientId, async (type, newConfig) => {
+        const gameModelEvents = this.gameEventStore.wrap(GameModel.events);
+        gameModelEvents.on("configUpdated", this.clientId, async (gameConfig) => {
             await this.send({
                 event: 'gameConfigUpdated',
                 data: {
-                    type,
-                    config: newConfig,
+                    type: GameConfigType.MainGame,
+                    config: gameConfig,
+                }
+            });
+        });
+
+        const customPulseModelEvents = this.gameEventStore.wrap(CustomPulseModel.events);
+        customPulseModelEvents.on("pulseListUpdated", this.clientId, async () => {
+            const customPulseConfig = await CustomPulseModel.getPulseListByGameId(this.ctx.database, this.clientId);
+
+            await this.send({
+                event: 'gameConfigUpdated',
+                data: {
+                    type: GameConfigType.CustomPulse,
+                    config: {
+                        customPulseList: customPulseConfig.map(pulse => pulse.getBasePulseData()),
+                    },
                 }
             });
         });

@@ -6,7 +6,7 @@ import { ClientIdSchema } from "./GameApi.js";
  */
 
 // MCP 基础响应格式
-export const McpResponseSchema = z.object({
+export const MCPResponseSchema = z.object({
     jsonrpc: z.literal("2.0").describe("JSON-RPC 版本"),
     id: z.union([z.string(), z.number(), z.null()]).describe("请求 ID"),
     result: z.any().optional().describe("成功响应结果"),
@@ -17,17 +17,17 @@ export const McpResponseSchema = z.object({
     }).optional().describe("错误信息")
 }).describe("MCP 响应格式");
 
-export type McpResponse = z.infer<typeof McpResponseSchema>;
+export type MCPResponse = z.infer<typeof MCPResponseSchema>;
 
 // MCP 请求格式
-export const McpRequestSchema = z.object({
+export const MCPRequestSchema = z.object({
     jsonrpc: z.literal("2.0").describe("JSON-RPC 版本"),
     id: z.union([z.string(), z.number(), z.null()]).optional().describe("请求 ID"),
     method: z.string().describe("方法名称"),
     params: z.any().optional().describe("方法参数")
 }).describe("MCP 请求格式");
 
-export type McpRequest = z.infer<typeof McpRequestSchema>;
+export type MCPRequest = z.infer<typeof MCPRequestSchema>;
 
 // MCP 初始化相关 schemas
 export const InitializeRequestParamsSchema = z.object({

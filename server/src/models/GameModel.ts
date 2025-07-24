@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { GameStrengthConfig, MainGameConfig } from "#app/types/game.js";
-import { AfterUpdate, Column, DataSource, Entity, PrimaryColumn } from "typeorm";
+import { AfterUpdate, Column, DataSource, Entity, Index, PrimaryColumn } from "typeorm";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
 import { DGLabPulseService } from "#app/services/DGLabPulse.js";
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
@@ -18,8 +18,13 @@ export class GameModel implements MainGameConfig {
     @PrimaryColumn({ type: 'uuid', name: 'game_id', comment: '游戏ID' })
     gameId!: string;
 
-    @Column({ type: 'varchar', name: 'readonly_connect_code', length: 64, nullable: true, comment: '只读链接码（主要）' })
-    readonlyConnectCode?: string | null;
+    @Column({ type: 'varchar', name: 'main_connect_code', length: 64, nullable: true, comment: '主连接码' })
+    @Index({ unique: true })
+    mainConnectCode?: string | null;
+
+    @Column({ type: 'varchar', name: 'replica_connect_code', length: 64, nullable: true, comment: '只读链接码（主要）' })
+    @Index({ unique: true })
+    replicaConnectCode?: string | null;
 
     @Column({ type: 'int', name: 'fire_strength_limit', default: 30, comment: '一键开火强度限制，默认30' })
     fireStrengthLimit!: number;
@@ -58,12 +63,12 @@ export class GameModel implements MainGameConfig {
         let model = new GameModel()
 
         model.gameId = uuidv4();
-        model.readonlyConnectCode = uuidv4();
+        model.mainConnectCode = uuidv4();
+        model.replicaConnectCode = uuidv4();
         model.fireStrengthLimit = 30;
         model.strengthChangeInterval = [15, 30];
         model.enableBChannel = false;
         model.bChannelStrengthMultiplier = 1;
-        console.log('Get default pulse');
         model.pulseId = [DGLabPulseService.instance.getDefaultPulse().id];
         model.pulseMode = 'single';
         model.pulseChangeInterval = 60;
@@ -84,6 +89,13 @@ export class GameModel implements MainGameConfig {
             game.gameId = gameId;
             game = await gameRepository.save(game);
         }
+
+        if (!game.mainConnectCode || !game.replicaConnectCode) {
+            if (!game.mainConnectCode) game.mainConnectCode = uuidv4();
+            if (!game.replicaConnectCode) game.replicaConnectCode = uuidv4();
+            game = await gameRepository.save(game);
+        }
+
         return game;
     }
 

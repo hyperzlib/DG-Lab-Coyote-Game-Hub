@@ -7,6 +7,9 @@ export abstract class AbstractGameAction<ActionConfig = any> {
     public game!: CoyoteGameController;
     abortController: AbortController = new AbortController();
 
+    public static actionId: string = "";
+    public static actionName: string = "";
+
     constructor(
         /** 游戏动作的配置 */
         public config: ActionConfig,

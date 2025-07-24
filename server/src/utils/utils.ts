@@ -1,5 +1,6 @@
 import { networkInterfaces } from "os";
 import { exec } from "child_process";
+import { v4 as uuidv4 } from 'uuid';
 
 export const asleep = (ms: number, abortController?: AbortController) => {
     if (abortController) {
@@ -117,4 +118,26 @@ export class LocalIPAddress {
 
         return this.ipAddrList!;
     }
+}
+
+export function firstHeader(headerItem: string | string[] | undefined): string | undefined {
+    if (Array.isArray(headerItem)) {
+        return headerItem[0];
+    } else if (typeof headerItem === 'string') {
+        return headerItem;
+    } else {
+        return undefined;
+    }
+}
+
+export async function generateUUIDWithValidation(validator: (generatedUuid: string) => Promise<boolean>, maxTries = 10): Promise<string> {
+    for (let i = 0; i < maxTries; i++) {
+        const uuid = uuidv4();
+        const isValid = await validator(uuid);
+        if (isValid) {
+            return uuid;
+        }
+    }
+
+    throw new Error('Failed to generate a valid UUID after maximum attempts');
 }

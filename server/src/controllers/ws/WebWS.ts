@@ -150,6 +150,21 @@ export class WebWSClient {
                 case 'stopGame':
                     await this.handleStopGame(message);
                     break;
+                case 'refreshConnectCode':
+                    await this.handleRefreshConnectCode(message);
+                    break;
+                case 'createGamePlay':
+                    await this.handleCreateGamePlay(message);
+                    break;
+                case 'getGamePlayDetail':
+                    // TODO
+                    break;
+                case 'updateGamePlayConfig':
+                    // TODO
+                    break;
+                case 'deleteGamePlay':
+                    // TODO
+                    break;
                 case 'heartbeat':
                     this.prevHeartbeatTime = Date.now();
                     break;
@@ -388,6 +403,56 @@ export class WebWSClient {
             });
 
             console.error(`[${errId}] Failed to stop game:`, error);
+        }
+    }
+
+    private async handleRefreshConnectCode(message: any) {
+        if (!this.gameInstance) {
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '游戏未连接',
+            });
+            return;
+        }
+
+        const shouldRefreshMain = message.main ?? false;
+        const shouldRefreshReplica = message.replica ?? false;
+        
+        try {
+            let updateData: Partial<GameModel> = {};
+            if (shouldRefreshMain) {
+                updateData.mainConnectCode = uuidv4();
+            }
+            if (shouldRefreshReplica) {
+                updateData.replicaConnectCode = uuidv4();
+            }
+
+            await GameModel.update(this.ctx.database, this.clientId, updateData);
+
+            await this.sendResponse(message.requestId, {
+                status: 1,
+                data: {
+                    mainConnectCode: updateData.mainConnectCode,
+                    replicaConnectCode: updateData.replicaConnectCode,
+                },
+            });
+        } catch (error: any) {
+            console.error("Failed to refresh connect code:", error);
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '刷新连接码失败',
+                detail: error.message,
+            });
+        }
+    }
+
+    private async handleCreateGamePlay(message: any) {
+        if (!this.gameInstance) {
+            await this.sendResponse(message.requestId, {
+                status: 0,
+                message: '游戏未连接',
+            });
+            return;
         }
     }
 

@@ -18,6 +18,9 @@ export const FIRE_MAX_STRENGTH = 200;
 export const FIRE_MAX_DURATION = 300000;
 
 export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
+    public static readonly actionId = "fire";
+    public static readonly actionName = "一键开火";
+
     /** 一键开火强度 */
     public fireStrength: number = 0;
 

@@ -1,15 +1,22 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from "typeorm";
+import { Column, DataSource, Entity, Index, ManyToOne, PrimaryColumn } from "typeorm";
 import { GameModel } from "./GameModel.js";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
+import { GamePlayConfigListType, GamePlayEventListType } from "#app/types/gamePlay.js";
+import { v4 as uuidv4 } from "uuid";
+import { generateUUIDWithValidation } from "#app/utils/utils.js";
 
 @Entity({ name: 'game_play' })
 export class GamePlayModel {
-    @PrimaryColumn({ type: 'uuid', primary: true, name: 'game_play_id', comment: '游戏玩法ID（同时也是连接码）' })
-    gamePlayId!: string;
+    @PrimaryColumn({ type: 'int', name: 'game_play_id', primary: true, generated: true, comment: '游戏玩法ID' })
+    gamePlayId!: number;
 
     @Column({ type: 'uuid', name: 'game_id', comment: '游戏ID' })
     @ManyToOne(() => GameModel, { onDelete: 'CASCADE' })
     gameId!: string;
+
+    @Column({ type: 'uuid', name: 'connect_code', comment: '连接码' })
+    @Index()
+    connectCode!: string;
 
     @Column({ type: 'varchar', name: 'remark_name', length: 255, comment: '备注名' })
     remarkName!: string;
@@ -29,12 +36,42 @@ export class GamePlayModel {
     @Column({ type: 'text', name: 'provider_icon', nullable: true, comment: '提供者（插件）图标' })
     providerIcon?: string | null;
 
-    @Column({ type: 'boolean', name: 'is_readonly', default: false, comment: '是否只读（只能读取游戏配置和状态，不能修改）' })
-    isReadonly!: boolean;
-
     @Column({ type: 'int', name: 'last_connected_at', unsigned: true, nullable: true, transformer: ormDateToNumberTransformer, comment: '最后连接时间' })
     lastConnectedAt?: Date | null;
 
-    @Column({ type: 'json', name: 'config', nullable: true, comment: '更多配置' })
+    @Column({ type: 'json', name: 'config_schema', nullable: true, comment: '配置Schema' })
+    configSchema?: GamePlayConfigListType | null;
+
+    @Column({ type: 'json', name: 'config', nullable: true, comment: '自定义配置' })
     config?: Record<string, any> | null;
+
+    @Column({ type: 'json', name: 'event_schema', nullable: true, comment: '事件Schema' })
+    eventSchema?: GamePlayEventListType | null;
+
+    @Column({ type: 'json', name: 'event_config', nullable: true, comment: '事件配置' })
+    eventConfig?: Record<string, any> | null;
+
+    public static async create(db: DataSource, gameId: string, data?: Partial<GamePlayModel>): Promise<GamePlayModel> {
+        const gamePlay = new GamePlayModel();
+        gamePlay.gameId = gameId;
+        gamePlay.connectCode = await generateUUIDWithValidation(async (generatedUuid) => {
+            const existing = await this.getByConnectCode(db, generatedUuid);
+            return !existing;
+        });
+        
+        if (data) {
+            Object.assign(gamePlay, data);
+        }
+
+        await db.manager.save(gamePlay);
+        return gamePlay;
+    }
+
+    public static async getById(db: DataSource, id: number): Promise<GamePlayModel | null> {
+        return await db.manager.findOne(GamePlayModel, { where: { gamePlayId: id } });
+    }
+
+    public static async getByConnectCode(db: DataSource, connectCode: string): Promise<GamePlayModel | null> {
+        return await db.manager.findOne(GamePlayModel, { where: { connectCode } });
+    }
 }

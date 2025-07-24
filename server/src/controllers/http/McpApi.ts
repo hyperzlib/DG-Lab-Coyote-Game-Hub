@@ -5,23 +5,20 @@ import { routeConfig, responses, body } from 'koa-swagger-decorator';
 import { PassThrough } from 'stream';
 
 import {
-    McpRequestSchema,
-    McpResponseSchema,
+    MCPRequestSchema,
+    MCPResponseSchema,
     MCP_ERROR_CODES,
     MCP_METHODS,
     InitializeRequestParamsSchema,
-    InitializeResultSchema,
-    ToolsListResultSchema,
     ToolsCallParamsSchema,
-    ToolsCallResultSchema,
     ResourcesReadParamsSchema,
     SetStrengthParamsSchema,
     IncreaseStrengthParamsSchema,
     DecreaseStrengthParamsSchema,
     SetPulseParamsSchema,
     FireActionParamsSchema,
-    type McpRequest,
-    type McpResponse,
+    type MCPRequest as MCPRequest,
+    type MCPResponse as MCPResponse,
     type GameStatus,
     Tool
 } from './schemas/McpApi.js';
@@ -29,24 +26,32 @@ import { ConnectGameRequestSchema } from './schemas/GameApi.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
-import { ServerContext } from '#app/types/server.js';
 import { GameModel } from '#app/models/GameModel.js';
+import { LRUCache } from 'lru-cache';
+import { firstHeader } from '#app/utils/utils.js';
 
 type RouterContext = Router.RouterContext;
 
-export class SSESession {
-    private controller: typeof McpApiController;
+export class MCPConnection {
+    private controller: typeof MCPApiController;
 
     public connectionId: string;
+    public sessionId: string;
     public stream: PassThrough;
     public gameId?: string;
     public subscribedResources: Set<string> = new Set();
 
-    public constructor(controller: typeof McpApiController, connectionId: string, stream: PassThrough) {
+    public constructor(controller: typeof MCPApiController, connectionId: string, sessionId: string, stream: PassThrough) {
         this.controller = controller;
 
         this.connectionId = connectionId;
+        this.sessionId = sessionId;
         this.stream = stream;
+
+        const session = this.controller.mcpSessions.get(sessionId);
+        if (session?.gameId) {
+            this.bindGame(session.gameId);
+        }
     }
 
     public toJSON() {
@@ -79,6 +84,8 @@ export class SSESession {
         this.controller.gameEventListeners.set(gameId, connections);
 
         this.gameId = gameId;
+
+        this.updateSession({ gameId });
     }
 
     public unbindGame() {
@@ -95,6 +102,7 @@ export class SSESession {
         }
 
         this.gameId = undefined;
+        this.updateSession({ gameId: undefined });
     }
 
     public subscribeResource(resourceUri: string) {
@@ -138,24 +146,48 @@ export class SSESession {
         this.subscribedResources.clear();
     }
 
+    public getSession(): MCPSession | undefined {
+        return MCPApiController.mcpSessions.get(this.sessionId);
+    }
+
+    public setSession(sessionData: MCPSession) {
+        MCPApiController.mcpSessions.set(this.sessionId, sessionData);
+    }
+
+    public updateSession(sessionData: Partial<MCPSession>) {
+        const session = this.getSession() || {};
+        const updatedSession = { ...session, ...sessionData };
+        this.setSession(updatedSession);
+    }
+
     public handleConnectionClose() {
         this.unbindGame();
         this.unsubscribeAllResources();
     }
 }
 
-export class McpApiController {
-    // SSE 连接管理
-    public static sseConnections = new Map<string, SSESession>();
+export interface MCPSession {
+    /** 连接的GameId */
+    gameId?: string;
+}
+
+export class MCPApiController {
+    // MCP 连接管理
+    public static mcpConnections = new Map<string, MCPConnection>();
+    public static mcpSessions = new LRUCache<string, MCPSession>({
+        ttl: 1000 * 60 * 60, // 60 minutes
+        ttlAutopurge: true,
+    });
+
     public static gameEventListeners = new Map<string, Set<string>>();
     public static resourceEventListeners = new Map<string, Set<string>>();
 
     /**
      * 添加SSE连接
      */
-    private static addSSEConnection(connectionId: string, stream: PassThrough): SSESession {
-        var session = new SSESession(this, connectionId, stream);
-        this.sseConnections.set(connectionId, session);
+    private static addSSEConnection(connectionId: string, sessionId: string, stream: PassThrough): MCPConnection {
+        var session = new MCPConnection(this, connectionId, sessionId, stream);
+        this.mcpConnections.set(connectionId, session);
 
         // 连接关闭时清理
         stream.on('close', () => {
@@ -169,10 +201,10 @@ export class McpApiController {
      * 移除SSE连接
      */
     private static removeSSEConnection(connectionId: string) {
-        const sseConnection = this.sseConnections.get(connectionId);
+        const sseConnection = this.mcpConnections.get(connectionId);
         sseConnection?.handleConnectionClose();
 
-        this.sseConnections.delete(connectionId);
+        this.mcpConnections.delete(connectionId);
     }
 
     /**
@@ -184,7 +216,7 @@ export class McpApiController {
         data: any;
         retry?: number;
     }) {
-        const session = this.sseConnections.get(connectionId);
+        const session = this.mcpConnections.get(connectionId);
         if (!session) return;
 
         try {
@@ -242,7 +274,7 @@ export class McpApiController {
     /**
      * 创建 MCP 成功响应
      */
-    private static createSuccessResponse(id: string | number | null, result: any): McpResponse {
+    private static createSuccessResponse(id: string | number | null, result: any): MCPResponse {
         return {
             jsonrpc: "2.0",
             id,
@@ -253,7 +285,7 @@ export class McpApiController {
     /**
      * 创建 MCP 错误响应
      */
-    private static createErrorResponse(id: string | number | null, code: number, message: string, data?: any): McpResponse {
+    private static createErrorResponse(id: string | number | null, code: number, message: string, data?: any): MCPResponse {
         return {
             jsonrpc: "2.0",
             id,
@@ -471,7 +503,7 @@ export class McpApiController {
     /**
      * 处理工具调用请求
      */
-    private static async handleToolsCall(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleToolsCall(ctx: RouterContext, session: MCPConnection, params: any) {
         const { name, arguments: args = {} } = ToolsCallParamsSchema.parse(params);
 
         try {
@@ -580,7 +612,7 @@ export class McpApiController {
     /**
      * 处理资源列表请求
      */
-    private static async handleResourcesList(ctx: RouterContext, session: SSESession) {
+    private static async handleResourcesList(ctx: RouterContext, session: MCPConnection) {
         const resources = [
             {
                 uri: `game://strength`,
@@ -596,7 +628,7 @@ export class McpApiController {
     /**
      * 处理资源读取请求
      */
-    private static async handleResourcesRead(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleResourcesRead(ctx: RouterContext, session: MCPConnection, params: any) {
         const { uri } = ResourcesReadParamsSchema.parse(params);
 
         if (uri === `game://strength`) {
@@ -636,7 +668,7 @@ export class McpApiController {
     /**
      * 处理提示列表请求
      */
-    private static async handlePromptsList(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handlePromptsList(ctx: RouterContext, session: MCPConnection, params: any) {
         return {
             prompts: []
         };
@@ -645,7 +677,7 @@ export class McpApiController {
     /**
      * 处理资源订阅请求
      */
-    private static async handleResourcesSubscribe(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleResourcesSubscribe(ctx: RouterContext, session: MCPConnection, params: any) {
         const { uri } = z.object({
             uri: z.string().url()
         }).parse(params);
@@ -662,7 +694,7 @@ export class McpApiController {
     /**
      * 处理资源取消订阅请求
      */
-    private static async handleResourcesUnsubscribe(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleResourcesUnsubscribe(ctx: RouterContext, session: MCPConnection, params: any) {
         const { uri } = z.object({
             uri: z.string().url()
         }).parse(params);
@@ -708,7 +740,7 @@ export class McpApiController {
         return message;
     }
 
-    private static async handleConnectGame(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleConnectGame(ctx: RouterContext, session: MCPConnection, params: any) {
         const { gameId } = ConnectGameRequestSchema.parse(params);
         if (!gameId) {
             throw {
@@ -732,7 +764,7 @@ export class McpApiController {
         };
     }
 
-    private static async handleDisconnectGame(ctx: RouterContext, session: SSESession) {
+    private static async handleDisconnectGame(ctx: RouterContext, session: MCPConnection) {
         session.unbindGame();
         return {
             success: true
@@ -742,7 +774,7 @@ export class McpApiController {
     /**
      * 获取游戏状态
      */
-    private static async handleGetGameStatus(ctx: RouterContext, session: SSESession, params: any): Promise<GameStatus> {
+    private static async handleGetGameStatus(ctx: RouterContext, session: MCPConnection, params: any): Promise<GameStatus> {
         const validation = this.validateGame(session.gameId);
         if (!validation.valid) {
             throw validation.error;
@@ -767,7 +799,7 @@ export class McpApiController {
     /**
      * 设置强度
      */
-    private static async handleSetStrength(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleSetStrength(ctx: RouterContext, session: MCPConnection, params: any) {
         const validation = this.validateGame(session.gameId);
         if (!validation.valid) {
             throw validation.error;
@@ -817,7 +849,7 @@ export class McpApiController {
     /**
      * 增加强度
      */
-    private static async handleIncreaseStrength(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleIncreaseStrength(ctx: RouterContext, session: MCPConnection, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -858,7 +890,7 @@ export class McpApiController {
     /**
      * 减少强度
      */
-    private static async handleDecreaseStrength(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleDecreaseStrength(ctx: RouterContext, session: MCPConnection, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -899,7 +931,7 @@ export class McpApiController {
     /**
      * 设置波形
      */
-    private static async handleSetPulse(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleSetPulse(ctx: RouterContext, session: MCPConnection, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -932,7 +964,7 @@ export class McpApiController {
     /**
      * 开火动作
      */
-    private static async handleFireAction(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleFireAction(ctx: RouterContext, session: MCPConnection, params: any) {
         const validation = this.validateGame(session.gameId!);
         if (!validation.valid) {
             throw validation.error;
@@ -984,7 +1016,7 @@ export class McpApiController {
     /**
      * 获取波形列表
      */
-    private static async handleGetPulseList(ctx: RouterContext, session: SSESession, params: any) {
+    private static async handleGetPulseList(ctx: RouterContext, session: MCPConnection, params: any) {
         const pulseList = DGLabPulseService.instance.pulseList;
 
         return {
@@ -1005,9 +1037,12 @@ export class McpApiController {
         operationId: 'MCP SSE Api',
         tags: ['MCP V1'],
     })
-    public async handleMcpSSEApi(ctx: RouterContext): Promise<void> {
-        // console.log('MCP API 连接:', ctx.header, ctx.params, ctx.query);
+    public async mcpApiSSEHandler(ctx: RouterContext): Promise<void> {
+        console.log('MCP API 连接:', ctx.header, ctx.params, ctx.query);
         const connectionId = uuid();
+
+        // 获取或设置会话ID
+        const sessionId = firstHeader(ctx.req.headers['mcp-session-id']) ?? uuid();
 
         // 设置SSE响应头
         ctx.set({
@@ -1015,7 +1050,8 @@ export class McpApiController {
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Cache-Control'
+            'Access-Control-Allow-Headers': 'Cache-Control',
+            'Mcp-Session-Id': sessionId,
         });
 
         // 创建PassThrough流
@@ -1023,7 +1059,7 @@ export class McpApiController {
         ctx.body = stream;
 
         // 添加连接到管理器
-        const session = McpApiController.addSSEConnection(connectionId, stream);
+        const session = MCPApiController.addSSEConnection(connectionId, sessionId, stream);
 
         if (ctx.params.gameId) {
             // 如果有游戏ID，绑定连接到游戏
@@ -1048,12 +1084,12 @@ export class McpApiController {
         // 连接关闭清理
         ctx.req.on('close', () => {
             clearInterval(heartbeat);
-            McpApiController.removeSSEConnection(connectionId);
+            MCPApiController.removeSSEConnection(connectionId);
         });
 
         ctx.req.on('error', () => {
             clearInterval(heartbeat);
-            McpApiController.removeSSEConnection(connectionId);
+            MCPApiController.removeSSEConnection(connectionId);
         });
     }
 
@@ -1070,8 +1106,8 @@ export class McpApiController {
             }),
         }
     })
-    public async handleMcpSSEApiWithGameId(ctx: RouterContext): Promise<void> {
-        await this.handleMcpSSEApi(ctx);
+    public async mcpApiSSEWithGameIdHandler(ctx: RouterContext): Promise<void> {
+        await this.mcpApiSSEHandler(ctx);
     }
 
     /**
@@ -1089,15 +1125,15 @@ export class McpApiController {
             }),
         }
     })
-    @body(McpRequestSchema)
-    @responses(McpResponseSchema)
+    @body(MCPRequestSchema)
+    @responses(MCPResponseSchema)
     public async mcpHandler(ctx: RouterContext): Promise<void> {
         // console.log('MCP API 请求:', ctx.method, ctx.path, ctx.params, ctx.query, ctx.request.body);
         const sessionId = ctx.query.session_id as string;
 
-        const session = McpApiController.sseConnections.get(sessionId);
+        const session = MCPApiController.mcpConnections.get(sessionId);
         if (!session) {
-            ctx.body = McpApiController.createErrorResponse(
+            ctx.body = MCPApiController.createErrorResponse(
                 null,
                 MCP_ERROR_CODES.SESSION_NOT_FOUND,
                 `会话 ${sessionId} 不存在或已过期`
@@ -1106,11 +1142,11 @@ export class McpApiController {
             return;
         }
 
-        let requestBody: McpRequest;
+        let requestBody: MCPRequest;
         try {
-            requestBody = McpRequestSchema.parse(ctx.request.body);
+            requestBody = MCPRequestSchema.parse(ctx.request.body);
         } catch (error: any) {
-            ctx.body = McpApiController.createErrorResponse(
+            ctx.body = MCPApiController.createErrorResponse(
                 null,
                 MCP_ERROR_CODES.INVALID_REQUEST,
                 `请求格式错误: ${error.message}`,
@@ -1135,7 +1171,7 @@ export class McpApiController {
 
             switch (method) {
                 case MCP_METHODS.INITIALIZE:
-                    result = await McpApiController.handleInitialize(ctx, params);
+                    result = await MCPApiController.handleInitialize(ctx, params);
                     break;
 
                 case MCP_METHODS.PING:
@@ -1143,36 +1179,36 @@ export class McpApiController {
                     break;
 
                 case MCP_METHODS.TOOLS_LIST:
-                    result = await McpApiController.handleToolsList(ctx, !!session.gameId);
+                    result = await MCPApiController.handleToolsList(ctx, !!session.gameId);
                     break;
 
                 case MCP_METHODS.TOOLS_CALL:
-                    result = await McpApiController.handleToolsCall(ctx, session, params);
+                    result = await MCPApiController.handleToolsCall(ctx, session, params);
                     break;
 
                 case MCP_METHODS.RESOURCES_LIST:
-                    result = await McpApiController.handleResourcesList(ctx, session);
+                    result = await MCPApiController.handleResourcesList(ctx, session);
                     break;
 
                 case MCP_METHODS.RESOURCES_READ:
-                    result = await McpApiController.handleResourcesRead(ctx, session, params);
+                    result = await MCPApiController.handleResourcesRead(ctx, session, params);
                     break;
 
                 case MCP_METHODS.RESOURCES_SUBSCRIBE:
-                    result = await McpApiController.handleResourcesSubscribe(ctx, session, params);
+                    result = await MCPApiController.handleResourcesSubscribe(ctx, session, params);
                     break;
 
                 case MCP_METHODS.RESOURCES_UNSUBSCRIBE:
-                    result = await McpApiController.handleResourcesUnsubscribe(ctx, session, params);
+                    result = await MCPApiController.handleResourcesUnsubscribe(ctx, session, params);
                     break;
 
                 case MCP_METHODS.PROMPTS_LIST:
-                    result = await McpApiController.handlePromptsList(ctx, session, params);
+                    result = await MCPApiController.handlePromptsList(ctx, session, params);
                     break;
 
                 default:
 
-                    ctx.body = McpApiController.createErrorResponse(
+                    ctx.body = MCPApiController.createErrorResponse(
                         id,
                         MCP_ERROR_CODES.METHOD_NOT_FOUND,
                         `方法 '${method}' 不存在`
@@ -1183,7 +1219,7 @@ export class McpApiController {
 
             session.sendEvent({
                 event: 'message',
-                data: McpApiController.createSuccessResponse(id, result)
+                data: MCPApiController.createSuccessResponse(id, result)
             });
 
             ctx.body = '';
@@ -1192,10 +1228,10 @@ export class McpApiController {
         } catch (error: any) {
             if (error.code && error.message) {
                 // 这是我们的自定义错误
-                ctx.body = McpApiController.createErrorResponse(id, error.code, error.message, error.data);
+                ctx.body = MCPApiController.createErrorResponse(id, error.code, error.message, error.data);
             } else {
                 // 未知错误
-                ctx.body = McpApiController.createErrorResponse(
+                ctx.body = MCPApiController.createErrorResponse(
                     id,
                     MCP_ERROR_CODES.INTERNAL_ERROR,
                     '内部服务器错误',

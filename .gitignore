@@ -3,6 +3,8 @@
 /.vs
 .DS_Store
 
+pnpm-workspace.yaml
+
 node_modules/
 
 /server/config.yaml

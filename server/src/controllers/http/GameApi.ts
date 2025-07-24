@@ -870,4 +870,21 @@ export class GameApiController {
     public async startActionFireV2(ctx: RouterContext): Promise<void> {
         return await this.startActionFire(ctx);
     }
+
+    @routeConfig({
+        method: 'post',
+        path: '/api/v2/game/{id}/gameplay/init',
+        summary: '初始化游戏插件',
+        operationId: 'Init Game Play V2',
+        tags: ['Game Play V2'],
+        request: {
+            params: z.object({
+                id: ClientIdSchema,
+            }),
+        },
+    })
+    @body(StartFireActionRequestSchema)
+    @responses(SetConfigResponseSchema)
+    public async initGameV2(ctx: RouterContext): Promise<void> {
+    }
 }

@@ -1,9 +1,10 @@
 import { Column, DataSource, Entity, Index, ManyToOne, PrimaryColumn } from "typeorm";
 import { GameModel } from "./GameModel.js";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
-import { GamePlayConfigListType, GamePlayEventListType } from "#app/types/gamePlay.js";
+import { GamePlayConfigListType, GamePlayEventAction, GamePlayEventListType } from "#app/types/gamePlay.js";
 import { v4 as uuidv4 } from "uuid";
 import { generateUUIDWithValidation } from "#app/utils/utils.js";
+import { generateConnectCode } from "./index.js";
 
 @Entity({ name: 'game_play' })
 export class GamePlayModel {
@@ -49,15 +50,12 @@ export class GamePlayModel {
     eventSchema?: GamePlayEventListType | null;
 
     @Column({ type: 'json', name: 'event_config', nullable: true, comment: '事件配置' })
-    eventConfig?: Record<string, any> | null;
+    eventConfig?: Record<string, GamePlayEventAction> | null;
 
     public static async create(db: DataSource, gameId: string, data?: Partial<GamePlayModel>): Promise<GamePlayModel> {
         const gamePlay = new GamePlayModel();
         gamePlay.gameId = gameId;
-        gamePlay.connectCode = await generateUUIDWithValidation(async (generatedUuid) => {
-            const existing = await this.getByConnectCode(db, generatedUuid);
-            return !existing;
-        });
+        gamePlay.connectCode = await generateConnectCode(db);
         
         if (data) {
             Object.assign(gamePlay, data);

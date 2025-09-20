@@ -69,7 +69,7 @@ export const GamePlayUpdateStrengthLogSchema = GamePlayLogBaseSchema.extend({
 export type GamePlayUpdateStrengthLogType = z.infer<typeof GamePlayUpdateStrengthLogSchema>;
 
 export const GamePlayActionLogSchema = GamePlayLogBaseSchema.extend({
-    type: z.union([z.literal('startAction'), z.literal('stopAction')]).describe('日志类型'),
+    type: z.enum(['startAction', 'stopAction']).describe('日志类型'),
     actionId: z.string().describe('动作ID'),
     actionName: z.string().describe('动作名称'),
     data: z.any().describe('动作数据'),
@@ -81,3 +81,30 @@ export const GamePlayLogSchema = z.union([
     GamePlayActionLogSchema,
 ]).describe('游戏动作日志');
 export type GamePlayLogType = z.infer<typeof GamePlayLogSchema>;
+
+export const GamePlayEventActionSetStrengthSchema = z.object({
+    type: z.enum(['addStrength', 'subStrength', 'setStrength']).describe('事件动作类型'),
+    strength: z.number().int().describe('强度值'),
+}).describe('游戏事件动作-设置强度');
+export type GamePlayEventActionSetStrengthType = z.infer<typeof GamePlayEventActionSetStrengthSchema>;
+
+export const GamePlayEventActionFireActionSchema = z.object({
+    type: z.literal('fireAction').describe('事件动作类型'),
+    strength: z.number().int().describe('强度值'),
+    duration: z.number().int().describe('持续时间'),
+    isOverrideMode: z.boolean().default(false).describe('重复触发时是否覆盖持续时间'),
+}).describe('游戏事件动作-一键开火');
+export type GamePlayEventActionFireActionType = z.infer<typeof GamePlayEventActionFireActionSchema>;
+
+export const GamePlayEventActionSetStrength2DSchema = z.object({
+    type: z.literal('setStrength2D').describe('事件动作类型'),
+    strengthCurve: z.array(z.number().int()).describe('强度曲线'),
+}).describe('游戏事件动作-设置强度2D');
+export type GamePlayEventActionSetStrength2DType = z.infer<typeof GamePlayEventActionSetStrength2DSchema>;
+
+export const GamePlayEventActionSchema = z.union([
+    GamePlayEventActionSetStrengthSchema,
+    GamePlayEventActionFireActionSchema,
+    GamePlayEventActionSetStrength2DSchema,
+]).describe('游戏事件动作');
+export type GamePlayEventAction = z.infer<typeof GamePlayEventActionSchema>;

@@ -1,8 +1,12 @@
 import 'reflect-metadata'; // 反射元数据
+import blocked from 'blocked-at';
+import * as logger from 'loglevel';
 
 import http from 'http';
 import Koa from 'koa';
 import { WebSocketServer } from 'ws';
+import { Server as SocketIOServer } from 'socket.io';
+import { EngineRequest } from './types/socket-io.js';
 import KoaRouter from 'koa-router';
 import serveStatic from "koa-static";
 import koaLogger from 'koa-logger';
@@ -27,10 +31,12 @@ import { ServerContext } from './types/server.js';
 import { DGLabWSManager } from './managers/DGLabWSManager.js';
 import { WebWSManager } from './managers/WebWSManager.js';
 
+logger.setDefaultLevel(logger.levels.INFO); // 默认日志等级
+
 async function main() {
-    // blocked((time, stack) => {
-    //     console.log(`Blocked for ${time}ms, operation started here:`, stack)
-    // });
+    blocked((time, stack) => {
+        logger.getLogger('Blocked Monitor').warn(`Blocked for ${time}ms, operation started here:`, stack);
+    });
 
     await MainConfig.initialize();
 
@@ -45,12 +51,30 @@ async function main() {
         server: httpServer
     });
 
+    const ioServer = new SocketIOServer(httpServer, {
+        cors: {
+            origin: '*',
+            methods: ['GET', 'POST']
+        }
+    });
+
+    httpServer.on('upgrade', (request, socket, head) => {
+        // 将 /socket.io 的请求交给 Socket.IO 处理
+        if (request.url && request.url.startsWith('/socket.io')) {
+            ioServer.engine.handleUpgrade(request as unknown as EngineRequest, socket, head);
+        } else {
+            wsServer.handleUpgrade(request, socket, head, (ws) => {
+                wsServer.emit('connection', ws, request);
+            });
+        }
+    });
     await DGLabPulseService.instance.initialize();
     await SiteNotificationService.instance.initialize();
     await CustomSkinService.instance.initialize();
 
     const serverContext = {
         database,
+        ioServer
     } as ServerContext;
 
     await CoyoteGameManager.instance.initialize(serverContext);
@@ -102,23 +126,24 @@ async function main() {
             serverAddrStr = serverAddr;
         }
 
-        console.log(`Server is running at ${serverAddrStr}`);
+        const serverLogger = logger.getLogger('Server');
+        serverLogger.info(`Server is running at ${serverAddrStr}`);
         if (serverAddr && typeof serverAddr === 'object') {
-            console.log(`You can access the console via: http://127.0.0.1:${serverAddr.port}`);
+            serverLogger.info(`You can access the console via: http://127.0.0.1:${serverAddr.port}`);
 
             // 自动打开浏览器
             if (MainConfig.value.openBrowser) {
                 try {
                     openBrowser(`http://127.0.0.1:${serverAddr.port}`);
                 } catch (err) {
-                    console.error('Cannot open browser:', err);
+                    serverLogger.error('Cannot open browser:', err);
                 }
             }
         }
 
-        console.log('Local IP Address List:');
+        serverLogger.info('Local IP Address List:');
         ipAddrList.forEach((ipAddr) => {
-            console.log(`  - ${ipAddr}`);
+            serverLogger.info(`  - ${ipAddr}`);
         });
     });
 

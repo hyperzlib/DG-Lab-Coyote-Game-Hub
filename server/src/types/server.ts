@@ -1,5 +1,6 @@
 import { z } from "koa-swagger-decorator";
 import { DataSource } from "typeorm";
+import { Server as SocketIOServer } from 'socket.io';
 
 export const RemoteNotificationInfoSchema = z.object({
     /** 通知标题 */
@@ -25,4 +26,5 @@ export type RemoteNotificationInfo = z.infer<typeof RemoteNotificationInfoSchema
 
 export type ServerContext = {
     database: DataSource;
+    ioServer: SocketIOServer;
 };

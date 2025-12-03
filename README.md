@@ -23,12 +23,12 @@
 
 ## 使用方法（Windows二进制发行版）
 
-1. 从[[Releases](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)下载 ```coyote-game-hub-windows-amd64-dist.zip```：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)
+1. 从 [Releases](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases) 下载 ```coyote-game-hub-windows-amd64-dist.zip```：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)
 2. 解压后运行```start.bat```启动服务器
 
 ## 使用方法（Linux/MacOS命令行）
 1. 安装nodejs（linux推荐使用nvm，mac使用 ```brew install node@22```)
-2. 从[[Releases](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)下载 ```coyote-game-hub-nodejs-server.zip```：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)
+2. 从 [Releases](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases) 下载 ```coyote-game-hub-nodejs-server.zip```：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)
 3. 在解压后的路径中执行 ```node server/index.js```
 
 ## 使用方法（编译使用）

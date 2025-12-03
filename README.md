@@ -21,12 +21,17 @@
 
 请遵守直播平台的相关规定，不要违规使用本组件，如果使用本组件造成直播间封禁等后果与本组件作者无关。
 
-## 使用方法（二进制发行版）
+## 使用方法（Windows二进制发行版）
 
-1. 从[Github Actions](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/actions)下载编译后的文件：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/actions)
-2. 解压后运行```coyote-game-hub-server.exe```启动服务器
+1. 从[[Releases](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)下载 ```coyote-game-hub-windows-amd64-dist.zip```：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)
+2. 解压后运行```start.bat```启动服务器
 
-## 使用方法（命令行）
+## 使用方法（Linux/MacOS命令行）
+1. 安装nodejs（linux推荐使用nvm，mac使用 ```brew install node@22```)
+2. 从[[Releases](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)下载 ```coyote-game-hub-nodejs-server.zip```：[点击跳转](https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/releases)
+3. 在解压后的路径中执行 ```node server/index.js```
+
+## 使用方法（编译使用）
 
 （以下样例中使用了```pnpm```安装依赖，你也可以使用```npm```或者```yarn```）
 

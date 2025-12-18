@@ -58,6 +58,11 @@ async function main() {
         }
     });
 
+    const serverContext = {
+        database,
+        ioServer
+    } as ServerContext;
+
     httpServer.on('upgrade', (request, socket, head) => {
         // 将 /socket.io 的请求交给 Socket.IO 处理
         if (request.url && request.url.startsWith('/socket.io')) {
@@ -71,11 +76,6 @@ async function main() {
     await DGLabPulseService.instance.initialize();
     await SiteNotificationService.instance.initialize();
     await CustomSkinService.instance.initialize();
-
-    const serverContext = {
-        database,
-        ioServer
-    } as ServerContext;
 
     await CoyoteGameManager.instance.initialize(serverContext);
     await DGLabWSManager.instance.initialize(serverContext);

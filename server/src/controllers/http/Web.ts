@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import Koa, { Context } from 'koa';
+import type { Context, ParameterizedContext } from 'koa';
 import { responses, routeConfig } from 'koa-swagger-decorator';
 import { DGLabWSManager } from '../../managers/DGLabWSManager.js';
 import { MainConfig } from '../../config.js';
@@ -18,7 +18,7 @@ export class WebController {
         tags: ['Web'],
     })
     @responses(WebApiResponseSchema)
-    public async index(ctx: Koa.ParameterizedContext): Promise<void> {
+    public async index(ctx: ParameterizedContext): Promise<void> {
         ctx.body = {
             status: 1,
             code: 'OK',

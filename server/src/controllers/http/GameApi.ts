@@ -1,5 +1,5 @@
-import { Context } from 'koa';
-import { RouterContext } from 'koa-router';
+import type { Context } from 'koa';
+import type { RouterContext } from 'koa-router';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';

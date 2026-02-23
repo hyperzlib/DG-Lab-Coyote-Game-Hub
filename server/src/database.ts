@@ -26,11 +26,22 @@ export const createDatabaseConnection = async (config: MainConfigType): Promise<
         });
     } else if (databaseType === 'sqlite') {
         const sqliteConfig = SqliteConfigSchema.parse(databaseConfig);
-        dataSource = new DataSource({
-            type: 'sqlite',
-            database: sqliteConfig.file || 'data/database.sqlite',
-            ...schemaOpts,
-        });
+        // 检测是否是 Bun.js 环境，如果是则使用 Bun 内置的 SQLite 模块
+        if (process.versions.bun) {
+            const sqlite = await import('bun:sqlite');
+            dataSource = new DataSource({
+                type: 'better-sqlite3',
+                database: sqliteConfig.file || 'data/database.sqlite',
+                driver: sqlite,
+                ...schemaOpts,
+            });
+        } else {
+            dataSource = new DataSource({
+                type: 'sqlite',
+                database: sqliteConfig.file || 'data/database.sqlite',
+                ...schemaOpts,
+            });
+        }
     } else if (databaseType === 'postgres') {
         const postgresConfig = PostgresqlConfigSchema.parse(databaseConfig);
         dataSource = new DataSource({

@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "update-lock": "npm i --package-lock-only",
     "build:schema": "tsx cli/build-schema.js",
     "build:ts": "tsc",
@@ -30,7 +32,10 @@
     "#app/*": "./dist/*"
   },
   "devDependencies": {
+    "@eslint/js": "^9.21.0",
     "@bpinternal/zod-to-json-schema": "^3.22.5",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
     "@types/blocked-at": "^1.0.4",
     "@types/js-yaml": "^4.0.9",
     "@types/koa": "^2.15.0",
@@ -40,13 +45,16 @@
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
     "@vercel/ncc": "^0.38.3",
+    "eslint": "^9.21.0",
     "ts-json-schema-generator": "^2.4.0",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.25.0"
   },
   "dependencies": {
     "@hyperzlib/node-reactive-config": "^1.1.1",
     "@koa/bodyparser": "^5.1.2",
+    "@types/bun": "^1.3.9",
     "blocked-at": "^1.2.0",
     "engine.io": "^6.6.4",
     "got": "^14.4.7",
@@ -62,7 +70,6 @@
     "path-to-regexp": "^7.2.0",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.7",
     "typeorm": "^0.3.25",
     "uuid": "^10.0.0",
     "ws": "^8.18.3"

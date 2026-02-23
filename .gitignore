@@ -21,3 +21,4 @@ node_modules/
 
 game-config/
 server/data/*.sqlite
+server/bun.lock

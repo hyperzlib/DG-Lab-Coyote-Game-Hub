@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage, ServerResponse } from 'http';
 
 export type EngineRequest = IncomingMessage & {
     _query: Record<string, string>;

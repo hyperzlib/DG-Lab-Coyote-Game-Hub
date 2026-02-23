@@ -1,7 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 
-import { GameStrengthConfig, MainGameConfig } from "#app/types/game.js";
-import { AfterUpdate, Column, DataSource, Entity, Index, PrimaryColumn } from "typeorm";
+import type { MainGameConfig } from "#app/types/game.js";
+import { GameStrengthConfig } from "#app/types/game.js";
+import type { DataSource} from "typeorm";
+import { AfterUpdate, Column, Entity, Index, PrimaryColumn } from "typeorm";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
 import { DGLabPulseService } from "#app/services/DGLabPulse.js";
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";

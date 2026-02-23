@@ -1,4 +1,4 @@
-import { ValueTransformer } from "typeorm";
+import type { ValueTransformer } from "typeorm";
 
 export const ormDateToNumberTransformer: ValueTransformer = {
     to: (value: Date | null): number | null => {

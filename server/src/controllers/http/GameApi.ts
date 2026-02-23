@@ -1,31 +1,33 @@
 import type { Context } from 'koa';
 import type { RouterContext } from 'koa-router';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
-import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import type { GameStrengthConfig} from '#app/types/game.js';
+import { MainGameConfig } from '#app/types/game.js';
+import type { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { MainConfig } from '#app/config.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { asleep } from '#app/utils/utils.js';
 import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction.js';
 import { body, responses, routeConfig, z } from 'koa-swagger-decorator';
+import type {
+    GetGameApiInfoResponse,
+    GetGameInfoResponse,
+    GetGameStrengthConfigResponse,
+    GetPulseIdResponse,
+    GetPulseListResponse,
+    SetConfigResponse,
+    SetPulseIdRequest,
+    StartFireActionRequest} from './schemas/GameApi.js';
 import {
     ClientIdSchema,
-    GetGameApiInfoResponse,
     GetGameApiInfoResponseSchema,
-    GetGameInfoResponse,
     GetGameInfoResponseSchema,
-    GetGameStrengthConfigResponse,
     GetGameStrengthConfigResponseSchema,
-    GetPulseIdResponse,
     GetPulseIdResponseSchema,
-    GetPulseListResponse,
     GetPulseListResponseSchema,
-    SetConfigResponse,
     SetConfigResponseSchema,
-    SetPulseIdRequest,
     SetPulseIdRequestSchema,
     SetStrengthConfigRequestSchema,
-    StartFireActionRequest,
     StartFireActionRequestSchema
 } from './schemas/GameApi.js';
 import { GameModel } from '#app/models/GameModel.js';

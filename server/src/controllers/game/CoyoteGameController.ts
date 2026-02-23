@@ -1,18 +1,18 @@
 import { EventEmitter } from 'events';
 
 import { Channel } from '#app/types/dg.js';
-import { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS.js';
+import type { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS.js';
 import { Task } from '#app/utils/task.js';
 import { asleep, debounce, randomInt, simpleObjDiff, throttle } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { MainGameConfig, GameStrengthConfig } from '#app/types/game.js';
+import type { MainGameConfig, GameStrengthConfig } from '#app/types/game.js';
 import { PulsePlayList } from '#app/utils/PulsePlayList.js';
-import { AbstractGameAction } from './actions/AbstractGameAction.js';
-import { WebWSClient } from '../ws/WebWS.js';
-import { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
+import type { AbstractGameAction } from './actions/AbstractGameAction.js';
+import type { WebWSClient } from '../ws/WebWS.js';
+import type { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
 import { LatencyLogger } from '#app/utils/latencyLogger.js';
-import { ServerContext } from '#app/types/server.js';
+import type { ServerContext } from '#app/types/server.js';
 import { GameModel } from '#app/models/GameModel.js';
 import { CustomPulseModel } from '#app/models/CustomPulseModel.js';
 

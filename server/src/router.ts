@@ -1,10 +1,10 @@
-import KoaRouter from 'koa-router';
+import type KoaRouter from 'koa-router';
 import { SwaggerRouter } from 'koa-swagger-decorator';
-import { WebSocketRouter } from './utils/WebSocketRouter.js';
+import type { WebSocketRouter } from './utils/WebSocketRouter.js';
 import { DGLabWSManager } from './managers/DGLabWSManager.js';
 import { WebController } from './controllers/http/Web.js';
 import { WebWSManager } from './managers/WebWSManager.js';
-import { MainConfigType } from './types/config.js';
+import type { MainConfigType } from './types/config.js';
 import { GameApiController } from './controllers/http/GameApi.js';
 import { MCPApiController } from './controllers/http/McpApi.js';
 

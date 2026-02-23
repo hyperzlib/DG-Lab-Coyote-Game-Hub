@@ -2,7 +2,8 @@ import { GameModel } from "./GameModel.js"
 import { GamePlayModel } from "./GamePlayModel.js";
 import { CustomPulseModel } from "./CustomPulseModel.js";
 import { generateUUIDWithValidation } from "#app/utils/utils.js";
-import { And, DataSource, Or } from "typeorm";
+import type { DataSource} from "typeorm";
+import { And, Or } from "typeorm";
 
 export const ModelList = [
     GameModel,

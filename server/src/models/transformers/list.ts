@@ -1,4 +1,4 @@
-import { ValueTransformer } from "typeorm";
+import type { ValueTransformer } from "typeorm";
 
 export const ormNumberListToStringTransformer: ValueTransformer = {
     to: (value: number[] | null): string | null => {

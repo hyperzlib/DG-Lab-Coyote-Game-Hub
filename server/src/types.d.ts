@@ -1,6 +1,6 @@
 import 'koa';
 import 'http';
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { ServerContext } from './types/server.js';
 
 /// <reference types="@types/bun" />

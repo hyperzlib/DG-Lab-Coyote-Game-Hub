@@ -3,7 +3,8 @@ import path from 'path';
 import { LRUCache } from "lru-cache";
 
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
-import { GameCustomPulseConfig, GameCustomPulseConfigSchema, MainGameConfig, MainGameConfigSchema } from '#app/types/game.js';
+import type { GameCustomPulseConfig, MainGameConfig} from '#app/types/game.js';
+import { GameCustomPulseConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
 import { DGLabPulseService } from './DGLabPulse.js';
 import { z } from 'koa-swagger-decorator';
 

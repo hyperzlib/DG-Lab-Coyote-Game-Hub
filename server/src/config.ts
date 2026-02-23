@@ -1,6 +1,7 @@
 import yaml from 'js-yaml';
 import * as fs from 'fs';
-import { MainConfigSchema, MainConfigType } from './types/config.js';
+import type { MainConfigType } from './types/config.js';
+import { MainConfigSchema } from './types/config.js';
 import { z } from 'koa-swagger-decorator';
 
 export class Config<ConfigType = any> {

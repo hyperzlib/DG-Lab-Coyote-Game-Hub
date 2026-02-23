@@ -1,12 +1,12 @@
 import { ProviderIdMismatchError } from "#app/exceptions/ProviderIdMismatchError.js";
 import { GamePlayModel } from "#app/models/GamePlayModel.js";
 import { generateConnectCode } from "#app/models/index.js";
-import { GameStrengthConfig } from "#app/types/game.js";
-import { GamePlayActionSource, GamePlayEventAction, GamePlayLogType, GamePlayProviderInfo } from "#app/types/gamePlay.js";
-import { ServerContext } from "#app/types/server.js";
+import type { GameStrengthConfig } from "#app/types/game.js";
+import type { GamePlayActionSource, GamePlayEventAction, GamePlayLogType, GamePlayProviderInfo } from "#app/types/gamePlay.js";
+import type { ServerContext } from "#app/types/server.js";
 import { FixedLenList } from "#app/utils/FixedLenList.js";
-import { AbstractGameAction } from "./actions/AbstractGameAction.js";
-import { CoyoteGameController, GameStrengthInfo } from "./CoyoteGameController.js";
+import type { AbstractGameAction } from "./actions/AbstractGameAction.js";
+import type { CoyoteGameController, GameStrengthInfo } from "./CoyoteGameController.js";
 
 export class GamePlayController {
     private game: CoyoteGameController;

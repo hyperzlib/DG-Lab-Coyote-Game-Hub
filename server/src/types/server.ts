@@ -1,6 +1,6 @@
 import { z } from "koa-swagger-decorator";
-import { DataSource } from "typeorm";
-import { Server as SocketIOServer } from 'socket.io';
+import type { DataSource } from "typeorm";
+import type { Server as SocketIOServer } from 'socket.io';
 
 export const RemoteNotificationInfoSchema = z.object({
     /** 通知标题 */

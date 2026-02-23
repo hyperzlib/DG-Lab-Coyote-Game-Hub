@@ -5,7 +5,8 @@ import { DGLabWSManager } from '../../managers/DGLabWSManager.js';
 import { MainConfig } from '../../config.js';
 import { LocalIPAddress } from '../../utils/utils.js';
 import { CustomSkinService } from '../../services/CustomSkinService.js';
-import { GetClientConnectInfoResponse, GetClientConnectInfoResponseSchema, GetCustomSkinListResponse, GetCustomSkinListResponseSchema, ServerInfoResponse, ServerInfoResponseSchema, WebApiResponseSchema } from './schemas/Web.js';
+import type { GetClientConnectInfoResponse, GetCustomSkinListResponse, ServerInfoResponse} from './schemas/Web.js';
+import { GetClientConnectInfoResponseSchema, GetCustomSkinListResponseSchema, ServerInfoResponseSchema, WebApiResponseSchema } from './schemas/Web.js';
 
 const DGLAB_WS_PREFIX = 'https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#';
 

@@ -1,15 +1,16 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import type { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import type { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { SiteNotificationService } from '#app/services/SiteNotificationService.js';
-import { GameConfigType, GameCustomPulseConfigSchema, GameStrengthConfig, GameStrengthConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
+import type { GameStrengthConfig} from '#app/types/game.js';
+import { GameConfigType, GameCustomPulseConfigSchema, GameStrengthConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
 import { z } from 'koa-swagger-decorator';
 import { GameModel } from '#app/models/GameModel.js';
-import { ServerContext } from '#app/types/server.js';
+import type { ServerContext } from '#app/types/server.js';
 import { CustomPulseModel } from '#app/models/CustomPulseModel.js';
 
 export type WebWSPostMessage = {

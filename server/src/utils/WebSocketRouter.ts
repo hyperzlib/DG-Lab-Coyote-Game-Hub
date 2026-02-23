@@ -1,5 +1,5 @@
-import { IncomingMessage } from 'http';
-import WebSocket from 'ws';
+import type { IncomingMessage } from 'http';
+import type WebSocket from 'ws';
 import { pathToRegexp } from 'path-to-regexp';
 
 export type WebSocketRouterCallback = (ws: WebSocket, req: IncomingMessage, routeParams: Record<string, string>) => void;

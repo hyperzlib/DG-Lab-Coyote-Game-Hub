@@ -6,7 +6,7 @@ import http from 'http';
 import Koa from 'koa';
 import { WebSocketServer } from 'ws';
 import { Server as SocketIOServer } from 'socket.io';
-import { EngineRequest } from './types/socket-io.js';
+import type { EngineRequest } from './types/socket-io.js';
 import KoaRouter from 'koa-router';
 import serveStatic from "koa-static";
 import koaLogger from 'koa-logger';
@@ -27,7 +27,7 @@ import { checkUpdate } from './utils/checkUpdate.js';
 import { CustomSkinService } from './services/CustomSkinService.js';
 import { createDatabaseConnection } from './database.js';
 import { CoyoteGameManager } from './managers/CoyoteGameManager.js';
-import { ServerContext } from './types/server.js';
+import type { ServerContext } from './types/server.js';
 import { DGLabWSManager } from './managers/DGLabWSManager.js';
 import { WebWSManager } from './managers/WebWSManager.js';
 

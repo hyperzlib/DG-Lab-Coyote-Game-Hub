@@ -2,13 +2,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
-import { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
-import { Channel, DGLabMessage, MessageDataHead, MessageType, RetCode, FeedbackButton } from '#app/types/dg.js';
+import type { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import type { DGLabMessage, FeedbackButton } from '#app/types/dg.js';
+import { Channel, MessageDataHead, MessageType, RetCode } from '#app/types/dg.js';
 import { asleep } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
-import { DGLabPulseBaseInfo, DGLabPulseInfo, DGLabPulseService } from '#app/services/DGLabPulse.js';
+import type { DGLabPulseBaseInfo, DGLabPulseInfo} from '#app/services/DGLabPulse.js';
+import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { createHarvest } from '#app/utils/task.js';
-import { ServerContext } from '#app/types/server.js';
+import type { ServerContext } from '#app/types/server.js';
 
 const HEARTBEAT_INTERVAL = 20.0;
 const HEARTBEAT_TIMEOUT = 20.0;

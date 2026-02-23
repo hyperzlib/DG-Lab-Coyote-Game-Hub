@@ -1,7 +1,8 @@
-import { Column, DataSource, Entity, Index, ManyToOne, PrimaryColumn } from "typeorm";
+import type { DataSource} from "typeorm";
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from "typeorm";
 import { GameModel } from "./GameModel.js";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
-import { GamePlayConfigListType, GamePlayEventAction, GamePlayEventListType } from "#app/types/gamePlay.js";
+import type { GamePlayConfigListType, GamePlayEventAction, GamePlayEventListType } from "#app/types/gamePlay.js";
 import { v4 as uuidv4 } from "uuid";
 import { generateUUIDWithValidation } from "#app/utils/utils.js";
 import { generateConnectCode } from "./index.js";

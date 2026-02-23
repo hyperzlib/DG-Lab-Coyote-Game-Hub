@@ -1,4 +1,4 @@
-import { ValueTransformer } from "typeorm";
+import type { ValueTransformer } from "typeorm";
 
 export const ormLooseJsonTransformer: ValueTransformer = {
     to: (value: any): string | null => {

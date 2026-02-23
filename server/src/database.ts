@@ -1,6 +1,7 @@
 import { DataSource, DataSourceOptions } from "typeorm";
 import { ModelList } from "./models/index.js";
-import { MainConfigType, MysqlConfigSchema, MysqlConfigType, PostgresqlConfigSchema, SqliteConfigSchema } from "./types/config.js";
+import type { MainConfigType} from "./types/config.js";
+import { MysqlConfigSchema, MysqlConfigType, PostgresqlConfigSchema, SqliteConfigSchema } from "./types/config.js";
 
 export const createDatabaseConnection = async (config: MainConfigType): Promise<DataSource> => {
     const { databaseType, databaseConfig } = config;

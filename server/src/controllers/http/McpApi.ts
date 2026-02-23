@@ -1,9 +1,12 @@
-import Router from 'koa-router';
+import type Router from 'koa-router';
 import { v4 as uuid } from 'uuid';
 import { z } from 'koa-swagger-decorator';
 import { routeConfig, responses, body } from 'koa-swagger-decorator';
 import { PassThrough } from 'stream';
 
+import type {
+    Tool
+} from './schemas/McpApi.js';
 import {
     MCPRequestSchema,
     MCPResponseSchema,
@@ -19,13 +22,12 @@ import {
     FireActionParamsSchema,
     type MCPRequest as MCPRequest,
     type MCPResponse as MCPResponse,
-    type GameStatus,
-    Tool
+    type GameStatus
 } from './schemas/McpApi.js';
 import { ConnectGameRequestSchema } from './schemas/GameApi.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
-import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import type { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { GameModel } from '#app/models/GameModel.js';
 import { LRUCache } from 'lru-cache';
 import { firstHeader } from '#app/utils/utils.js';

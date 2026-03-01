@@ -1,6 +1,6 @@
 import type { WebSocketServer } from 'ws';
 import WebSocket from 'ws';
-import type { WebSocketRouter } from './WebSocketRouter.js';
+import type { WebSocketRouter } from './webSocketRouter.js';
 
 export const setupWebSocketServer = (wsServer: WebSocketServer, router: WebSocketRouter) => {
     wsServer.on('connection', (ws, req) => {

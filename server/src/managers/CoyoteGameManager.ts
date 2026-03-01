@@ -3,7 +3,7 @@ import { LRUCache } from "lru-cache";
 import { CoyoteGameController } from "#app/controllers/game/CoyoteGameController.js";
 import type { DGLabWSClient } from "#app/controllers/ws/DGLabWS.js";
 import { DGLabWSManager } from "./DGLabWSManager.js";
-import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { ExEventEmitter } from "#app/utils/exEventEmitter.js";
 import type { ServerContext } from "#app/types/server.js";
 
 export interface CoyoteGameManagerEvents {

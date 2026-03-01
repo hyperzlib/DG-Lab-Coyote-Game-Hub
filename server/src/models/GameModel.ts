@@ -6,7 +6,7 @@ import type { DataSource} from "typeorm";
 import { AfterUpdate, Column, Entity, Index, PrimaryColumn } from "typeorm";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
 import { DGLabPulseService } from "#app/services/DGLabPulse.js";
-import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { ExEventEmitter } from "#app/utils/exEventEmitter.js";
 import { ormLooseJsonTransformer } from "./transformers/json.js";
 
 export interface GameModelEvents {

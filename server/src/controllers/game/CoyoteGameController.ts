@@ -4,10 +4,10 @@ import { Channel } from '#app/types/dg.js';
 import type { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS.js';
 import { Task } from '#app/utils/task.js';
 import { asleep, debounce, randomInt, simpleObjDiff, throttle } from '#app/utils/utils.js';
-import { EventStore } from '#app/utils/EventStore.js';
+import { EventStore } from '#app/utils/eventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import type { MainGameConfig, GameStrengthConfig } from '#app/types/game.js';
-import { PulsePlayList } from '#app/utils/PulsePlayList.js';
+import { PulsePlayList } from '#app/utils/pulsePlayList.js';
 import type { AbstractGameAction } from './actions/AbstractGameAction.js';
 import type { WebWSClient } from '../ws/WebWS.js';
 import type { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
@@ -15,6 +15,8 @@ import { LatencyLogger } from '#app/utils/latencyLogger.js';
 import type { ServerContext } from '#app/types/server.js';
 import { GameModel } from '#app/models/GameModel.js';
 import { CustomPulseModel } from '#app/models/CustomPulseModel.js';
+import { ExpiringMap } from '#app/utils/expiringMap.js';
+import { GamePlayController } from './GamePlayController.js';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;
@@ -28,10 +30,15 @@ export interface CoyoteGameEvents {
     clientDisconnected: [];
     gameStarted: [];
     gameStopped: [];
+    logError: [error: Error, message?: string];
 }
 
 export class CoyoteGameController {
     private ctx: ServerContext;
+
+    public events = new EventEmitter<CoyoteGameEvents>();
+
+    private eventStore: EventStore = new EventStore();
 
     /** 在线Socket的ID列表，用于判断是否可以释放Game */
     private onlineSockets = new Set<string>();
@@ -45,24 +52,36 @@ export class CoyoteGameController {
     /** DG-Lab客户端连接 */
     public client?: DGLabWSClient;
 
+    /** 插件列表 */
+    public gamePlayControllers: ExpiringMap<string, GamePlayController> = new ExpiringMap({
+        ttl: 1000 * 60 * 30,
+        refreshOnGet: true,
+        refreshOnHas: false,
+    });
+
     /** 强度配置 */
-    public strengthConfig: GameStrengthConfig = {
+    public globalStrengthConfig: GameStrengthConfig = {
         strength: 5,
         randomStrength: 5,
     };
 
+    /** 插件强度配置 */
+    public scopedStrengthConfig: Record<string, GameStrengthConfig> = {};
+
+    /** 
+     * 游戏配置
+     * 游戏配置是只有用户可以修改的配置，插件无法修改
+     */
     public gameConfig!: MainGameConfig;
 
     /** 强度配置更改时间 */
     public strengthConfigModified: number = 0;
 
-    /** 强度设置时间 */
-    public strengthSetTime: number = 0;
+    /** 客户端强度设置时间 */
+    public clientStrengthSetTime: number = 0;
 
-    /** 当前游戏Action列表 */
+    /** 当前游戏的特殊操作列表 */
     public actionList: AbstractGameAction[] = [];
-
-    private _tempStrength: number = 0;
 
     /** 自定义波形列表 */
     public customPulseList: DGLabPulseInfo[] = [];
@@ -70,13 +89,13 @@ export class CoyoteGameController {
     /** 波形播放列表 */
     public pulsePlayList!: PulsePlayList;
 
-    public events = new EventEmitter<CoyoteGameEvents>();
-
-    private eventStore: EventStore = new EventStore();
-
     /** 游戏主循环Task */
     private gameTask: Task | null = null;
 
+    /** 临时强度（一键开火等事件的强度） */
+    private _tempStrength: number = 0;
+
+    /** 临时强度（一键开火等事件的强度） */
     public get tempStrength(): number {
         return this._tempStrength;
     }
@@ -86,6 +105,7 @@ export class CoyoteGameController {
         this.events.emit('strengthChanged', this.gameStrength);
     }
 
+    /** 当前客户端上报的强度信息 */
     public get clientStrength(): StrengthInfo {
         return this.client?.strength ?? {
             strength: 0,
@@ -93,11 +113,26 @@ export class CoyoteGameController {
         };
     }
 
+    /** 当前游戏的强度信息，包含客户端上报的强度和临时强度 */
     public get gameStrength(): GameStrengthInfo {
         return {
             ...this.clientStrength,
             tempStrength: this._tempStrength,
         };
+    }
+
+    /** 绝对强度配置，包含全局强度配置和插件强度配置的叠加（计算属性，避免频繁调用） */
+    public get absoluteStrengthConfig(): GameStrengthConfig {
+        let strengthConfig: GameStrengthConfig = {
+            ...this.globalStrengthConfig,
+        };
+
+        for (const gamePlayStrength of Object.values(this.scopedStrengthConfig)) {
+            strengthConfig.strength += Math.max(0, gamePlayStrength.strength);
+            strengthConfig.randomStrength += Math.max(0, gamePlayStrength.randomStrength);
+        }
+
+        return strengthConfig;
     }
 
     constructor(ctx: ServerContext, clientId: string) {
@@ -120,13 +155,13 @@ export class CoyoteGameController {
 
         let cachedGameStrengthConfig = configCache.get(`${configCachePrefix}:strength`);
         if (cachedGameStrengthConfig) {
-            this.strengthConfig = cachedGameStrengthConfig;
+            this.globalStrengthConfig = cachedGameStrengthConfig;
             this.strengthConfigModified = Date.now();
             hasCachedConfig = true;
         }
 
         if (hasCachedConfig) { // 有缓存配置时需要通知控制器更新配置
-            this.events.emit('strengthConfigUpdated', this.strengthConfig);
+            this.events.emit('strengthConfigUpdated', this.globalStrengthConfig);
         }
 
         // 监听游戏配置更新事件
@@ -200,28 +235,45 @@ export class CoyoteGameController {
      * @param config 
      */
     public async updateStrengthConfig(config: GameStrengthConfig): Promise<void> {
+        this.events.emit('strengthConfigUpdated', this.globalStrengthConfig);
+
+        if (simpleObjDiff(config, this.globalStrengthConfig)) {
+            this.globalStrengthConfig = config;
+            this.handleStrengthChanged();
+        }
+    }
+
+    /**
+     * 处理强度配置更新后的强度变更
+     * 在修改globalStrengthConfig或scopedStrengthConfig后需要调用此方法来处理强度变更
+     * @todo 完成每个GamePlay拥有单独的强度配置后的强度变更处理逻辑
+     * @param strengthConfig
+     */
+    private async handleStrengthConfigChangedInternal(): Promise<void> {
+        this.strengthConfigModified = Date.now();
         let deltaStrength = 0;
-        
-        if (simpleObjDiff(config, this.strengthConfig)) {
-            this.strengthConfig = config;
-            this.strengthConfigModified = Date.now();
 
-            this.events.emit('strengthConfigUpdated', this.strengthConfig);
+        if (this.client) { // 客户端已连接时才更新强度
+            const absoluteStrengthConfig = this.absoluteStrengthConfig;
+            deltaStrength = absoluteStrengthConfig.strength - this.client.strength.strength;
 
-            if (this.client) { // 客户端已连接时才更新强度
-                deltaStrength = this.strengthConfig.strength - this.client.strength.strength;
-
-                if (deltaStrength <= 5) {
-                    // 如果强度增加不超过5，则直接设置强度
-                    // 在GameApi连续加减时，这么做可以防止波形大量中断
-                    await this.setClientStrength(this.strengthConfig.strength);
-                } else {
-                    // 重启波形输出
-                    await this.restartGame();
-                }
+            if (deltaStrength <= 5) {
+                // 如果强度增加不超过5，则直接设置强度
+                // 在GameApi连续加减时，这么做可以防止波形大量中断
+                await this.setClientStrength(absoluteStrengthConfig.strength);
+            } else {
+                // 重启波形输出
+                await this.restartGame();
             }
         }
     }
+
+    public handleStrengthChanged = throttle(() => {
+        this.handleStrengthConfigChangedInternal().catch((error) => {
+            console.error('Failed to handle strength changed:', error);
+            this.events.emit('logError', error, 'Failed to handle strength changed');
+        });
+    }, 100);
 
     /**
      * 开始一个游戏动作
@@ -317,7 +369,7 @@ export class CoyoteGameController {
             await this.client.setStrength(Channel.B, bStrength);
         }
 
-        this.strengthSetTime = Date.now();
+        this.clientStrengthSetTime = Date.now();
     }
 
     /**
@@ -353,7 +405,7 @@ export class CoyoteGameController {
         // 随机强度
         const strengthChangeInterval = this.gameConfig.strengthChangeInterval;
         let outputTime = randomInt(strengthChangeInterval[0], strengthChangeInterval[1]) * 1000;
-        let targetStrength = this.strengthConfig.strength + randomInt(0, this.strengthConfig.randomStrength);
+        let targetStrength = this.globalStrengthConfig.strength + randomInt(0, this.globalStrengthConfig.randomStrength);
         targetStrength = Math.min(targetStrength, this.clientStrength.limit);
 
         let currentStrength = this.client.strength.strength;
@@ -403,7 +455,7 @@ export class CoyoteGameController {
             // 初始化强度和脉冲
             await this.client.reset();
 
-            let initStrength = this.strengthConfig.strength;
+            let initStrength = this.globalStrengthConfig.strength;
             initStrength = Math.min(initStrength, this.clientStrength.limit); // 限制初始强度不超过限制
 
             // 启动游戏任务
@@ -485,7 +537,7 @@ export class CoyoteGameController {
         // 保存配置, 以便下次连接时恢复
         const configCachePrefix = `coyoteLiveGameConfig:${this.clientId}:`;
         const configCache  = CoyoteGameManager.instance.configCache;
-        configCache.set(`${configCachePrefix}:strength`, this.strengthConfig);
+        configCache.set(`${configCachePrefix}:strength`, this.globalStrengthConfig);
 
 
         this.eventStore.removeAllListeners();

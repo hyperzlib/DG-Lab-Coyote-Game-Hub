@@ -49,7 +49,7 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
 
         let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
 
-        absoluteStrength = Math.min(this.game.strengthConfig.strength + this.currentFireStrength, this.game.gameStrength.limit);
+        absoluteStrength = Math.min(this.game.globalStrengthConfig.strength + this.currentFireStrength, this.game.gameStrength.limit);
         await this.game.setClientStrength(absoluteStrength);
 
         // 如果目标强度大于初始强度，则逐渐增加强度
@@ -71,14 +71,14 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
 
             if (this.fireStrength < this.currentFireStrength) {
                 // 降低强度，直接设置
-                this.game.setClientStrength(this.game.strengthConfig.strength).catch((error) => {
+                this.game.setClientStrength(this.game.globalStrengthConfig.strength).catch((error) => {
                     console.error('Failed to set strength:', error);
                 });
             } else {
                 // 逐渐增加强度
                 this.currentFireStrength = Math.min(this.currentFireStrength + FIRE_BOOST_STRENGTH, this.fireStrength);
                 this.game.tempStrength = this.currentFireStrength;
-                absoluteStrength = Math.min(this.game.strengthConfig.strength + this.currentFireStrength, this.game.clientStrength.limit);
+                absoluteStrength = Math.min(this.game.globalStrengthConfig.strength + this.currentFireStrength, this.game.clientStrength.limit);
 
                 this.game.setClientStrength(absoluteStrength).catch((error) => {
                     console.error('Failed to set strength:', error);
@@ -93,7 +93,7 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
                 boostAb.abort(); // 停止增加强度
                 if (this.fireStrength && Date.now() > this.fireEndTimestamp) { // 一键开火结束
                     // 提前降低强度
-                    this.game.setClientStrength(this.game.strengthConfig.strength).catch((error) => {
+                    this.game.setClientStrength(this.game.globalStrengthConfig.strength).catch((error) => {
                         console.error('Failed to set strength:', error);
                     });
                 }

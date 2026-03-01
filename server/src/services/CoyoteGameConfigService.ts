@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { LRUCache } from "lru-cache";
 
-import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { ExEventEmitter } from "#app/utils/exEventEmitter.js";
 import type { GameCustomPulseConfig, MainGameConfig} from '#app/types/game.js';
 import { GameCustomPulseConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
 import { DGLabPulseService } from './DGLabPulse.js';

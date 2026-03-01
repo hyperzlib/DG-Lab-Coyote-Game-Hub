@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import type { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
-import { EventStore } from '#app/utils/EventStore.js';
+import type { AsyncWebSocket } from '#app/utils/webSocketAsync.js';
+import { EventStore } from '#app/utils/eventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import type { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
@@ -538,7 +538,7 @@ export class WebWSClient {
 
         await this.send({
             event: 'strengthConfigUpdated',
-            data: gameInstance.strengthConfig,
+            data: gameInstance.globalStrengthConfig,
         });
 
         if (this.gameInstance.client) {

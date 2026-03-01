@@ -12,7 +12,7 @@ import serveStatic from "koa-static";
 import koaLogger from 'koa-logger';
 import { bodyParser } from '@koa/bodyparser';
 
-import { WebSocketRouter } from './utils/WebSocketRouter.js';
+import { WebSocketRouter } from './utils/webSocketRouter.js';
 import { setupWebSocketServer } from './utils/websocket.js';
 import { createSwaggerRouter, setupRouter as initCommonRouter } from './router.js';
 import { MainConfig } from './config.js';

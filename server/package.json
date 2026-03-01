@@ -55,6 +55,7 @@
     "@hyperzlib/node-reactive-config": "^1.1.1",
     "@koa/bodyparser": "^5.1.2",
     "@types/bun": "^1.3.9",
+    "better-sqlite3": "^12.6.2",
     "blocked-at": "^1.2.0",
     "engine.io": "^6.6.4",
     "got": "^14.4.7",

@@ -1,4 +1,4 @@
-import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { ExEventEmitter } from "#app/utils/exEventEmitter.js";
 import type { RemoteNotificationInfo } from "#app/types/server.js";
 import { MainConfig } from "#app/config.js";
 

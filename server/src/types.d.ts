@@ -16,6 +16,10 @@ declare module 'koa' {
     interface DefaultContext {
         database: DataSource;
     }
+
+    interface ExtendableContext {
+        database: DataSource;
+    }
 }
 declare module 'http' {
     interface IncomingMessage {

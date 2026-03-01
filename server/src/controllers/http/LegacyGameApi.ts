@@ -107,7 +107,7 @@ export class GameStrengthUpdateQueue {
                 break;
             }
 
-            let strengthConfig: GameStrengthConfig = { ...game.strengthConfig };
+            let strengthConfig: GameStrengthConfig = { ...game.globalStrengthConfig };
             const updates = this.queuedUpdates.get(clientId)!;
 
             let handledUpdateNum = 0;
@@ -168,7 +168,7 @@ export class GameStrengthUpdateQueue {
 
 export const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
-export class GameApiController {
+export class LegacyGameApiController {
     private async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {
         if (!ctx.params.id) {
             apiResponse(ctx, {
@@ -270,7 +270,7 @@ export class GameApiController {
             apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
-                strengthConfig: game.strengthConfig,
+                strengthConfig: game.globalStrengthConfig,
                 gameConfig,
                 clientStrength: game.clientStrength,
                 currentPulseId: game.pulsePlayList.getCurrentPulseId(),
@@ -346,7 +346,7 @@ export class GameApiController {
         apiResponse(ctx, {
             status: 1,
             code: 'OK',
-            strengthConfig: game.strengthConfig,
+            strengthConfig: game.globalStrengthConfig,
         } as GetGameStrengthConfigResponse);
     }
 

@@ -2,11 +2,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
-import type { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import type { AsyncWebSocket } from '#app/utils/webSocketAsync.js';
 import type { DGLabMessage, FeedbackButton } from '#app/types/dg.js';
 import { Channel, MessageDataHead, MessageType, RetCode } from '#app/types/dg.js';
 import { asleep } from '#app/utils/utils.js';
-import { EventStore } from '#app/utils/EventStore.js';
+import { EventStore } from '#app/utils/eventStore.js';
 import type { DGLabPulseBaseInfo, DGLabPulseInfo} from '#app/services/DGLabPulse.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { createHarvest } from '#app/utils/task.js';

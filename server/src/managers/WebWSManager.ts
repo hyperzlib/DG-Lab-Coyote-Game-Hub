@@ -4,7 +4,7 @@ import type { WebSocket } from 'ws';
 
 import { OnExit } from '#app/utils/onExit.js';
 import { WebWSClient } from '#app/controllers/ws/WebWS.js';
-import { wrapAsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import { wrapAsyncWebSocket } from '#app/utils/webSocketAsync.js';
 import type { ServerContext } from '#app/types/server.js';
 
 export interface WebWSManagerEventsListener {

@@ -3,7 +3,7 @@ import type { DataSource} from "typeorm";
 import { AfterInsert, AfterRemove, AfterUpdate, Column, Entity, In, ManyToOne, PrimaryColumn } from "typeorm";
 import { GameModel } from "./GameModel.js";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
-import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
+import { ExEventEmitter } from "#app/utils/exEventEmitter.js";
 
 export interface PulseModelEvents {
     pulseListUpdated: [pulseData: PulseData, mode: 'insert' | 'update' | 'delete'];

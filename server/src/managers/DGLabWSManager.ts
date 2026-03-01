@@ -1,7 +1,7 @@
 import type WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import type { IncomingMessage } from 'http';
-import { wrapAsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import { wrapAsyncWebSocket } from '#app/utils/webSocketAsync.js';
 import { RetCode } from '#app/types/dg.js';
 import { DGLabWSClient } from '#app/controllers/ws/DGLabWS.js';
 import { OnExit } from '#app/utils/onExit.js';

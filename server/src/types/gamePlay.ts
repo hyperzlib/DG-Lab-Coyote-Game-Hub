@@ -108,3 +108,6 @@ export const GamePlayEventActionSchema = z.union([
     GamePlayEventActionSetStrength2DSchema,
 ]).describe('游戏事件动作');
 export type GamePlayEventAction = z.infer<typeof GamePlayEventActionSchema>;
+
+export const GamePlayStrengthUpdateModeSchema = z.enum(['overwrite', 'additive']).describe('游戏强度更新模式');
+export type GamePlayStrengthUpdateMode = z.infer<typeof GamePlayStrengthUpdateModeSchema>;

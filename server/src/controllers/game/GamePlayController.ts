@@ -2,7 +2,7 @@ import { ProviderAlreadyInitializedError } from "#app/exceptions/ProviderAlready
 import { GamePlayModel } from "#app/models/GamePlayModel.js";
 import { generateConnectCode } from "#app/models/index.js";
 import type { GameStrengthConfig } from "#app/types/game.js";
-import type { GamePlayActionSource, GamePlayEventAction, GamePlayLogType, GamePlayProviderInfo } from "#app/types/gamePlay.js";
+import type { GamePlayActionSource, GamePlayEventAction, GamePlayLogType, GamePlayProviderInfo, GamePlayStrengthUpdateMode } from "#app/types/gamePlay.js";
 import type { ServerContext } from "#app/types/server.js";
 import { FixedLenList } from "#app/utils/fixedLenList.js";
 import type { AbstractGameAction } from "./actions/AbstractGameAction.js";
@@ -19,6 +19,8 @@ export class GamePlayController {
     private actionLogs = new FixedLenList<GamePlayLogType>(200);
 
     public connectCode: string = "";
+
+    public strengthUpdateMode: GamePlayStrengthUpdateMode = 'additive';
 
     /** 游戏配置 */
     public config: Record<string, any> = {};

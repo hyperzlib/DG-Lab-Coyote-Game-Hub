@@ -3,8 +3,6 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from "typeorm";
 import { GameModel } from "./GameModel.js";
 import { ormDateToNumberTransformer } from "./transformers/date.js";
 import type { GamePlayConfigListType, GamePlayEventAction, GamePlayEventListType } from "#app/types/gamePlay.js";
-import { v4 as uuidv4 } from "uuid";
-import { generateUUIDWithValidation } from "#app/utils/utils.js";
 import { generateConnectCode } from "./index.js";
 
 @Entity({ name: 'game_play' })
@@ -40,6 +38,9 @@ export class GamePlayModel {
 
     @Column({ type: 'int', name: 'last_connected_at', unsigned: true, nullable: true, transformer: ormDateToNumberTransformer, comment: '最后连接时间' })
     lastConnectedAt?: Date | null;
+
+    @Column({ type: 'simple-enum', name: 'strength_update_mode', enum: ['overwrite', 'additive'], default: 'additive', comment: '强度更新模式，overwrite表示覆盖，additive表示累加' })
+    strengthUpdateMode!: 'overwrite' | 'additive';
 
     @Column({ type: 'json', name: 'config_schema', nullable: true, comment: '配置Schema' })
     configSchema?: GamePlayConfigListType | null;

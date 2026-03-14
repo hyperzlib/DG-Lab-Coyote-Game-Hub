@@ -35,9 +35,16 @@ export const openBrowser = (url: string) => {
     exec(`${command} ${url}`);
 }
 
-export const simpleObjDiff = (obj1: any, obj2: any) => {
+/**
+ * 简单的对象差异比较，返回两个对象在第一层上不同的键列表，如果没有不同则返回false
+ * @param obj1 对象1
+ * @param obj2 对象2
+ * @param preciseDepth 精确比较深度（超过该深度的对象将使用JSON.stringify比较），默认为3
+ * @returns 不同的键列表，如果没有不同则返回false
+ */
+export const simpleObjDiff = (obj1: any, obj2: any, preciseDepth: number = 3, _prefix: string = ''): string[] | false => {
     if (!obj1 || !obj2) {
-        return [];
+        return false;
     }
 
     let differentKeys: string[] = [];
@@ -59,7 +66,12 @@ export const simpleObjDiff = (obj1: any, obj2: any) => {
                 }
             }
         } else if (typeof a === 'object' && typeof b === 'object') {
-            if (JSON.stringify(a) !== JSON.stringify(b)) {
+            if (preciseDepth > 0) {
+                const subDiff = simpleObjDiff(a, b, preciseDepth - 1, `${_prefix}${key}.`);
+                if (subDiff) {
+                    differentKeys.push(...subDiff.map(subKey => `${_prefix}${key}.${subKey}`));
+                }
+            } else if (JSON.stringify(a) !== JSON.stringify(b)) {
                 differentKeys.push(key);
             }
         } else if (obj1[key] !== obj2[key]) {
@@ -73,6 +85,11 @@ export const simpleObjDiff = (obj1: any, obj2: any) => {
         return false;
     }
 }
+
+export const includesPrefix = (strList: string[], prefix: string) => {
+    return strList.some(str => str.startsWith(prefix));
+}
+
 export class LocalIPAddress {
     private static ipAddrList?: string[];
 

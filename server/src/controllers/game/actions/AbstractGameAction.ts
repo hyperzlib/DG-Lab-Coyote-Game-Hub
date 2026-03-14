@@ -1,3 +1,4 @@
+import { ChannelEnum } from "#app/types/game.js";
 import { CoyoteGameController } from "../CoyoteGameController.js";
 
 export abstract class AbstractGameAction<ActionConfig = any> {
@@ -23,9 +24,31 @@ export abstract class AbstractGameAction<ActionConfig = any> {
         // Subclass could override this method
     }
 
+    _destroy() {
+        this.abortController.abort();
+        this.destroy();
+    }
+
+    destroy() {
+        // Subclass could override this method
+    }
+
     /** 执行游戏动作 */
-    public abstract execute(ab: AbortController, harvest: () => void, done: () => void): Promise<void>;
+    public abstract execute(channel: ChannelEnum, ab: AbortController, harvest: () => void): Promise<void>;
 
     /** 更新游戏动作的配置 */
     public abstract updateConfig(config: ActionConfig): void;
+
+    /** 判断游戏动作是否适用于指定通道 */
+    public abstract isApplicableToChannel(channel: ChannelEnum): boolean;
+
+    _isFinished(): boolean {
+        if (this.abortController.signal.aborted) {
+            return true;
+        }
+        return this.isFinished();
+    }
+
+    /** 游戏动作是否已结束 */
+    public abstract isFinished(): boolean;
 }

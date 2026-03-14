@@ -3,6 +3,8 @@
 /.vs
 .DS_Store
 
+pnpm-workspace.yaml
+
 node_modules/
 
 /server/config.yaml
@@ -18,3 +20,8 @@ node_modules/
 /build
 
 game-config/
+server/data/*.sqlite
+server/bun.lock
+.gitnexus
+
+/server/data/*.sqlite

@@ -25,7 +25,7 @@ import {
     type GameStatus,
     Tool
 } from './schemas/McpApi.js';
-import { ConnectGameRequestSchema } from './schemas/GameApi.js';
+import { ConnectGameRequestSchema } from './schemas/LegacyGameApi.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';

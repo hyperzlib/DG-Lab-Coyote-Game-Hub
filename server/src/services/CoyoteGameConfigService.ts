@@ -3,9 +3,11 @@ import path from 'path';
 import { LRUCache } from "lru-cache";
 
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
-import { GameCustomPulseConfig, GameCustomPulseConfigSchema, MainGameConfig, MainGameConfigSchema } from '#app/types/game.js';
+import { GameCustomPulseConfig, GameCustomPulseConfigSchema, GamePulseConfig, MainGameConfig, MainGameConfigSchema } from '#app/types/game.js';
 import { DGLabPulseService } from './DGLabPulse.js';
 import { z } from 'koa-swagger-decorator';
+import { deepMerge } from '#app/utils/utils.js';
+import { DeepPartial } from '#app/types/common.js';
 
 export enum GameConfigType {
     MainGame = 'main-game',
@@ -27,7 +29,7 @@ export class CoyoteGameConfigService {
     private gameConfigDir = 'data/game-config';
 
     public events = new ExEventEmitter<CoyoteLiveGameManagerEvents>();
-    
+
     private configCache: LRUCache<string, any> = new LRUCache({
         max: 1000,
         ttl: 1000 * 60 * 30, // 30 minutes
@@ -52,14 +54,22 @@ export class CoyoteGameConfigService {
 
     public getDefaultConfig(type: GameConfigType) {
         if (type === GameConfigType.MainGame) {
+            const defaultPulseConfig: GamePulseConfig = {
+                pulseId: DGLabPulseService.instance.getDefaultPulse().id,
+                firePulseId: DGLabPulseService.instance.getDefaultPulse().id,
+                pulseMode: 'single',
+                pulseChangeInterval: 60,
+            }
+
             return {
                 fireStrengthLimit: 30,
                 strengthChangeInterval: [15, 30],
-                enableBChannel: false,
+                bChannelMode: 'off',
                 bChannelStrengthMultiplier: 1,
-                pulseId: DGLabPulseService.instance.getDefaultPulse().id,
-                pulseMode: 'single',
-                pulseChangeInterval: 60,
+                pulse: {
+                    main: defaultPulseConfig,
+                    channelB: defaultPulseConfig,
+                },
             } as MainGameConfig;
         } else if (type === GameConfigType.CustomPulse) {
             return {
@@ -124,17 +134,14 @@ export class CoyoteGameConfigService {
         return undefined;
     }
 
-    public async update<TKey extends keyof GameConfigTypeMap>(clientId: string, type: TKey, newConfig: Partial<GameConfigTypeMap[TKey]>) {
+    public async update<TKey extends keyof GameConfigTypeMap>(clientId: string, type: TKey, newConfig: DeepPartial<GameConfigTypeMap[TKey]>) {
         const cacheKey = `${clientId}/${type}`;
         const config = await this.get(clientId, type, false);
         if (!config) {
             throw new Error(`Config not found: ${cacheKey}`);
         }
 
-        const updatedConfig = {
-            ...config,
-            ...newConfig,
-        };
+        const updatedConfig = deepMerge(config, newConfig);
 
         await this.set(clientId, type, updatedConfig);
     }

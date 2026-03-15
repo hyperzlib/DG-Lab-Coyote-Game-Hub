@@ -1,5 +1,5 @@
 import { z } from "koa-swagger-decorator";
-import { ClientIdSchema } from "./GameApi.js";
+import { ClientIdSchema } from "./LegacyGameApi.js";
 
 /**
  * MCP (Model Context Protocol) API Schemas

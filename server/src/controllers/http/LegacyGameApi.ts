@@ -1,7 +1,7 @@
 import { Context } from 'koa';
 import { RouterContext } from 'koa-router';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
+import { ChannelEnum, ChannelEnumSchema, ChannelGameStrengthConfig, GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { MainConfig } from '#app/config.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
@@ -11,6 +11,7 @@ import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/ac
 import { body, responses, routeConfig, z } from 'koa-swagger-decorator';
 import {
     ClientIdSchema,
+    convertMainGameConfigV3ToV2,
     GetGameApiInfoResponse,
     GetGameApiInfoResponseSchema,
     GetGameInfoResponse,
@@ -28,9 +29,10 @@ import {
     SetStrengthConfigRequestSchema,
     StartFireActionRequest,
     StartFireActionRequestSchema
-} from './schemas/GameApi.js';
+} from './schemas/LegacyGameApi.js';
 
 export type SetStrengthConfigRequest = {
+    channel: ChannelEnum,
     strength?: {
         add?: number;
         sub?: number;
@@ -41,6 +43,7 @@ export type SetStrengthConfigRequest = {
         sub?: number;
         set?: number;
     },
+    _handled?: boolean; // 内部使用，表示这个请求是否已经被处理过了
 };
 
 export type FireRequest = {
@@ -104,53 +107,59 @@ export class GameStrengthUpdateQueue {
                 break;
             }
 
-            let strengthConfig: GameStrengthConfig = { ...game.strengthConfig };
-            const updates = this.queuedUpdates.get(clientId)!;
+            let updates = this.queuedUpdates.get(clientId)!;
 
-            let handledUpdateNum = 0;
-            for (const update of updates) { // 遍历更新队列
-                if (update.strength) {
-                    let targetMinStrength = strengthConfig.strength;
-                    if (typeof update.strength.add === 'number' || typeof update.strength.add === 'string') {
-                        targetMinStrength += update.strength.add;
-                    } else if (typeof update.strength.sub === 'number') {
-                        targetMinStrength -= update.strength.sub;
-                    } else if (typeof update.strength.set === 'number') {
-                        targetMinStrength = update.strength.set;
+            for (const channel of ['main', 'channelB'] as ChannelEnum[]) {
+                let strengthConfig: ChannelGameStrengthConfig = { ...game.strengthConfig[channel] };
+                for (const update of updates) { // 遍历更新队列
+                    if (update.channel !== channel) {
+                        continue; // 这个更新不属于当前通道，跳过
                     }
 
-                    strengthConfig.strength = targetMinStrength;
-                }
+                    if (update.strength) {
+                        let targetMinStrength = strengthConfig.strength;
+                        if (typeof update.strength.add === 'number' || typeof update.strength.add === 'string') {
+                            targetMinStrength += update.strength.add;
+                        } else if (typeof update.strength.sub === 'number') {
+                            targetMinStrength -= update.strength.sub;
+                        } else if (typeof update.strength.set === 'number') {
+                            targetMinStrength = update.strength.set;
+                        }
 
-                if (update.randomStrength) {
-                    let targetMaxStrength = strengthConfig.randomStrength;
-                    if (typeof update.randomStrength.add === 'number') {
-                        targetMaxStrength += update.randomStrength.add;
-                    } else if (typeof update.randomStrength.sub === 'number') {
-                        targetMaxStrength -= update.randomStrength.sub;
-                    } else if (typeof update.randomStrength.set === 'number') {
-                        targetMaxStrength = update.randomStrength.set;
+                        strengthConfig.strength = targetMinStrength;
                     }
 
-                    strengthConfig.randomStrength = targetMaxStrength;
+                    if (update.randomStrength) {
+                        let targetMaxStrength = strengthConfig.randomStrength;
+                        if (typeof update.randomStrength.add === 'number') {
+                            targetMaxStrength += update.randomStrength.add;
+                        } else if (typeof update.randomStrength.sub === 'number') {
+                            targetMaxStrength -= update.randomStrength.sub;
+                        } else if (typeof update.randomStrength.set === 'number') {
+                            targetMaxStrength = update.randomStrength.set;
+                        }
+
+                        strengthConfig.randomStrength = targetMaxStrength;
+                    }
+                    
+                    update._handled = true; // 标记这个更新已经被处理过了
                 }
                 
-                handledUpdateNum++;
+                // 防止强度配置超出范围
+                strengthConfig.strength = Math.min(Math.max(0, strengthConfig.strength), game.clientStrength[channel].limit);
+                strengthConfig.randomStrength = Math.max(0, strengthConfig.randomStrength);
+
+                // 更新游戏配置
+                try {
+                    await game.updateStrengthConfig(strengthConfig, channel);
+                } catch (err: any) {
+                    console.error(`[GameStrengthUpdateQueue] Error while updating game config: ${err.message}`);
+                }
             }
 
-            updates.splice(0, handledUpdateNum); // 移除已处理的更新
-
-            // 防止强度配置超出范围
-            strengthConfig.strength = Math.min(Math.max(0, strengthConfig.strength), game.clientStrength.limit);
-            strengthConfig.randomStrength = Math.max(0, strengthConfig.randomStrength);
-
-            // 更新游戏配置
-            try {
-                await game.updateStrengthConfig(strengthConfig);
-            } catch (err: any) {
-                console.error(`[GameStrengthUpdateQueue] Error while updating game config: ${err.message}`);
-            }
-
+            // 移除已经处理过的更新
+            updates = updates.filter(u => !u._handled);
+            this.queuedUpdates.set(clientId, updates);
             if (updates.length === 0) {
                 // 如果队列为空，移除该客户端的更新队列
                 this.queuedUpdates.delete(clientId);
@@ -165,7 +174,25 @@ export class GameStrengthUpdateQueue {
 
 export const gameStrengthUpdateQueue = new GameStrengthUpdateQueue();
 
-export class GameApiController {
+export class LegacyGameApiController {
+    private getClientIdAndChannel(ctx: RouterContext): { clientId: string, channel: ChannelEnum } {
+        if (!ctx.params.id) {
+            return { clientId: '', channel: 'main' };
+        }
+
+        // 为了在V2 API中兼容分通道控制，将通道信息放在id参数中
+        // 格式为"{clientId}.{channel}"，如果没有指定通道则默认为"main"
+        const [clientId, channelStr = 'main'] = ctx.params.id.split('.') as [string, string];
+
+        try {
+            // 因为程序中没有运行时类型信息，这里必须确保channelStr是合法的ChannelEnum，否则可能会导致程序异常
+            const channel = ChannelEnumSchema.parse(channelStr);
+            return { clientId, channel };
+        } catch (err) {
+            return { clientId, channel: 'main' };
+        }
+    }
+
     private async requestGameInstance(ctx: RouterContext): Promise<CoyoteGameController | null> {
         if (!ctx.params.id) {
             apiResponse(ctx, {
@@ -175,10 +202,10 @@ export class GameApiController {
             });
             return null;
         }
+        
+        const { clientId } = this.getClientIdAndChannel(ctx);
 
-        console.log('params', ctx.params);
-
-        const game = CoyoteGameManager.instance.getGame(ctx.params.id);
+        const game = CoyoteGameManager.instance.getGame(clientId);
         if (!game) {
             apiResponse(ctx, {
                 status: 0,
@@ -236,8 +263,9 @@ export class GameApiController {
     @responses(GetGameInfoResponseSchema)
     public async gameInfo(ctx: RouterContext): Promise<void> {
         let game: CoyoteGameController | null = null;
-        let clientId = '';
-        if (ctx.params.id === 'all') {
+        let { clientId, channel } = this.getClientIdAndChannel(ctx);
+
+        if (clientId === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
                 apiResponse(ctx, {
                     status: 0,
@@ -248,10 +276,9 @@ export class GameApiController {
             }
             
             game = CoyoteGameManager.instance.getGameList().next().value;
-            clientId = game!.clientId;
+            clientId = game?.clientId || '';
         } else {
             game = await this.requestGameInstance(ctx);
-            clientId = ctx.params.id;
         }
 
         if (!clientId) {
@@ -269,17 +296,17 @@ export class GameApiController {
             apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
-                strengthConfig: game.strengthConfig,
-                gameConfig,
-                clientStrength: game.clientStrength,
-                currentPulseId: game.pulsePlayList.getCurrentPulseId(),
+                strengthConfig: game.strengthConfig[channel],
+                gameConfig: convertMainGameConfigV3ToV2(game.gameConfig, channel),
+                clientStrength: game.clientStrength[channel],
+                currentPulseId: game.pulsePlayList[channel]?.getCurrentPulseId(),
             } as GetGameInfoResponse);
         } else {
             apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
                 strengthConfig: null,
-                gameConfig,
+                gameConfig: gameConfig ? convertMainGameConfigV3ToV2(gameConfig, channel) : null,
                 clientStrength: null,
                 currentPulseId: '',
             } as GetGameInfoResponse);
@@ -318,7 +345,9 @@ export class GameApiController {
     @responses(GetGameStrengthConfigResponseSchema)
     public async getGameStrength(ctx: RouterContext): Promise<void> {
         let game: CoyoteGameController | null = null;
-        if (ctx.params.id === 'all') {
+        let { clientId, channel } = this.getClientIdAndChannel(ctx);
+
+        if (clientId === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
                 apiResponse(ctx, {
                     status: 0,
@@ -345,7 +374,7 @@ export class GameApiController {
         apiResponse(ctx, {
             status: 1,
             code: 'OK',
-            strengthConfig: game.strengthConfig,
+            strengthConfig: game.strengthConfig[channel],
         } as GetGameStrengthConfigResponse);
     }
 
@@ -390,9 +419,13 @@ export class GameApiController {
             return;
         }
 
+        let { clientId, channel } = this.getClientIdAndChannel(ctx);
         let postBody: SetStrengthConfigRequest;
         try {
-            postBody = SetStrengthConfigRequestSchema.parse(ctx.request.body);
+            postBody = {
+                ...SetStrengthConfigRequestSchema.parse(ctx.request.body),
+                channel,
+            };
         } catch (err: any) {
             apiResponse(ctx, {
                 status: 0,
@@ -403,7 +436,7 @@ export class GameApiController {
         }
 
         let gameList: Iterable<CoyoteGameController> = [];
-        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
+        if (clientId === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
                 apiResponse(ctx, {
                     status: 0,
@@ -415,7 +448,7 @@ export class GameApiController {
 
             gameList = CoyoteGameManager.instance.getGameList();
         } else  { // 设置指定游戏的强度配置
-            const game = CoyoteGameManager.instance.getGame(ctx.params.id);
+            const game = CoyoteGameManager.instance.getGame(clientId);
             if (!game) {
                 apiResponse(ctx, {
                     status: 0,
@@ -483,8 +516,8 @@ export class GameApiController {
     })
     @responses(GetPulseIdResponseSchema)
     public async getPulseId(ctx: RouterContext): Promise<void> {
-        let clientId: string = '';
-        if (ctx.params.id === 'all') {
+        let { clientId, channel } = this.getClientIdAndChannel(ctx);
+        if (clientId === 'all') {
             if (!MainConfig.value.allowBroadcastToClients) {
                 apiResponse(ctx, {
                     status: 0,
@@ -495,9 +528,7 @@ export class GameApiController {
             }
 
             const game: CoyoteGameController = CoyoteGameManager.instance.getGameList().next().value;
-            clientId = game.clientId;
-        } else {
-            clientId = ctx.params.id;
+            clientId = game?.clientId || '';
         }
         
         if (!clientId) {
@@ -519,10 +550,11 @@ export class GameApiController {
             return;
         }
 
-        let currentPulseId = typeof gameConfig.pulseId === 'string' ? gameConfig.pulseId : gameConfig.pulseId[0];
+        const gamePulseId = gameConfig.pulse[channel].pulseId;
+        let currentPulseId = typeof gamePulseId === 'string' ? gamePulseId : gamePulseId[0];
         const game = CoyoteGameManager.instance.getGame(clientId);
         if (game) {
-            currentPulseId = game.pulsePlayList.getCurrentPulseId();
+            currentPulseId = game.pulsePlayList[channel]?.getCurrentPulseId() ?? '';
         }
         
 
@@ -530,7 +562,7 @@ export class GameApiController {
             status: 1,
             code: 'OK',
             currentPulseId,
-            pulseId: gameConfig.pulseId,
+            pulseId: gamePulseId,
         } as GetPulseIdResponse);
     }
 
@@ -611,7 +643,9 @@ export class GameApiController {
         }
 
         let clientIdList: string[] = [];
-        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
+        const { clientId, channel } = this.getClientIdAndChannel(ctx);
+
+        if (clientId === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
                 apiResponse(ctx, {
                     status: 0,
@@ -626,13 +660,17 @@ export class GameApiController {
                 clientIdList.push(game.clientId);
             }
         } else  { // 设置指定游戏的强度配置
-            clientIdList.push(ctx.params.id);
+            clientIdList.push(clientId);
         }
         
         let successClientIds = new Set<string>();
         for (const clientId of clientIdList) {
-            CoyoteGameConfigService.instance.update(clientId, GameConfigType.MainGame, {
-                pulseId: postBody.pulseId,
+            await CoyoteGameConfigService.instance.update(clientId, GameConfigType.MainGame, {
+                pulse: {
+                    [channel]: {
+                        pulseId: postBody.pulseId,
+                    },
+                },
             });
 
             successClientIds.add(clientId);
@@ -685,8 +723,9 @@ export class GameApiController {
     public async getPulseList(ctx: RouterContext): Promise<void> {
         let pulseList: any[] = DGLabPulseService.instance.pulseList;
 
-        if (ctx.params.id && ctx.params.id !== 'all') {
-            const customPulseList = await CoyoteGameConfigService.instance.get(ctx.params.id, GameConfigType.CustomPulse, false);
+        let { clientId } = this.getClientIdAndChannel(ctx);
+        if (clientId && clientId !== 'all') {
+            const customPulseList = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.CustomPulse, false);
             if (customPulseList) {
                 pulseList.push(...customPulseList.customPulseList);
             }
@@ -804,7 +843,9 @@ export class GameApiController {
         const overrideTime = req.override ?? false;
 
         let gameList: Iterable<CoyoteGameController> = [];
-        if (ctx.params.id === 'all') { // 广播模式，设置所有游戏的强度配置
+
+        let { clientId, channel } = this.getClientIdAndChannel(ctx);
+        if (clientId === 'all') { // 广播模式，设置所有游戏的强度配置
             if (!MainConfig.value.allowBroadcastToClients) {
                 apiResponse(ctx, {
                     status: 0,
@@ -816,7 +857,7 @@ export class GameApiController {
 
             gameList = CoyoteGameManager.instance.getGameList();
         } else  { // 设置指定游戏的强度配置
-            const game = CoyoteGameManager.instance.getGame(ctx.params.id);
+            const game = CoyoteGameManager.instance.getGame(clientId);
             if (!game) {
                 apiResponse(ctx, {
                     status: 0,
@@ -832,6 +873,7 @@ export class GameApiController {
         let successClientIds = new Set<string>();
         for (const game of gameList) {
             let fireAction = new GameFireAction({
+                channel,
                 strength: req.strength,
                 time: fireTime,
                 pulseId: pulseId,

@@ -6,7 +6,7 @@ import { Task } from '#app/utils/task.js';
 import { asleep, includesPrefix, randomInt, simpleObjDiff } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { MainGameConfig, GameStrengthConfig, TargetChannelEnum, ChannelEnum } from '#app/types/game.js';
+import { MainGameConfig, TargetChannelEnum, ChannelEnum, GameStrengthConfig, ChannelGameStrengthConfig } from '#app/types/game.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { PulsePlayList } from '#app/utils/PulsePlayList.js';
 import { AbstractGameAction } from './actions/AbstractGameAction.js';
@@ -26,7 +26,7 @@ export type Channelify<T> = {
 export interface CoyoteGameEvents {
     close: [];
     strengthChanged: [strength: Channelify<GameStrengthInfo>];
-    strengthConfigUpdated: [config: Channelify<GameStrengthConfig>];
+    strengthConfigUpdated: [config: GameStrengthConfig];
     clientConnected: [];
     clientDisconnected: [];
     gameStarted: [];
@@ -47,7 +47,7 @@ export class CoyoteGameController {
     public client?: DGLabWSClient;
 
     /** 强度配置 */
-    public strengthConfig: Channelify<GameStrengthConfig> = {
+    public strengthConfig: GameStrengthConfig = {
         main: {
             strength: 5,
             randomStrength: 5,
@@ -255,7 +255,7 @@ export class CoyoteGameController {
      * 更新游戏强度配置
      * @param config 
      */
-    public async updateStrengthConfig(config: GameStrengthConfig, channel: TargetChannelEnum = 'main'): Promise<void> {
+    public async updateStrengthConfig(config: ChannelGameStrengthConfig, channel: TargetChannelEnum): Promise<void> {
         if (channel === 'all') {
             // 同时更新两个通道的强度配置
             await this.updateStrengthConfig(config, 'main');

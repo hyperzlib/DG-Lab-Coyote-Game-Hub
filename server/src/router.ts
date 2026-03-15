@@ -5,7 +5,7 @@ import { DGLabWSManager } from './managers/DGLabWSManager.js';
 import { WebController } from './controllers/http/Web.js';
 import { WebWSManager } from './managers/WebWSManager.js';
 import { MainConfigType } from './types/config.js';
-import { GameApiController } from './controllers/http/GameApi.js';
+import { LegacyGameApiController } from './controllers/http/LegacyGameApi.js';
 import { McpApiController } from './controllers/http/McpApi.js';
 
 export const createSwaggerRouter = (config: MainConfigType) => {
@@ -37,7 +37,7 @@ export const createSwaggerRouter = (config: MainConfigType) => {
     swaggerRouter.swagger();
 
     swaggerRouter.applyRoute(WebController);
-    swaggerRouter.applyRoute(GameApiController);
+    swaggerRouter.applyRoute(LegacyGameApiController);
     swaggerRouter.applyRoute(McpApiController);
 
     return swaggerRouter;

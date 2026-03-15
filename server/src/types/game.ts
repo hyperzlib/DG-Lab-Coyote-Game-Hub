@@ -15,9 +15,15 @@ export type ChannelEnum = z.infer<typeof ChannelEnumSchema>;
 export const TargetChannelEnumSchema = z.enum(['main', 'channelB', 'all']).describe('目标通道枚举');
 export type TargetChannelEnum = z.infer<typeof TargetChannelEnumSchema>;
 
-export const GameStrengthConfigSchema = z.object({
+export const ChannelGameStrengthConfigSchema = z.object({
     strength: z.number().int().min(0).max(100).describe('基础强度'),
     randomStrength: z.number().int().min(0).max(100).describe('随机强度'),
+}).describe('单通道强度配置');
+export type ChannelGameStrengthConfig = z.infer<typeof ChannelGameStrengthConfigSchema>;
+
+export const GameStrengthConfigSchema = z.object({
+    main: ChannelGameStrengthConfigSchema.describe('A通道强度配置'),
+    channelB: ChannelGameStrengthConfigSchema.describe('B通道强度配置'),
 }).describe('强度配置');
 export type GameStrengthConfig = z.infer<typeof GameStrengthConfigSchema>;
 

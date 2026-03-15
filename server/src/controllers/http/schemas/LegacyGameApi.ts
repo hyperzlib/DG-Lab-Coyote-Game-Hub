@@ -1,5 +1,4 @@
-import { GameStrengthConfigSchema, MainGameConfigSchema } from "#app/types/game.js";
-import def from "ajv/dist/vocabularies/applicator/additionalItems.js";
+import { ChannelEnum, ChannelGameStrengthConfigSchema, MainGameConfig, MainGameConfigSchema, PulsePlayModeSchema } from "#app/types/game.js";
 import { z } from "koa-swagger-decorator";
 
 
@@ -48,6 +47,38 @@ const AutoCastBool = <Schema extends (z.ZodBoolean)>(schema: Schema) => {
     )
 }
 
+export const MainGameConfigV2Schema = z.object({
+    fireStrengthLimit: z.number().int().min(1).default(30)
+        .describe('一键开火强度限制，默认30'),
+    strengthChangeInterval: z.tuple([z.number().int().min(10), z.number().int().min(30)])
+        .describe('强度变化间隔，单位秒'),
+    enableBChannel: z.boolean().default(false).describe('是否启用B通道'),
+    bChannelStrengthMultiplier: z.number().int().min(1).default(1)
+        .describe('B通道相对于A通道的强度倍率，默认1'),
+    pulseId: z.union([z.string(), z.array(z.string())])
+        .describe('波形ID或ID列表'),
+    firePulseId: z.string().optional().nullable()
+        .describe('一键开火波形ID，如果不设置则使用当前波形'),
+    pulseMode: PulsePlayModeSchema.default('single')
+        .describe('波形播放模式'),
+    pulseChangeInterval: z.number().int().min(1).default(60)
+        .describe('波形切换间隔，单位秒'),
+}).describe('游戏主配置');
+export type MainGameConfigV2 = z.infer<typeof MainGameConfigV2Schema>;
+
+export const convertMainGameConfigV3ToV2 = (config: MainGameConfig, channel: ChannelEnum): MainGameConfigV2 => {
+    return {
+        fireStrengthLimit: config.fireStrengthLimit,
+        strengthChangeInterval: config.strengthChangeInterval,
+        enableBChannel: config.bChannelMode !== 'off',
+        bChannelStrengthMultiplier: config.bChannelStrengthMultiplier,
+        pulseId: config.pulse[channel].pulseId,
+        firePulseId: config.pulse[channel].firePulseId,
+        pulseMode: config.pulse[channel].pulseMode,
+        pulseChangeInterval: config.pulse[channel].pulseChangeInterval,
+    };
+};
+
 export const ClientIdSchema = z.union([
     z.string().describe('客户端ID'),
     z.enum(['all']).describe('所有客户端'),
@@ -76,15 +107,15 @@ export const GetGameApiInfoResponseSchema = ApiResponseSchema.extend({
 export type GetGameApiInfoResponse = z.infer<typeof GetGameApiInfoResponseSchema>;
 
 export const GetGameInfoResponseSchema = ApiResponseSchema.extend({
-    strengthConfig: GameStrengthConfigSchema.optional().nullable().describe('游戏强度配置'),
-    gameConfig: MainGameConfigSchema.optional().nullable().describe('游戏配置'),
+    strengthConfig: ChannelGameStrengthConfigSchema.optional().nullable().describe('游戏强度配置'),
+    gameConfig: MainGameConfigV2Schema.optional().nullable().describe('游戏配置'),
     clientStrength: ClientStrengthInfoSchema.optional().nullable().describe('客户端强度信息'),
     currentPulseId: z.string().optional().nullable().describe('当前波形ID'),
 }).describe('获取游戏信息响应格式');
 export type GetGameInfoResponse = z.infer<typeof GetGameInfoResponseSchema>;
 
 export const GetGameStrengthConfigResponseSchema = ApiResponseSchema.extend({
-    strengthConfig: GameStrengthConfigSchema.optional().nullable().describe('游戏强度配置'),
+    strengthConfig: ChannelGameStrengthConfigSchema.optional().nullable().describe('游戏强度配置'),
 }).describe('获取游戏强度配置响应格式');
 export type GetGameStrengthConfigResponse = z.infer<typeof GetGameStrengthConfigResponseSchema>;
 

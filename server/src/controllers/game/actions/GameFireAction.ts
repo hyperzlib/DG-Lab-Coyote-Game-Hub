@@ -69,22 +69,24 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
             return;
         }
 
-        if (this.currentFireStrength[channel] === 0) {
-            this.currentFireStrength[channel] = Math.min(targetFireStrength, SAFE_FIRE_STRENGTH);
-        }
-        this.game.setTempStrength(this.currentFireStrength[channel], channel);
-
-        let absoluteStrength = 0;
-
-        let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000); // 单次最多输出30秒
-
         let clientChannel = Channel.A;
         if (channel === 'channelB') {
             clientChannel = Channel.B;
         }
 
+        if (this.currentFireStrength[channel] === 0) {
+            this.currentFireStrength[channel] = Math.min(targetFireStrength, SAFE_FIRE_STRENGTH);
+        }
+        this.game.setTempStrength(this.currentFireStrength[channel], channel);
+
+        // 单轮最多输出30秒
+        let outputTime = Math.min(this.fireEndTimestamp - Date.now(), 30000);
+
+        let absoluteStrength = 0;
         absoluteStrength = Math.min(this.game.strengthConfig[channel].strength + this.currentFireStrength[channel],
             this.game.gameStrength[channel].limit);
+
+        harvest();
         await this.game.setClientStrength(absoluteStrength, channel);
 
         // 如果目标强度大于初始强度，则逐渐增加强度

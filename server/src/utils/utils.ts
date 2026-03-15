@@ -86,6 +86,33 @@ export const simpleObjDiff = (obj1: any, obj2: any, preciseDepth: number = 3, _p
     }
 }
 
+/**
+ * 深度合并对象，后续对象的属性会覆盖前面对象的同名属性，如果属性值都是对象则会递归合并
+ * @param target 目标对象，后续对象的属性会合并到这个对象上
+ * @param source 源对象，属性会从这个对象合并到目标对象上
+ * @returns 合并后的目标对象
+ */
+export const deepMerge = (target: any, source: any, copy: boolean = true) => {
+    if (copy) {
+        target = { ...target };
+    }
+    for (const key in source) {
+        if (source[key] && typeof source[key] === 'object') {
+            if (!target[key] || typeof target[key] !== 'object') {
+                target[key] = {};
+            }
+            if (target[key]['_override'] === true) {
+                target[key] = source[key];
+            } else {
+                deepMerge(target[key], source[key], copy);
+            }
+        } else {
+            target[key] = source[key];
+        }
+    }
+    return target;
+}
+
 export const includesPrefix = (strList: string[], prefix: string) => {
     return strList.some(str => str.startsWith(prefix));
 }

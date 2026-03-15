@@ -26,8 +26,9 @@ export function createHarvest(abortController: AbortController): () => void {
 }
 
 /**
- * @param abortController
- * @param harvest This function will break the task if the task is aborted.
+ * @param abortController AbortController，需要传递给支持的async函数以便在任务中止时能迅速响应
+ * @param harvest 收割函数，调用它以检查任务是否已中止，并在适当的时候抛出异常，Task会捕获这个异常并进行相应处理
+ * @param round 当前是第几轮执行，第一次执行为0，之后每次执行递增1
  */
 export type TaskHandler = (abortController: AbortController, harvest: () => void, round: number) => Promise<void>;
 

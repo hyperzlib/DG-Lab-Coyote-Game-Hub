@@ -7,7 +7,7 @@ import { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { SiteNotificationService } from '#app/services/SiteNotificationService.js';
-import { GameCustomPulseConfigSchema, ChannelGameStrengthConfig, ChannelGameStrengthConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
+import { GameCustomPulseConfigSchema, MainGameConfigSchema, GameStrengthConfigSchema, GameStrengthConfig } from '#app/types/game.js';
 import { z } from 'koa-swagger-decorator';
 
 export type WebWSPostMessage = {
@@ -245,8 +245,9 @@ export class WebWSClient {
             return;
         }
 
+        let newStrengthConfig: GameStrengthConfig;
         try {
-            message.config = ChannelGameStrengthConfigSchema.parse(message.config);
+            newStrengthConfig = GameStrengthConfigSchema.parse(message.config);
         } catch (error: any) {
             if (error instanceof z.ZodError) {
                 await this.sendResponse(message.requestId, {
@@ -265,7 +266,10 @@ export class WebWSClient {
             }
         }
 
-        await this.gameInstance.updateStrengthConfig(message.config);
+        await Promise.all([
+            this.gameInstance.updateStrengthConfig(newStrengthConfig.main, 'main'),
+            this.gameInstance.updateStrengthConfig(newStrengthConfig.channelB, 'channelB'),
+        ]);
     }
 
     private async handleUpdateGameConfig(message: any) {

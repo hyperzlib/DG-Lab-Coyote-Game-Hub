@@ -245,9 +245,8 @@ export class WebWSClient {
             return;
         }
 
-        let strengthConfig: GameStrengthConfig;
         try {
-            strengthConfig = GameStrengthConfigSchema.parse(message.config);
+            message.config = GameStrengthConfigSchema.parse(message.config);
         } catch (error: any) {
             if (error instanceof z.ZodError) {
                 await this.sendResponse(message.requestId, {

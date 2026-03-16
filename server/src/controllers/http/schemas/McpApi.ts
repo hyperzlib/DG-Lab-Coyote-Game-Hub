@@ -104,12 +104,25 @@ export const ToolsCallResultSchema = z.object({
 }).describe("工具调用结果");
 
 // 游戏状态信息
+export const McpDeviceChannelEnumSchema = z.enum(["aChannel", "bChannel"])
+    .describe("设备通道枚举");
+export type McpDeviceChannelEnum = z.infer<typeof McpDeviceChannelEnumSchema>;
+
 export const GameStatusSchema = z.object({
     gameId: z.string().describe("游戏 ID"),
+    aChannel: z.object({
+        currentStrength: z.number().int().min(0).max(200).describe("当前电击强度"),
+        randomStrengthRange: z.number().int().min(0).max(200).describe("随机电击强度范围"),
+        strengthLimit: z.number().int().min(0).max(200).describe("电击强度限制"),
+    }).describe("A通道状态"),
+    bChannel: z.object({
+        mode: z.string().describe("B通道模式"),
+        currentStrength: z.number().int().min(0).max(200).optional().describe("当前电击强度"),
+        randomStrengthRange: z.number().int().min(0).max(200).optional().describe("随机电击强度范围"),
+        strengthLimit: z.number().int().min(0).max(200).optional().describe("电击强度限制"),
+    }).describe("B通道状态"),
+    isConnected: z.boolean().describe("是否有玩家连接"),
     isStarted: z.boolean().describe("电击是否已启动"),
-    currentStrength: z.number().int().min(0).max(200).describe("当前电击强度"),
-    randomStrengthRange: z.number().int().min(0).max(200).describe("随机电击强度范围"),
-    strengthLimit: z.number().int().min(0).max(200).describe("电击强度限制"),
     currentPulseId: z.string().optional().describe("当前波形 ID"),
     message: z.string().optional().describe("状态消息"),
 }).describe("游戏状态信息");
@@ -120,14 +133,17 @@ export type GameStatus = z.infer<typeof GameStatusSchema>;
 export const GetGameStatusParamsSchema = z.object({}).describe("获取游戏状态参数");
 
 export const SetStrengthParamsSchema = z.object({
-    strength: z.number().int().min(0).max(200).describe("设置的电击强度值")
+    channel: McpDeviceChannelEnumSchema.describe("要设置波形的通道"),
+    strength: z.number().int().min(0).max(200).describe("设置的电击强度值"),
 }).describe("设置电击强度参数");
 
 export const SetPulseParamsSchema = z.object({
+    channel: McpDeviceChannelEnumSchema.describe("要设置波形的通道"),
     pulseId: z.string().describe("波形 ID")
 }).describe("设置波形参数");
 
 export const FireActionParamsSchema = z.object({
+    channel: z.enum(["aChannel", "bChannel", "all"]).describe("要执行一键开火的通道"),
     strength: z.number().int().min(0).max(200).describe("一键开火强度"),
     duration: z.number().int().min(100).max(30000).optional().default(5000).describe("持续时间（毫秒）"),
     pulseId: z.string().optional().describe("指定波形 ID")
@@ -185,15 +201,18 @@ export const ResourcesReadResultSchema = z.object({
 }).describe("资源读取结果");
 
 export const IncreaseStrengthParamsSchema = z.object({
+    channel: McpDeviceChannelEnumSchema.describe("要增加强度的通道"),
     amount: z.number().int().min(1).max(200).describe("增加的电击强度值")
 }).describe("增强电击强度参数");
 
 export const DecreaseStrengthParamsSchema = z.object({
+    channel: McpDeviceChannelEnumSchema.describe("要减少强度的通道"),
     amount: z.number().int().min(1).max(200).describe("减少的电击强度值")
 }).describe("减少电击强度参数");
 
 export const StrengthOperationResultSchema = z.object({
     success: z.boolean().describe("操作是否成功"),
+    channel: McpDeviceChannelEnumSchema.describe("操作的通道"),
     oldStrength: z.number().int().min(0).max(200).describe("操作前电击强度"),
     newStrength: z.number().int().min(0).max(200).describe("操作后电击强度"),
     strengthLimit: z.number().int().min(0).max(200).describe("电击强度限制"),
@@ -223,7 +242,7 @@ export const MCP_METHODS = {
     PING: 'ping',
     TOOLS_LIST: 'tools/list',
     TOOLS_CALL: 'tools/call',
-    RESOURCES_LIST: 'resources/list', 
+    RESOURCES_LIST: 'resources/list',
     RESOURCES_READ: 'resources/read',
     RESOURCES_SUBSCRIBE: 'resources/subscribe',
     RESOURCES_UNSUBSCRIBE: 'resources/unsubscribe',

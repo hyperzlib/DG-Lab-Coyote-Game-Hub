@@ -415,16 +415,28 @@ export class CoyoteGameController {
 
         switch (channel) {
             case 'main':
-                await this.client.setStrength(Channel.A, strength);
+                try {
+                    await this.client.setStrength(Channel.A, strength);
+                } catch (error) {
+                    console.error('Failed to set main channel strength:', error);
+                }
                 if (this.gameConfig.bChannelMode === 'sync') {
                     // 如果B通道与A通道同步，则B通道强度也随之调整
                     let bStrength = Math.min(strength * this.gameConfig.bChannelStrengthMultiplier, this.clientStrength.channelB.limit);
-                    await this.client.setStrength(Channel.B, bStrength);
+                    try {
+                        await this.client.setStrength(Channel.B, bStrength);
+                    } catch (error) {
+                        console.error('Failed to set B channel strength:', error);
+                    }
                 }
                 break;
             case 'channelB':
                 if (this.gameConfig.bChannelMode === 'discrete') {
-                    await this.client.setStrength(Channel.B, strength);
+                    try {
+                        await this.client.setStrength(Channel.B, strength);
+                    } catch (error) {
+                        console.error('Failed to set B channel strength:', error);
+                    }
                 }
                 break;
             case 'all':

@@ -25,10 +25,15 @@ export type PulseItemResponse = {
     pulseData: string[];
 };
 
-export type GameStrengthInfo = {
+export type ChannelStrengthInfo = {
     strength: number;
     limit: number;
     tempStrength: number;
+};
+
+export type GameStrengthInfo = {
+    main: ChannelStrengthInfo;
+    channelB: ChannelStrengthInfo;
 };
 
 export enum GameConfigType {
@@ -49,24 +54,34 @@ export type RemoteNotificationInfo = {
     urlLabel?: string;
 };
 
-export interface GameStrengthConfig {
+export interface ChannelStrengthConfig {
     strength: number;
     randomStrength: number;
+}
+
+export interface GameStrengthConfig {
+    main: ChannelStrengthConfig;
+    channelB: ChannelStrengthConfig;
+}
+
+export interface ChannelPulseConfig {
+    pulseId: string | string[];
+    firePulseId?: string | null;
+    pulseMode: PulsePlayMode;
+    pulseChangeInterval: number;
 }
 
 export interface MainGameConfig {
     fireStrengthLimit: number;
     strengthChangeInterval: [number, number];
-
-    enableBChannel: boolean;
-    /** B通道强度倍率 */
+    /** B通道模式：off=关闭，sync=同步A通道，discrete=独立控制 */
+    bChannelMode: 'off' | 'sync' | 'discrete';
+    /** B通道相对于A通道的强度倍率 */
     bChannelStrengthMultiplier: number;
-
-    pulseId: string | string[];
-    firePulseId?: string | null;
-
-    pulseMode: PulsePlayMode;
-    pulseChangeInterval: number;
+    pulse: {
+        main: ChannelPulseConfig;
+        channelB: ChannelPulseConfig;
+    };
 }
 
 export interface GameCustomPulseConfig {

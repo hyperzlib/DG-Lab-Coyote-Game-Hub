@@ -281,21 +281,14 @@ export class LegacyGameApiController {
             game = await this.requestGameInstance(ctx);
         }
 
-        if (!clientId) {
-            apiResponse(ctx, {
-                status: 0,
-                code: 'ERR::GAME_NOT_FOUND',
-                message: '游戏进程不存在，可能是客户端未连接',
-            });
-            return;
-        }
-
         let gameConfig = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.MainGame, false);
 
         if (game) {
             apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
+                isConnected: true,
+                isRunning: game.running,
                 strengthConfig: game.strengthConfig[channel],
                 gameConfig: convertMainGameConfigV3ToV2(game.gameConfig, channel),
                 clientStrength: game.clientStrength[channel],
@@ -305,6 +298,8 @@ export class LegacyGameApiController {
             apiResponse(ctx, {
                 status: 1,
                 code: 'OK',
+                isConnected: false,
+                isRunning: false,
                 strengthConfig: null,
                 gameConfig: gameConfig ? convertMainGameConfigV3ToV2(gameConfig, channel) : null,
                 clientStrength: null,

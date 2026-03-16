@@ -6,6 +6,7 @@
 pnpm-workspace.yaml
 
 node_modules/
+__pycache__/
 
 /server/config.yaml
 /server/dist

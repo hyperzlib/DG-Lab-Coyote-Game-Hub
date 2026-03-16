@@ -16,6 +16,7 @@ const props = defineProps<{
   clientId: string;
   connectorType: string;
   controllerUrl: string;
+  bChannelIsDiscrete: boolean;
 }>();
 
 const toast = useToast();
@@ -40,9 +41,15 @@ const setClientName = async (name: string) => {
 
 const gameConnectCode = computed(() => {
   if (props.controllerUrl) {
-    return `${props.clientId}@${props.controllerUrl}`;
+    return {
+      main: `${props.clientId}@${props.controllerUrl}`,
+      channelB: `${props.clientId}.channelB@${props.controllerUrl}`,
+    };
   } else {
-    return props.clientId;
+    return {
+      main: props.clientId,
+      channelB: `${props.clientId}.channelB`,
+    };
   }
 });
 
@@ -80,8 +87,15 @@ watch(() => state.inputClientName, (value) => {
     <div class="flex items-center gap-2 mb-4">
       <label class="font-semibold w-30">游戏连接码</label>
       <InputGroup>
-        <InputText :value="gameConnectCode" id="input-gameConnectCode" class="w-full" readonly />
+        <InputText :value="gameConnectCode.main" id="input-gameConnectCode" class="w-full" readonly />
         <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-gameConnectCode')"></Button>
+      </InputGroup>
+    </div>
+    <div v-if="props.bChannelIsDiscrete" class="flex items-center gap-2 mb-4">
+      <label class="font-semibold w-30">游戏连接码（B通道）</label>
+      <InputGroup>
+        <InputText :value="gameConnectCode.channelB" id="input-gameConnectCodeB" class="w-full" readonly />
+        <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-gameConnectCodeB')"></Button>
       </InputGroup>
     </div>
     <div class="flex flex-col gap-2 mb-4">
@@ -92,8 +106,9 @@ watch(() => state.inputClientName, (value) => {
       <span class="text-gray-500 ml-28">客户端备注名会在每次打开页面的恢复连接窗口中显示</span>
     </div>
     <div class="flex items-center gap-2 mb-4">
-      <label class="font-semibold w-30">客户端ID</label>
-      <InputText :value="props.clientId" class="w-full" readonly />
+      <label class="font-semibold w-30">客户端ID/游戏ID</label>
+      <InputText :value="props.clientId" id="input-clientId" class="w-full" readonly />
+      <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-clientId')"></Button>
     </div>
     <div class="flex items-center gap-2 mb-4">
       <label class="font-semibold w-30">连接方式</label>
@@ -102,7 +117,8 @@ watch(() => state.inputClientName, (value) => {
     <div class="flex flex-col gap-2">
       <div class="flex items-center gap-2">
         <label class="font-semibold w-30">MCP API</label>
-        <InputText :value="mcpApiUrl" class="w-full" readonly />
+        <InputText :value="mcpApiUrl" id="input-mcpApiUrl" class="w-full" readonly />
+        <Button icon="pi pi-copy" label="复制" severity="secondary" @click="copyInput('input-mcpApiUrl')"></Button>
       </div>
       <span class="text-gray-500 ml-28">可以使用支持MCP的AI客户端连接，如
         <a href="https://www.cherry-ai.com/">Cherry Studio</a>,

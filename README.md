@@ -1,3 +1,35 @@
+
+<div align="right">
+  <details>
+    <summary >🌐 Language</summary>
+    <div>
+      <div align="center">
+        <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=en">English</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=zh-CN">简体中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=zh-TW">繁體中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=ja">日本語</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=ko">한국어</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=hi">हिन्दी</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=th">ไทย</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=fr">Français</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=de">Deutsch</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=es">Español</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=it">Italiano</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=ru">Русский</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=pt">Português</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=nl">Nederlands</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=pl">Polski</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=ar">العربية</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=fa">فارسی</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=tr">Türkçe</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=vi">Tiếng Việt</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=id">Bahasa Indonesia</a>
+        | <a href="https://openaitx.github.io/view.html?user=hyperzlib&project=DG-Lab-Coyote-Game-Hub&lang=as">অসমীয়া</
+      </div>
+    </div>
+  </details>
+</div>
+
 <h1 align="center"> 战败惩罚——郊狼游戏控制器</h1>
 <div align="center">
   <a href="https://github.com/hyperzlib/DG-Lab-Coyote-Game-Hub/actions"><img src="https://img.shields.io/github/actions/workflow/status/hyperzlib/DG-Lab-Coyote-Game-Hub/node.js.yml"></a>

@@ -1,17 +1,18 @@
 import { EventEmitter } from 'events';
 
 import { Channel } from '#app/types/dg.js';
-import { DGLabWSClient, StrengthInfo } from '../ws/DGLabWS.js';
+import { DGLabWSClient } from '../ws/DGLabWS.js';
+import type { StrengthInfo } from '../ws/DGLabWS.js';
 import { Task } from '#app/utils/task.js';
 import { asleep, includesPrefix, randomInt, simpleObjDiff } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { MainGameConfig, TargetChannelEnum, ChannelEnum, GameStrengthConfig, ChannelGameStrengthConfig } from '#app/types/game.js';
+import type { MainGameConfig, TargetChannelEnum, ChannelEnum, GameStrengthConfig, ChannelGameStrengthConfig } from '#app/types/game.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { PulsePlayList } from '#app/utils/PulsePlayList.js';
 import { AbstractGameAction } from './actions/AbstractGameAction.js';
 import { WebWSClient } from '../ws/WebWS.js';
-import { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
+import type { DGLabPulseInfo } from '#app/services/DGLabPulse.js';
 import { LatencyLogger } from '#app/utils/latencyLogger.js';
 
 export type GameStrengthInfo = StrengthInfo & {
@@ -296,7 +297,7 @@ export class CoyoteGameController {
 
         let existsIndex = this.actionList.findIndex((a) => a.constructor === action.constructor);
         if (existsIndex >= 0) {
-            const oldAction = this.actionList[existsIndex];
+            const oldAction = this.actionList[existsIndex]!;
             oldAction.updateConfig(action.config);
             oldAction.priority = action.priority;
         } else {

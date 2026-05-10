@@ -1,4 +1,4 @@
-import { z } from 'koa-swagger-decorator';
+import { z } from 'zod';
 
 export enum GameConfigType {
     MainGame = 'main-game',

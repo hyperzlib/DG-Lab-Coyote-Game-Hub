@@ -1,5 +1,5 @@
 import { CustomSkinInfoSchema } from "#app/types/customSkin.js";
-import { z } from "koa-swagger-decorator";
+import { z } from 'zod';
 
 export const WebApiResponseSchema = z.object({
     status: z.number().int().describe('响应状态码，1表示成功，0表示失败'),

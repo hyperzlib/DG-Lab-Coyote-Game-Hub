@@ -1,11 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
-import Koa, { Context } from 'koa';
+import Koa from 'koa';
+import type { Context } from 'koa';
 import { responses, routeConfig } from 'koa-swagger-decorator';
 import { DGLabWSManager } from '../../managers/DGLabWSManager.js';
 import { MainConfig } from '../../config.js';
 import { LocalIPAddress } from '../../utils/utils.js';
 import { CustomSkinService } from '../../services/CustomSkinService.js';
-import { GetClientConnectInfoResponse, GetClientConnectInfoResponseSchema, GetCustomSkinListResponse, GetCustomSkinListResponseSchema, ServerInfoResponse, ServerInfoResponseSchema, WebApiResponseSchema } from './schemas/Web.js';
+import { GetClientConnectInfoResponseSchema, GetCustomSkinListResponseSchema, ServerInfoResponseSchema, WebApiResponseSchema } from './schemas/Web.js';
+import type { GetClientConnectInfoResponse, GetCustomSkinListResponse, ServerInfoResponse } from './schemas/Web.js';
 
 const DGLAB_WS_PREFIX = 'https://www.dungeon-lab.com/app-download.php#DGLAB-SOCKET#';
 

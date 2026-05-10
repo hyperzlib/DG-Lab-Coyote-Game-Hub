@@ -1,35 +1,39 @@
-import { Context } from 'koa';
-import { RouterContext } from 'koa-router';
+import type { Context } from 'koa';
+import type { RouterContext } from '@koa/router';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import { ChannelEnum, ChannelEnumSchema, ChannelGameStrengthConfig, GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
+import { ChannelEnumSchema } from '#app/types/game.js';
+import type { ChannelEnum, ChannelGameStrengthConfig, GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { MainConfig } from '#app/config.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { asleep } from '#app/utils/utils.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction.js';
-import { body, responses, routeConfig, z } from 'koa-swagger-decorator';
+import { body, responses, routeConfig } from 'koa-swagger-decorator';
 import {
     ClientIdSchema,
     convertMainGameConfigV3ToV2,
-    GetGameApiInfoResponse,
     GetGameApiInfoResponseSchema,
-    GetGameInfoResponse,
     GetGameInfoResponseSchema,
-    GetGameStrengthConfigResponse,
     GetGameStrengthConfigResponseSchema,
-    GetPulseIdResponse,
     GetPulseIdResponseSchema,
-    GetPulseListResponse,
     GetPulseListResponseSchema,
-    SetConfigResponse,
     SetConfigResponseSchema,
-    SetPulseIdRequest,
     SetPulseIdRequestSchema,
     SetStrengthConfigRequestSchema,
-    StartFireActionRequest,
     StartFireActionRequestSchema
 } from './schemas/LegacyGameApi.js';
+import type {
+    GetGameApiInfoResponse,
+    GetGameInfoResponse,
+    GetGameStrengthConfigResponse,
+    GetPulseIdResponse,
+    GetPulseListResponse,
+    SetConfigResponse,
+    SetPulseIdRequest,
+    StartFireActionRequest,
+} from './schemas/LegacyGameApi.js';
+import { z } from 'zod';
 
 export type SetStrengthConfigRequest = {
     channel: ChannelEnum,

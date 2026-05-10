@@ -1,4 +1,4 @@
-import { ChannelEnum } from "#app/types/game.js";
+import type { ChannelEnum } from "#app/types/game.js";
 import { CoyoteGameController } from "../CoyoteGameController.js";
 
 export abstract class AbstractGameAction<ActionConfig = any> {

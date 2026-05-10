@@ -1,8 +1,8 @@
-import Router from 'koa-router';
+import type { RouterContext } from '@koa/router';
 import { v4 as uuid } from 'uuid';
-import { z } from 'koa-swagger-decorator';
 import { routeConfig, responses, body } from 'koa-swagger-decorator';
 import { PassThrough } from 'stream';
+import { z } from 'zod';
 
 import {
     McpRequestSchema,
@@ -10,10 +10,7 @@ import {
     MCP_ERROR_CODES,
     MCP_METHODS,
     InitializeRequestParamsSchema,
-    InitializeResultSchema,
-    ToolsListResultSchema,
     ToolsCallParamsSchema,
-    ToolsCallResultSchema,
     ResourcesReadParamsSchema,
     SetStrengthParamsSchema,
     IncreaseStrengthParamsSchema,
@@ -23,16 +20,13 @@ import {
     type McpRequest,
     type McpResponse,
     type GameStatus,
-    Tool
+    type Tool
 } from './schemas/McpApi.js';
 import { ConnectGameRequestSchema } from './schemas/LegacyGameApi.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
-import { EventStore } from '#app/utils/EventStore.js';
-
-type RouterContext = Router.RouterContext;
 
 export class SSESession {
     private controller: typeof McpApiController;
@@ -297,7 +291,7 @@ export class McpApiController {
 
         // 如果客户端版本不支持，使用我们支持的最新版本
         if (!supportedVersions.includes(protocolVersion)) {
-            negotiatedVersion = supportedVersions[0];
+            negotiatedVersion = supportedVersions[0]!;
         }
 
         return {

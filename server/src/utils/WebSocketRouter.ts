@@ -40,7 +40,10 @@ export class WebSocketRouter {
                 const matches = route.regexp.exec(url);
                 if (matches) {
                     for (let i = 1; i < matches.length; i++) {
-                        routeParams[keys[i - 1].name] = matches[i];
+                        const name = keys[i - 1]?.name;
+                        if (name) {
+                            routeParams[name] = matches[i]!;
+                        }
                     }
                 }
 

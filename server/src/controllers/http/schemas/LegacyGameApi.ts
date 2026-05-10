@@ -1,6 +1,6 @@
-import { ChannelEnum, ChannelGameStrengthConfigSchema, MainGameConfig, MainGameConfigSchema, PulsePlayModeSchema } from "#app/types/game.js";
-import { z } from "koa-swagger-decorator";
-
+import { ChannelGameStrengthConfigSchema, MainGameConfigSchema, PulsePlayModeSchema } from "#app/types/game.js";
+import type { ChannelEnum, MainGameConfig } from "#app/types/game.js";
+import { z } from 'zod';
 
 const AutoCastInt = <Schema extends (z.ZodNumber)>(schema: Schema) => {
     return (

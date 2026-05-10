@@ -1,6 +1,7 @@
 import * as fs from 'fs';
-import { CustomSkinInfo, CustomSkinManifest, CustomSkinManifestSchema } from "#app/types/customSkin.js";
-import { z } from 'koa-swagger-decorator';
+import { CustomSkinManifestSchema } from "#app/types/customSkin.js";
+import type { CustomSkinInfo, CustomSkinManifest } from "#app/types/customSkin.js";
+import { z } from 'zod';
 
 export class CustomSkinService {
     private static _instance: CustomSkinService;

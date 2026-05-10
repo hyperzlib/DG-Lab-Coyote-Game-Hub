@@ -1,7 +1,7 @@
 import http from 'http';
 import Koa from 'koa';
 import { WebSocketServer } from 'ws';
-import KoaRouter from 'koa-router';
+import KoaRouter from '@koa/router';
 import serveStatic from "koa-static";
 import koaLogger from 'koa-logger';
 import { bodyParser } from '@koa/bodyparser';

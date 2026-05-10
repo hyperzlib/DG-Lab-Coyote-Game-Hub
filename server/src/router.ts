@@ -1,14 +1,14 @@
-import KoaRouter from 'koa-router';
+import KoaRouter from '@koa/router';
 import { SwaggerRouter } from 'koa-swagger-decorator';
 import { WebSocketRouter } from './utils/WebSocketRouter.js';
 import { DGLabWSManager } from './managers/DGLabWSManager.js';
 import { WebController } from './controllers/http/Web.js';
 import { WebWSManager } from './managers/WebWSManager.js';
-import { MainConfigType } from './types/config.js';
+import type { MainConfigType } from './types/config.js';
 import { LegacyGameApiController } from './controllers/http/LegacyGameApi.js';
 import { McpApiController } from './controllers/http/McpApi.js';
 
-export const createSwaggerRouter = (config: MainConfigType) => {
+export const createSwaggerRouter = (config: MainConfigType): SwaggerRouter => {
     let publicUrl = config.webBaseUrl || `http://localhost:${config.port}`;
 
     const swaggerRouter = new SwaggerRouter({

@@ -22,8 +22,8 @@ export function compareVersion(current: string, remote: string) {
     let v2ns = '';
 
     for (let i = 0; i < Math.max(v1s.length, v2s.length); i++) {
-        let chunk1 = v1s[i] === undefined ? '' : v1s[i].toString();
-        let chunk2 = v2s[i] === undefined ? '' : v2s[i].toString();
+        let chunk1 = v1s[i]?.toString() ?? '';
+        let chunk2 = v2s[i]?.toString() ?? '';
 
         let maxLen = Math.max(chunk1.length, chunk2.length);
         chunk1 = chunk1.padStart(maxLen, '0');
@@ -64,11 +64,11 @@ export async function checkUpdate(): Promise<UpdateInfo | false> {
                 if (res.version && compareVersion(versionInfo.version, res.version)) {
                     let releaseFile = '';
                     if (process.platform.startsWith('win')) {
-                        releaseFile = res.releaseFile.windows;
+                        releaseFile = res.releaseFile.windows || '';
                     } else if (process.platform.startsWith('linux')) {
-                        releaseFile = res.releaseFile.linux;
+                        releaseFile = res.releaseFile.linux || '';
                     } else if (process.platform.startsWith('darwin')) {
-                        releaseFile = res.releaseFile.mac;
+                        releaseFile = res.releaseFile.mac || '';
                     }
 
                     console.log(`检测到新版本：${res.version}，更新内容：\n${res.description}\n`);
@@ -85,7 +85,7 @@ export async function checkUpdate(): Promise<UpdateInfo | false> {
                     };
                 }
             } catch (e: any) {
-                
+                console.error('Failed to fetch version info from API:', e);
             }
         }
     } catch (e: any) {

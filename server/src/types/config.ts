@@ -1,4 +1,4 @@
-import { z } from "koa-swagger-decorator";
+import { z } from 'zod';
 import { RemoteNotificationInfoSchema } from "./server.js";
 
 export const MainConfigSchema = z.object({

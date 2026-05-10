@@ -29,7 +29,7 @@ export class PulsePlayList {
 
     public getCurrentPulseId(): string {
         if (this.mode === 'single') {
-            return this.pulseIds[0];
+            return this.pulseIds[0] ?? '';
         }
         
         if (Date.now() > this.nextChangeTime) {
@@ -44,7 +44,7 @@ export class PulsePlayList {
             }
         }
 
-        return this.pulseIds[this.currentIndex];
+        return this.pulseIds[this.currentIndex] ?? '';
     }
 
     private suffle() {

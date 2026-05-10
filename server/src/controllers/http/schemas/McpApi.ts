@@ -1,4 +1,4 @@
-import { z } from "koa-swagger-decorator";
+import { z } from 'zod';
 import { ClientIdSchema } from "./LegacyGameApi.js";
 
 /**

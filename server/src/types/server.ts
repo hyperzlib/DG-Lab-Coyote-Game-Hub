@@ -1,4 +1,4 @@
-import { z } from "koa-swagger-decorator";
+import { z } from 'zod';
 
 export const RemoteNotificationInfoSchema = z.object({
     /** 通知标题 */

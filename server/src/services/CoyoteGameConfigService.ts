@@ -3,11 +3,12 @@ import path from 'path';
 import { LRUCache } from "lru-cache";
 
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
-import { GameCustomPulseConfig, GameCustomPulseConfigSchema, GamePulseConfig, MainGameConfig, MainGameConfigSchema } from '#app/types/game.js';
+import { GameCustomPulseConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
+import type { GameCustomPulseConfig, GamePulseConfig, MainGameConfig } from '#app/types/game.js';
 import { DGLabPulseService } from './DGLabPulse.js';
-import { z } from 'koa-swagger-decorator';
+import { z } from 'zod';
 import { deepMerge } from '#app/utils/utils.js';
-import { DeepPartial } from '#app/types/common.js';
+import type { DeepPartial } from '#app/types/common.js';
 
 export enum GameConfigType {
     MainGame = 'main-game',

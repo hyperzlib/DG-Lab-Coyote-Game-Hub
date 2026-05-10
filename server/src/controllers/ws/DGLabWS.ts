@@ -2,11 +2,13 @@
 import { v4 as uuidv4 } from 'uuid';
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
-import { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
-import { Channel, DGLabMessage, MessageDataHead, MessageType, RetCode, FeedbackButton } from '#app/types/dg.js';
+import type { AsyncWebSocket } from '#app/utils/WebSocketAsync.js';
+import { Channel, MessageDataHead, MessageType, RetCode } from '#app/types/dg.js';
+import type { DGLabMessage, FeedbackButton } from '#app/types/dg.js';
 import { asleep } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
-import { DGLabPulseBaseInfo, DGLabPulseInfo, DGLabPulseService } from '#app/services/DGLabPulse.js';
+import { DGLabPulseService } from '#app/services/DGLabPulse.js';
+import type { DGLabPulseBaseInfo, DGLabPulseInfo } from '#app/services/DGLabPulse.js';
 import { createHarvest } from '#app/utils/task.js';
 
 const HEARTBEAT_INTERVAL = 20.0;
@@ -177,15 +179,22 @@ export class DGLabWSClient {
     }
 
     private async handleMsgStrengthChanged(message: string): Promise<void> {
-        const strengthData = message.split("-")[1].split("+");
+        const strengthData = message.split("-")[1]?.split("+");
+
+        if (!strengthData || strengthData.length < 4) {
+            console.log(`Invalid strength message: ${message}`);
+            return;
+        }
 
         this.strength = {
-            strength: parseInt(strengthData[0]),
-            limit: parseInt(strengthData[2]),
+            strength: parseInt(strengthData[0]!),
+            limit: parseInt(strengthData[2]!),
         };
         this.strengthChannelB = {
-            strength: parseInt(strengthData[1]),
-            limit: parseInt(strengthData[3]),
+            strength: parseInt(strengthData[1]!),
+            limit: parseInt(strengthData[3]!),
+
+
         };
 
         // console.log(
@@ -198,7 +207,7 @@ export class DGLabWSClient {
     private async handleMsgFeedback(message: string): Promise<void> {
         // console.log(`Feedback: ${message}`);
 
-        const button = parseInt(message.split("-")[1]);
+        const button = parseInt(message.split("-")[1]!);
 
         this.events.emit("feedback", button);
     }

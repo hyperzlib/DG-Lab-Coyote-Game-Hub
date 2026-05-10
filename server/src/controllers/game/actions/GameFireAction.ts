@@ -1,6 +1,6 @@
 import { Channel } from "#app/types/dg.js";
-import { ChannelEnum, TargetChannelEnum } from "#app/types/game.js";
-import { Channelify } from "../CoyoteGameController.js";
+import type { ChannelEnum, TargetChannelEnum } from "#app/types/game.js";
+import type { Channelify } from "../CoyoteGameController.js";
 import { AbstractGameAction } from "./AbstractGameAction.js";
 
 export type GameFireActionConfig = {

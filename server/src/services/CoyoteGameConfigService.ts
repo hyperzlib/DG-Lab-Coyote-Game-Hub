@@ -63,13 +63,16 @@ export class CoyoteGameConfigService {
             }
 
             return {
-                fireStrengthLimit: 30,
                 strengthChangeInterval: [15, 30],
                 bChannelMode: 'off',
                 bChannelStrengthMultiplier: 1,
                 pulse: {
                     main: defaultPulseConfig,
                     channelB: defaultPulseConfig,
+                },
+                fireStrengthLimit: {
+                    main: 30,
+                    channelB: 30,
                 },
             } as MainGameConfig;
         } else if (type === GameConfigType.CustomPulse) {

@@ -4,10 +4,10 @@ import { Channel } from '#app/types/dg.js';
 import { DGLabWSClient } from '../ws/DGLabWS.js';
 import type { StrengthInfo } from '../ws/DGLabWS.js';
 import { Task } from '#app/utils/task.js';
-import { asleep, includesPrefix, randomInt, simpleObjDiff } from '#app/utils/utils.js';
+import { asleep, channelifyDefault, includesPrefix, randomInt, simpleObjDiff } from '#app/utils/utils.js';
 import { EventStore } from '#app/utils/EventStore.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
-import type { MainGameConfig, TargetChannelEnum, ChannelEnum, GameStrengthConfig, ChannelGameStrengthConfig } from '#app/types/game.js';
+import type { MainGameConfig, TargetChannelEnum, ChannelEnum, GameStrengthConfig, ChannelGameStrengthConfig, Channelify } from '#app/types/game.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
 import { PulsePlayList } from '#app/utils/PulsePlayList.js';
 import { AbstractGameAction } from './actions/AbstractGameAction.js';
@@ -17,11 +17,6 @@ import { LatencyLogger } from '#app/utils/latencyLogger.js';
 
 export type GameStrengthInfo = StrengthInfo & {
     tempStrength: number;
-};
-
-export type Channelify<T> = {
-    main: T;
-    channelB: T;
 };
 
 export interface CoyoteGameEvents {
@@ -48,16 +43,10 @@ export class CoyoteGameController {
     public client?: DGLabWSClient;
 
     /** 强度配置 */
-    public strengthConfig: GameStrengthConfig = {
-        main: {
-            strength: 5,
-            randomStrength: 5,
-        },
-        channelB: {
-            strength: 5,
-            randomStrength: 5,
-        },
-    };
+    public strengthConfig: GameStrengthConfig = channelifyDefault({
+        strength: 5,
+        randomStrength: 5,
+    });
 
     public gameConfigService = CoyoteGameConfigService.instance;
 
@@ -72,29 +61,20 @@ export class CoyoteGameController {
     /** 当前游戏Action列表 */
     public actionList: AbstractGameAction[] = [];
 
-    private _tempStrength: Channelify<number> = {
-        main: 0,
-        channelB: 0,
-    };
+    private _tempStrength: Channelify<number> = channelifyDefault(0);
 
     /** 自定义波形列表 */
     public customPulseList: DGLabPulseInfo[] = [];
 
     /** 波形播放列表 */
-    public pulsePlayList: Channelify<PulsePlayList | undefined> = {
-        main: undefined,
-        channelB: undefined,
-    }
+    public pulsePlayList: Channelify<PulsePlayList | undefined> = channelifyDefault(undefined);
 
     public events = new EventEmitter<CoyoteGameEvents>();
 
     private eventStore: EventStore = new EventStore();
 
     /** 输出循环Task */
-    private outputLoopTask: Channelify<Task | null> = {
-        main: null,
-        channelB: null,
-    };
+    private outputLoopTask: Channelify<Task | null> = channelifyDefault(null);
 
     public get tempStrength(): Channelify<number> {
         return this._tempStrength;

@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+export type Channelify<T> = {
+    main: T;
+    channelB: T;
+};
+
 export enum GameConfigType {
     MainGame = 'main-game',
     CustomPulse = 'custom-pulse',
@@ -40,8 +45,6 @@ export const GamePulseConfigSchema = z.object({
 export type GamePulseConfig = z.infer<typeof GamePulseConfigSchema>;
 
 export const MainGameConfigSchema = z.object({
-    fireStrengthLimit: z.number().int().min(1).default(30)
-        .describe('一键开火强度限制，默认30'),
     strengthChangeInterval: z.tuple([z.number().int().min(10), z.number().int().min(30)])
         .describe('强度变化间隔，单位秒'),
     bChannelMode: z.enum(['off', 'sync', 'discrete']).default('off')
@@ -52,6 +55,11 @@ export const MainGameConfigSchema = z.object({
         main: GamePulseConfigSchema.describe('A通道波形配置'),
         channelB: GamePulseConfigSchema.describe('B通道波形配置'),
     }).describe('波形配置'),
+    
+    fireStrengthLimit: z.object({
+        main: z.number().int().min(1).default(30),
+        channelB: z.number().int().min(1).default(30),
+    }).describe('一键开火强度限制'),
 }).describe('游戏主配置');
 export type MainGameConfig = z.infer<typeof MainGameConfigSchema>;
 

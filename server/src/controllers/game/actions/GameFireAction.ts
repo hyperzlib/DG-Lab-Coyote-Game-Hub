@@ -1,6 +1,6 @@
 import { Channel } from "#app/types/dg.js";
-import type { ChannelEnum, TargetChannelEnum } from "#app/types/game.js";
-import type { Channelify } from "../CoyoteGameController.js";
+import type { ChannelEnum, Channelify, TargetChannelEnum } from "#app/types/game.js";
+import { channelifyDefault } from "#app/utils/utils.js";
 import { AbstractGameAction } from "./AbstractGameAction.js";
 
 export type GameFireActionConfig = {
@@ -24,21 +24,24 @@ export const FIRE_MAX_DURATION = 300000;
 
 export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
     /** 一键开火强度 */
-    public fireStrength: number = 0;
+    public fireStrength: Channelify<number> = channelifyDefault(0);
 
     /** 一键开火结束时间 */
     public fireEndTimestamp: number = 0;
 
     /** 一键开火波形（可能是临时的） */
-    public firePulseId: Channelify<string> = { main: '', channelB: '' };
+    public firePulseId: Channelify<string> = channelifyDefault('');
 
     /** 当前一键开火的强度 */
-    public currentFireStrength: Channelify<number> = { main: 0, channelB: 0 };
+    public currentFireStrength: Channelify<number> = channelifyDefault(0);
 
     public finished: Record<string, boolean> = {};
 
     initialize() {
-        this.fireStrength = Math.min(this.config.strength, this.game.gameConfig.fireStrengthLimit || FIRE_MAX_STRENGTH);
+        this.fireStrength = {
+            main: Math.min(this.config.strength, this.game.gameConfig.fireStrengthLimit.main || FIRE_MAX_STRENGTH),
+            channelB: Math.min(this.config.strength, this.game.gameConfig.fireStrengthLimit.channelB || FIRE_MAX_STRENGTH)
+        };
         this.fireEndTimestamp = Date.now() + Math.min(this.config.time, FIRE_MAX_DURATION);
 
         // 初始化每个通道的完成状态
@@ -54,7 +57,7 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
     }
 
     async execute(channel: ChannelEnum, ab: AbortController, harvest: () => void): Promise<void> {
-        let targetFireStrength = this.fireStrength;
+        let targetFireStrength = this.fireStrength[channel];
         if (targetFireStrength === 0) {
             // 如果强度为0，直接标记为完成，不执行
             this.finished[channel] = true;
@@ -148,7 +151,10 @@ export class GameFireAction extends AbstractGameAction<GameFireActionConfig> {
         this.config = config;
 
         if (config.strength) {
-            this.fireStrength = Math.min(config.strength, this.game.gameConfig.fireStrengthLimit || FIRE_MAX_STRENGTH);
+            this.fireStrength = {
+                main: Math.min(config.strength, this.game.gameConfig.fireStrengthLimit.main || FIRE_MAX_STRENGTH),
+                channelB: Math.min(config.strength, this.game.gameConfig.fireStrengthLimit.channelB || FIRE_MAX_STRENGTH)
+            };
         }
 
         if (config.updateMode === 'replace') {

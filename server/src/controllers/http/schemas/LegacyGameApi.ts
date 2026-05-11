@@ -68,7 +68,7 @@ export type MainGameConfigV2 = z.infer<typeof MainGameConfigV2Schema>;
 
 export const convertMainGameConfigV3ToV2 = (config: MainGameConfig, channel: ChannelEnum): MainGameConfigV2 => {
     return {
-        fireStrengthLimit: config.fireStrengthLimit,
+        fireStrengthLimit: config.fireStrengthLimit[channel] || 30,
         strengthChangeInterval: config.strengthChangeInterval,
         enableBChannel: config.bChannelMode !== 'off',
         bChannelStrengthMultiplier: config.bChannelStrengthMultiplier,

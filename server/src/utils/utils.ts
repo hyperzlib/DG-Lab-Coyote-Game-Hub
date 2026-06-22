@@ -1,5 +1,6 @@
 import { networkInterfaces } from "os";
 import { exec } from "child_process";
+import type { Channelify } from "#app/types/game.js";
 
 export const asleep = (ms: number, abortController?: AbortController) => {
     if (abortController) {
@@ -115,6 +116,13 @@ export const deepMerge = (target: any, source: any, copy: boolean = true) => {
 
 export const includesPrefix = (strList: string[], prefix: string) => {
     return strList.some(str => str.startsWith(prefix));
+}
+
+export const channelifyDefault = <T>(value: T): Channelify<T> => {
+    return {
+        main: value,
+        channelB: value,
+    };
 }
 
 export class LocalIPAddress {

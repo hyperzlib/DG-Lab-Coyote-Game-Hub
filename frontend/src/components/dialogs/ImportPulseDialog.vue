@@ -51,6 +51,10 @@ const validateForm = () => {
   return Object.keys(state.formErrors).length === 0;
 };
 
+function isPulseFile(file: File): boolean {
+  return file.name.endsWith('.pulse');
+}
+
 const onConfirm = async () => {
   if (!validateForm()) {
     return;
@@ -117,12 +121,17 @@ watch(() => visible.value, (newVal) => {
         <small v-if="state.formErrors.formPulseName" class="text-red-500">{{ state.formErrors.formPulseName }}</small>
       </div>
       <div class="flex flex-col gap-2 justify-center">
-        <FileUpload mode="basic" chooseLabel="选择波形二维码" @select="onFileSelect" customUpload auto severity="secondary"
-          class="p-button-outlined" :invalid="!!state.formErrors.selectedFile" />
+        <FileUpload mode="basic" chooseLabel="选择波形二维码或 pulse 文件" @select="onFileSelect" customUpload auto severity="secondary"
+          class="p-button-outlined" :invalid="!!state.formErrors.selectedFile" accept="image/*,.zip,.pulse" />
         <small v-if="state.formErrors.selectedFile" class="text-red-500">{{ state.formErrors.selectedFile }}</small>
         <div class="w-full">
-          <img v-if="state.selectedFileUrl" :src="state.selectedFileUrl" alt="波形二维码"
+          <img v-if="state.selectedFileUrl && !isPulseFile(state.selectedFile!)" :src="state.selectedFileUrl" alt="波形二维码"
             class="shadow-md rounded-xl mx-auto w-auto h-[50vh]" />
+          <div v-else-if="state.selectedFile" class="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-300 rounded-xl">
+            <i class="pi pi-file text-4xl text-gray-400"></i>
+            <span class="text-gray-500">{{ state.selectedFile.name }}</span>
+            <span class="text-xs text-gray-400">DG Lab Pulse 波形文件</span>
+          </div>
         </div>
       </div>
       <div class="flex justify-end mt-4 gap-4">

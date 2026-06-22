@@ -1,4 +1,4 @@
-import { DGLabPulseInfo, DGLabRawPulseData } from './types';
+import { DGLabPulseInfo, DGLabRawPulseData, PulsePoint } from './types';
 
 export const PULSE_WINDOW = 100; // 100ms
 export const PULSE_POINT_TIME = 25; // 25ms
@@ -28,6 +28,73 @@ function interp(x: number[], dstLen: number): number[] {
     }
 
     return y;
+};
+
+/**
+ * 对脉冲强度值序列进行补间插值。
+ * 
+ * 每个点包含值和 flag：flag=1 为关键点（参数点），flag=0 为补间点。
+ * 此函数根据关键点位置和值，自动计算并填充关键点之间的所有补间值。
+ * 
+ * @param points 脉冲点数组，每项格式为 `{value, isKeyPoint}`
+ * @returns 插值后的纯数值数组
+ * 
+ * @example
+ * // 输入：100(isKeyPoint), 0(!isKeyPoint), 0(!isKeyPoint), 0(!isKeyPoint), 0(isKeyPoint)
+ * // 输出：[100, 75, 50, 25, 0]  —— 3 个补间点被自动填充
+ */
+export function interpPulseValues(points: PulsePoint[]): number[] {
+    const n = points.length;
+    if (n === 0) return [];
+
+    // 收集所有关键点及其索引
+    const keyIndices: number[] = [];
+    const keyValues: number[] = [];
+    for (let i = 0; i < n; i++) {
+        if (points[i].isKeyPoint) {
+            keyIndices.push(i);
+            keyValues.push(points[i].value);
+        }
+    }
+
+    // 如果没有关键点，直接返回所有值（不进行插值）
+    if (keyIndices.length === 0) {
+        return points.map(p => p.value);
+    }
+
+    // 如果只有一个关键点，用该值填充全部
+    if (keyIndices.length === 1) {
+        return new Array(n).fill(keyValues[0]);
+    }
+
+    // 在相邻关键点之间进行线性插值
+    const result: number[] = [];
+    let ki = 0; // 当前关键点索引
+
+    for (let i = 0; i < n; i++) {
+        if (ki < keyIndices.length && i === keyIndices[ki]) {
+            // 当前位置是关键点，直接使用其值
+            result.push(keyValues[ki]);
+            ki++;
+        } else if (ki === 0) {
+            // 在第一个关键点之前：用第一个关键点的值填充
+            result.push(keyValues[0]);
+        } else if (ki >= keyIndices.length) {
+            // 在最后一个关键点之后：用最后一个关键点的值填充
+            result.push(keyValues[keyIndices.length - 1]);
+        } else {
+            // 在两个关键点之间：线性插值
+            const leftIdx = keyIndices[ki - 1];
+            const rightIdx = keyIndices[ki];
+            const leftVal = keyValues[ki - 1];
+            const rightVal = keyValues[ki];
+            const t = (i - leftIdx) / (rightIdx - leftIdx);
+
+            result.push(Math.round(leftVal + (rightVal - leftVal) * t));
+        }
+    }
+
+    return result;
 };
 
 export function dgLabFreqToUint8(freq: number): number {

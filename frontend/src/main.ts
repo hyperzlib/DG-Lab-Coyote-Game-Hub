@@ -2,8 +2,8 @@ import { createApp } from 'vue'
 import { createWebHashHistory, createRouter, RouteRecordRaw } from 'vue-router'
 
 import PrimeVue from 'primevue/config';
-import { definePreset } from '@primevue/themes';
-import Aura from '@primevue/themes/aura';
+import { definePreset } from '@primeuix/themes';
+import Aura from '@primeuix/themes/aura';
 
 import DialogService from 'primevue/dialogservice';
 import ConfirmationService from 'primevue/confirmationservice';

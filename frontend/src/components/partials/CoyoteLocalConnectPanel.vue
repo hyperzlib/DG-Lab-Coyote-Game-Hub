@@ -4,8 +4,8 @@ import Chip from 'primevue/chip';
 
 import BatteryIcon from '../../assets/battery.svg';
 
-import { ToastServiceMethods } from 'primevue/toastservice';
-import { ConfirmationOptions } from 'primevue/confirmationoptions';
+import type { ToastServiceMethods } from 'primevue/toastservice';
+import type { ConfirmationOptions } from 'primevue/confirmationoptions';
 import { CoyoteDeviceVersion } from '../../type/common';
 import { useCoyoteLocalConnStore } from '../../stores/CoyoteLocalConnStore';
 
@@ -99,11 +99,4 @@ const handleStopBluetoothConnect = () => {
 </template>
 
 <style lang="scss" scoped>
-.bg-primary {
-  background-color: var(--p-primary-color);
-}
-
-.text-primary-contrast {
-  color: var(--p-primary-contrast-color);
-}
 </style>

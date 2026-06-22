@@ -3,7 +3,7 @@ import {
     ReaderOptions,
     setZXingModuleOverrides,
 } from 'zxing-wasm';
-import Pako from 'pako';
+import { decompress, unzip, Unzipped } from 'fflate';
 import { fromBase64 } from 'js-base64';
 import { DGLabPulseInfo, DGLabPulseSectionInfo } from './types';
 import { hexToBuffer } from './DGLabPulseHelper';
@@ -19,8 +19,8 @@ setZXingModuleOverrides({
 });
 
 export function *range(start: number, end: number, step: number = 1): Generator<number> {
-    for (let i = start; i < end; i += step) {
-        yield i;
+    for (let i = start; i < end; i = parseFloat((i + step).toFixed(10))) {
+        yield i; // 处理浮点数精度问题
     }
 }
 
@@ -75,6 +75,18 @@ export const SECTION_TIME_MAP = [
     9.6, 9.7, 9.9, 10.0,
 ];
 
+export const SECTION_TIME_MAP_V3 = [
+    ...range(0.1, 5.0, 0.1),
+    ...range(5.0, 8.0, 0.2),
+    ...range(8.0, 10.0, 0.5),
+    ...range(10.0, 20.0, 1.0),
+    20.0, 23.3, 26.6, 30.0, 33.3, 36.6,
+    ...range(40.0, 60.0, 5.0),
+    ...range(60.0, 100.0, 10.0),
+    ...range(100.0, 200.0, 20.0),
+    200, 250, 300
+];
+
 export function freqFromSliderValue(value: number): number {
     if (value < 0 || value >= FREQ_SLIDER_VALUE_MAP.length) {
         return 10;
@@ -106,7 +118,16 @@ export async function parseDGLabPulseUrl(url: string): Promise<DGLabPulseInfo> {
     let pulseBuffer = hexToBuffer(pulseHex);
 
     // inflate
-    let pulseBase64 = Pako.ungzip(pulseBuffer, { to: 'string' });
+    pulseBuffer = await new Promise((resolve, reject) => {
+        decompress(pulseBuffer, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
+    let pulseBase64 = new TextDecoder().decode(pulseBuffer);
 
     let pulseStr = fromBase64(pulseBase64);
     let pulseRawDataChunks = pulseStr.split('+');
@@ -232,7 +253,136 @@ export async function parseDGLabPulseUrl(url: string): Promise<DGLabPulseInfo> {
     } as DGLabPulseInfo;
 }
 
+export function parseDGLabPulseFileContent(content: string): DGLabPulseInfo {
+    if (!content.startsWith('Dungeonlab+pulse:')) {
+        throw new Error('Invalid pulse file, not a DG Lab Pulse file');
+    }
+
+    const raw = content.substring('Dungeonlab+pulse:'.length);
+    const chunks = raw.split('+section+');
+
+    /** 将 freqMode 整数映射为内部格式 */
+    const mapFreqMode = (mode: number): false | 'inSection' | 'inPulse' | 'perPulse' => {
+        switch (mode) {
+            case 2: return 'inSection';
+            case 3: return 'inPulse';
+            case 4: return 'perPulse';
+            default: return false;
+        }
+    };
+
+    /** 解析强度值 */
+    const parsePulsePoint = (point: string): number => {
+        const dashIdx = point.indexOf('-');
+        const intensityStr = dashIdx >= 0 ? point.substring(0, dashIdx) : point;
+        return Math.round(parseFloat(intensityStr));
+    };
+
+    const sectionList: DGLabPulseSectionInfo[] = [];
+
+    for (const chunk of chunks) {
+        const slashIdx = chunk.indexOf('/');
+        if (slashIdx < 0) continue;
+
+        const headerStr = chunk.substring(0, slashIdx);
+        const pointsStr = chunk.substring(slashIdx + 1);
+
+        const headerParts = headerStr.split(',');
+        if (headerParts.length < 5) continue;
+
+        const freqSliderA = parseInt(headerParts[0]);
+        const freqSliderB = parseInt(headerParts[1]);
+        const sectionTimeSlider = parseInt(headerParts[2]);
+        const freqModeRaw = parseInt(headerParts[3]);
+        const sectionEnabled = parseInt(headerParts[4]) === 1;
+
+        if (!sectionEnabled) {
+            continue;
+        }
+
+        const freqA = freqFromSliderValue(freqSliderA);
+        const freqB = freqFromSliderValue(freqSliderB);
+        const sectionTime = SECTION_TIME_MAP_V3[sectionTimeSlider] ?? 0.1;
+        const freqMode = mapFreqMode(freqModeRaw);
+
+        // 解析脉冲强度点
+        const pulse: number[] = [];
+        if (pointsStr) {
+            const pointParts = pointsStr.split(',');
+            for (const p of pointParts) {
+                if (!p) continue;
+                pulse.push(parsePulsePoint(p));
+            }
+        }
+
+        let freq: number | [number, number];
+        if (!freqMode) {
+            freq = freqA;
+        } else {
+            freq = [freqA, freqB];
+        }
+
+        sectionList.push({
+            pulse,
+            sectionTime,
+            freq,
+            freqMode,
+        });
+    }
+
+    if (sectionList.length === 0) {
+        throw new Error('No valid sections found in pulse file');
+    }
+
+    return {
+        sections: sectionList,
+        sleepTime: 0,
+        speedFactor: 1,
+    };
+}
+
+/** 检测文本内容是否为 pulse 文件格式 */
+export function isPulseFileContent(content: string): boolean {
+    return content.startsWith('Dungeonlab+pulse:');
+}
+
+/** 解析波形二维码 */
 export async function loadDGLabPulseQRCode(imgFile: File): Promise<DGLabPulseInfo> {
     let url = await loadQRCode(imgFile);
     return await parseDGLabPulseUrl(url);
+}
+
+/** 解析波形文件 */
+export async function loadDGLabPulseFile(file: File): Promise<DGLabPulseInfo> {
+    const content = await file.text();
+    return parseDGLabPulseFileContent(content);
+}
+
+/** 从zip中提取波形文件 */
+export async function extractPulseFileFromZip(zipFile: File): Promise<{ name: string, content: string }[]> {
+    const buffer = await zipFile.arrayBuffer();
+    const decompressed = await new Promise<Unzipped>((resolve, reject) => {
+        unzip(new Uint8Array(buffer), {
+            filter: (file) => {
+                // 过滤出 .pulse 文件且大小小于1MB
+                return file.name.endsWith('.pulse') && file.size < 1 * 1024 * 1024;
+            }
+        }, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
+
+    const pulseFiles: { name: string, content: string }[] = [];
+    for (const [name, fileData] of Object.entries(decompressed)) {
+        const content = new TextDecoder().decode(fileData);
+        if (isPulseFileContent(content)) {
+            pulseFiles.push({ name, content });
+        }
+    }
+
+    return pulseFiles;
 }

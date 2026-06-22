@@ -10,12 +10,14 @@ const props = withDefaults(defineProps<{
     valLow?: number;
     valHigh?: number;
     valLimit?: number;
+    valCurrent?: number;
     running?: boolean;
     darkMode?: boolean;
 }>(), {
     valLow: 5,
     valHigh: 10,
     valLimit: 50,
+    valCurrent: 0,
     running: false,
 });
 
@@ -23,6 +25,7 @@ const state = reactive({
     valLow: props.valLow,
     valHigh: props.valHigh,
     valLimit: props.valLimit,
+    valCurrent: props.valCurrent,
 });
 
 const circleOffset = computed(() => {
@@ -33,10 +36,11 @@ const circleOffset = computed(() => {
 });
 
 // 监听父组件传递的值变化
-watch(() => [props.valLow, props.valHigh, props.valLimit], ([valLow, valHigh, valLimit]) => {
+watch(() => [props.valLow, props.valHigh, props.valLimit, props.valCurrent], ([valLow, valHigh, valLimit, valCurrent]) => {
     state.valLow = valLow;
     state.valHigh = valHigh;
     state.valLimit = valLimit;
+    state.valCurrent = valCurrent;
 }, { immediate: true });
 </script>
 

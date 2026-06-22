@@ -11,6 +11,11 @@ export interface DGLabPulseSectionInfo {
 
 export type SinglePulse = [frequency: number, value: number];
 
+export type PulsePoint = {
+    value: number;
+    isKeyPoint: boolean; // 是否为关键点（true=参数点，false=补间点）
+};
+
 export interface DGLabPulseInfo {
     sections: DGLabPulseSectionInfo[];
     /** 休息时长（秒） */

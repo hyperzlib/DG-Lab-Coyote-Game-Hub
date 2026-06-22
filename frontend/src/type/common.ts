@@ -9,3 +9,13 @@ export enum ConnectorType {
     COYOTE_BLE_V2 = 'CoyoteBLEV2',
     COYOTE_BLE_V3 = 'CoyoteBLEV3',
 }
+
+export type Channelify<T> = {
+    main: T;
+    channelB: T;
+}
+
+export const channelifyDefault = <T>(defaultValue: T): Channelify<T> => ({
+    main: defaultValue,
+    channelB: defaultValue,
+});

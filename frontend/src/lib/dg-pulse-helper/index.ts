@@ -1,3 +1,3 @@
 export * from './types';
-export * from './DGLabPulseQRHelper';
+export * from './DGLabPulseFileHelper';
 export * from './DGLabPulseHelper';

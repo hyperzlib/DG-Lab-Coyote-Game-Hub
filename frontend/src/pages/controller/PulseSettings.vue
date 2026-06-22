@@ -3,8 +3,8 @@ import Popover from 'primevue/popover';
 import { PulseItemInfo } from '../../type/pulse';
 import { ControllerPageState } from '../../pages/Controller.vue';
 import { Reactive } from 'vue';
-import { ToastServiceMethods } from 'primevue/toastservice';
-import { ConfirmationOptions } from 'primevue/confirmationoptions';
+import type { ToastServiceMethods } from 'primevue/toastservice';
+import type { ConfirmationOptions } from 'primevue/confirmationoptions';
 
 defineOptions({
   name: 'PulseSettings',
@@ -32,7 +32,10 @@ const fullPulseList = computed(() => {
   return parentState.pulseList ? [...customPulseList.value, ...parentState.pulseList] : customPulseList.value;
 });
 
+const currentPulseConfig = computed(() => parentState.pulseConfig[state.pulseChannel]);
+
 const state = reactive({
+  pulseChannel: 'main' as 'main' | 'channelB',
   willRenamePulseName: '',
 
   showImportPulseDialog: false,
@@ -56,6 +59,11 @@ const pulseModeOptions = [
   { label: '随机', value: 'random' },
 ];
 
+const channelOptions = [
+  { label: 'A', value: 'main' },
+  { label: 'B', value: 'channelB' },
+];
+
 const presetPulseTimeOptions = [
   { label: '10', value: 10 },
   { label: '30', value: 30 },
@@ -77,19 +85,19 @@ const handlePulseImported = async (pulseInfo: PulseItemInfo) => {
 };
 
 const togglePulse = (pulseId: string) => {
-  if (parentState.pulseMode === 'single') {
-    parentState.selectPulseIds = [pulseId];
+  if (currentPulseConfig.value.pulseMode === 'single') {
+    currentPulseConfig.value.selectPulseIds = [pulseId];
   } else {
-    if (parentState.selectPulseIds.includes(pulseId)) {
-      parentState.selectPulseIds = parentState.selectPulseIds.filter((id) => id !== pulseId);
+    if (currentPulseConfig.value.selectPulseIds.includes(pulseId)) {
+      currentPulseConfig.value.selectPulseIds = currentPulseConfig.value.selectPulseIds.filter((id) => id !== pulseId);
     } else {
-      parentState.selectPulseIds.push(pulseId);
+      currentPulseConfig.value.selectPulseIds.push(pulseId);
     }
   }
 };
 
 const setFirePulse = (pulseId: string) => {
-  parentState.firePulseId = pulseId;
+  currentPulseConfig.value.firePulseId = pulseId;
 };
 
 const showPulseTimePopover = (event: MouseEvent) => {
@@ -128,9 +136,9 @@ const handleDeletePulse = async (pulseId: string) => {
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
       parentState.customPulseList = parentState.customPulseList.filter((item) => item.id !== pulseId);
-      parentState.selectPulseIds = parentState.selectPulseIds.filter((id) => id !== pulseId);
-      if (parentState.selectPulseIds.length === 0) {
-        parentState.selectPulseIds = [fullPulseList.value[0].id];
+      currentPulseConfig.value.selectPulseIds = currentPulseConfig.value.selectPulseIds.filter((id) => id !== pulseId);
+      if (currentPulseConfig.value.selectPulseIds.length === 0) {
+        currentPulseConfig.value.selectPulseIds = [fullPulseList.value[0].id];
       }
 
       postCustomPulseConfig?.();
@@ -146,26 +154,28 @@ const handleDeletePulse = async (pulseId: string) => {
       <h2 class="font-bold text-xl">波形列表</h2>
       <div class="flex gap-2 items-center">
         <Button icon="pi pi-sort-alpha-down" title="波形排序" severity="secondary" @click="state.showSortPulseDialog = true"
-          v-if="parentState.pulseMode === 'sequence'"></Button>
+          v-if="currentPulseConfig.pulseMode === 'sequence'"></Button>
         <Button icon="pi pi-plus" title="导入波形" severity="secondary"
           @click="state.showImportPulseDialog = true"></Button>
-        <Button icon="pi pi-clock" title="波形切换间隔" severity="secondary" :label="parentState.pulseChangeInterval + 's'"
+        <Button icon="pi pi-clock" title="波形切换间隔" severity="secondary" :label="currentPulseConfig.pulseChangeInterval + 's'"
           @click="showPulseTimePopover"></Button>
-        <SelectButton v-model="parentState.pulseMode" :options="pulseModeOptions" optionLabel="label" optionValue="value"
+        <SelectButton v-model="currentPulseConfig.pulseMode" :options="pulseModeOptions" optionLabel="label" optionValue="value"
+          :allowEmpty="false" aria-labelledby="basic" />
+        <SelectButton v-model="state.pulseChannel" :options="channelOptions" optionLabel="label" optionValue="value"
           :allowEmpty="false" aria-labelledby="basic" />
       </div>
     </div>
     <div v-if="parentState.pulseList" class="grid justify-center grid-cols-1 md:grid-cols-2 gap-4 pb-2">
       <PulseCard v-for="pulse in fullPulseList" :key="pulse.id" :pulse-info="pulse"
-        :is-current-pulse="parentState.selectPulseIds.includes(pulse.id)"
-        :is-fire-pulse="pulse.id === parentState.firePulseId" @set-current-pulse="togglePulse"
+        :is-current-pulse="currentPulseConfig.selectPulseIds.includes(pulse.id)"
+        :is-fire-pulse="pulse.id === currentPulseConfig.firePulseId" @set-current-pulse="togglePulse"
         @set-fire-pulse="setFirePulse" @delete-pulse="handleDeletePulse" @rename-pulse="handleRenamePulse" />
     </div>
     <div v-else class="flex justify-center py-4">
       <ProgressSpinner />
     </div>
     <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="parentState.pulseList ?? []"
-      v-model:modelValue="parentState.selectPulseIds" />
+      v-model:modelValue="currentPulseConfig.selectPulseIds" />
     <ImportPulseDialog v-model:visible="state.showImportPulseDialog" @on-pulse-imported="handlePulseImported" />
     <PromptDialog v-model:visible="state.showRenamePulseDialog" @confirm="handleRenamePulseConfirm" title="重命名波形"
       input-label="波形名称" :default-value="state.willRenamePulseName" />
@@ -176,10 +186,10 @@ const handleDeletePulse = async (pulseId: string) => {
           <span class="font-medium block mb-2">波形切换间隔</span>
           <div class="flex gap-2">
             <InputGroup>
-              <InputNumber v-model="parentState.pulseChangeInterval" :min="5" :max="600" />
+              <InputNumber v-model="currentPulseConfig.pulseChangeInterval" :min="5" :max="600" />
               <InputGroupAddon>秒</InputGroupAddon>
             </InputGroup>
-            <SelectButton v-model="parentState.pulseChangeInterval" :options="presetPulseTimeOptions" optionLabel="label"
+            <SelectButton v-model="currentPulseConfig.pulseChangeInterval" :options="presetPulseTimeOptions" optionLabel="label"
               optionValue="value" :allowEmpty="false" aria-labelledby="basic" />
           </div>
         </div>

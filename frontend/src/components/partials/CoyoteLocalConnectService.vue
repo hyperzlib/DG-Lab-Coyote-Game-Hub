@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ToastServiceMethods } from 'primevue/toastservice';
 import { CoyoteBluetoothController } from '../../controllers/CoyoteBluetoothController';
-import { ConfirmationOptions } from 'primevue/confirmationoptions';
+import type { ConfirmationOptions } from 'primevue/confirmationoptions';
 import { ConnectorType, CoyoteDeviceVersion } from '../../type/common';
 import { Reactive } from 'vue';
 import { ControllerPageState } from '../../pages/Controller.vue';

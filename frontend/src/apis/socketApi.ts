@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { EventEmitter } from "eventemitter3";
 import { EventDef, EventAddListenerFunc, EventRemoveListenerFunc } from "../utils/event";
+import { Channelify } from "../type/common";
 
 export type WebSocketMessage = {
     action: string;
@@ -31,10 +32,7 @@ export type ChannelStrengthInfo = {
     tempStrength: number;
 };
 
-export type GameStrengthInfo = {
-    main: ChannelStrengthInfo;
-    channelB: ChannelStrengthInfo;
-};
+export type GameStrengthInfo = Channelify<ChannelStrengthInfo>;
 
 export enum GameConfigType {
     MainGame = 'main-game',
@@ -72,16 +70,13 @@ export interface ChannelPulseConfig {
 }
 
 export interface MainGameConfig {
-    fireStrengthLimit: number;
+    fireStrengthLimit: Channelify<number>;
     strengthChangeInterval: [number, number];
     /** B通道模式：off=关闭，sync=同步A通道，discrete=独立控制 */
     bChannelMode: 'off' | 'sync' | 'discrete';
     /** B通道相对于A通道的强度倍率 */
     bChannelStrengthMultiplier: number;
-    pulse: {
-        main: ChannelPulseConfig;
-        channelB: ChannelPulseConfig;
-    };
+    pulse: Channelify<ChannelPulseConfig>;
 }
 
 export interface GameCustomPulseConfig {

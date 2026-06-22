@@ -3,6 +3,7 @@ import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import StatusChart from '../charts/Circle1.vue';
+import StatusChartMinimal from '../charts/Bar1.vue';
 
 import SelectButton from 'primevue/selectbutton';
 
@@ -12,30 +13,47 @@ import { handleApiResponse } from '../utils/response';
 import { simpleObjDiff } from '../utils/utils';
 import { PulseItemInfo } from '../type/pulse';
 import { useConfirm } from 'primevue/useconfirm';
-import { ConnectorType, CoyoteDeviceVersion } from '../type/common';
+import { Channelify, channelifyDefault, ConnectorType, CoyoteDeviceVersion } from '../type/common';
 import CoyoteLocalConnectService from '../components/partials/CoyoteLocalConnectService.vue';
 import ClientInfoDialog from '../components/dialogs/ClientInfoDialog.vue';
 import { useClientsStore } from '../stores/ClientsStore';
 import ConnectToSavedClientsDialog from '../components/dialogs/ConnectToSavedClientsDialog.vue';
 import { useRemoteNotificationStore } from '../stores/RemoteNotificationStore';
 
-export interface ControllerPageState {
-  controllerPage: 'strength' | 'pulse' | 'game';
-
-  strengthVal: number;
-  randomStrengthVal: number;
-  strengthLimit: number;
-  fireStrengthLimit: number;
-  tempStrength: number;
-  randomFreq: number[];
-  bChannelEnabled: boolean;
-  bChannelMultiple: number;
-  pulseList: PulseItemInfo[] | null;
-  customPulseList: PulseItemInfo[];
+export interface ControllerPagePulseState {
   selectPulseIds: string[];
   firePulseId: string;
   pulseMode: PulsePlayMode;
   pulseChangeInterval: number;
+}
+
+export interface ControllerPageStrengthConfigState {
+  strength: number;
+  randomStrength: number;
+  fireStrengthLimit: number;
+}
+
+export interface ControllerPageStrengthInfoState {
+  strengthLimit: number;
+  tempStrength: number;
+  currentStrength: number;
+}
+
+export interface ControllerPageState {
+  controllerPage: 'strength' | 'pulse' | 'game';
+
+  strength: Channelify<ControllerPageStrengthConfigState>;
+  strengthInfo: Channelify<ControllerPageStrengthInfoState>;
+  fireStrengthLimit: Channelify<number>;
+
+  randomFreq: [number, number];
+  bChannelMode: 'off' | 'sync' | 'discrete';
+  bChannelMultiple: number;
+  pulseList: PulseItemInfo[] | null;
+  customPulseList: PulseItemInfo[];
+
+  pulseConfig: Channelify<ControllerPagePulseState>;
+
   newClientName: string;
   clientId: string;
   clientWsUrlList: ClientConnectUrlInfo[] | null;
@@ -54,25 +72,34 @@ export interface ControllerPageState {
 const state = reactive<ControllerPageState>({
   controllerPage: 'strength',
 
-  strengthVal: 5,
-  randomStrengthVal: 5,
-  fireStrengthLimit: 30,
-  strengthLimit: 20,
+  strength: channelifyDefault({
+    strength: 5,
+    randomStrength: 5,
+    fireStrengthLimit: 30
+  }),
 
-  tempStrength: 0,
+  strengthInfo: channelifyDefault({
+    strengthLimit: 20,
+    tempStrength: 0,
+    currentStrength: 0
+  }),
+
+  fireStrengthLimit: channelifyDefault(30),
 
   randomFreq: [5, 10],
 
-  bChannelEnabled: false,
+  bChannelMode: 'off' as 'off' | 'sync' | 'discrete',
   bChannelMultiple: 1,
 
   pulseList: null as PulseItemInfo[] | null,
   customPulseList: [] as PulseItemInfo[],
-  selectPulseIds: [''],
-  firePulseId: '',
 
-  pulseMode: 'single',
-  pulseChangeInterval: 60,
+  pulseConfig: channelifyDefault({
+    selectPulseIds: [''],
+    firePulseId: '',
+    pulseMode: 'single',
+    pulseChangeInterval: 60,
+  }),
 
   newClientName: '',
   clientId: '',
@@ -117,23 +144,51 @@ const gameConfig = computed<MainGameConfig>({
     return {
       fireStrengthLimit: state.fireStrengthLimit,
       strengthChangeInterval: state.randomFreq,
-      enableBChannel: state.bChannelEnabled,
+      bChannelMode: state.bChannelMode,
       bChannelStrengthMultiplier: state.bChannelMultiple,
-      pulseId: state.selectPulseIds.length === 1 ? state.selectPulseIds[0] : state.selectPulseIds,
-      firePulseId: state.firePulseId === '' ? null : state.firePulseId,
-      pulseMode: state.pulseMode,
-      pulseChangeInterval: state.pulseChangeInterval,
+      pulse: {
+        main: {
+          pulseId: state.pulseConfig.main.selectPulseIds.length === 1 ?
+            state.pulseConfig.main.selectPulseIds[0] :
+            state.pulseConfig.main.selectPulseIds,
+          firePulseId: state.pulseConfig.main.firePulseId === '' ?
+            null :
+            state.pulseConfig.main.firePulseId,
+          pulseMode: state.pulseConfig.main.pulseMode,
+          pulseChangeInterval: state.pulseConfig.main.pulseChangeInterval,
+        },
+        channelB: {
+          pulseId: state.pulseConfig.channelB.selectPulseIds.length === 1 ?
+            state.pulseConfig.channelB.selectPulseIds[0] :
+            state.pulseConfig.channelB.selectPulseIds,
+          firePulseId: state.pulseConfig.channelB.firePulseId === '' ?
+            null :
+            state.pulseConfig.channelB.firePulseId,
+          pulseMode: state.pulseConfig.channelB.pulseMode,
+          pulseChangeInterval: state.pulseConfig.channelB.pulseChangeInterval,
+        }
+      }
     } as MainGameConfig;
   },
   set: (value) => {
     state.fireStrengthLimit = value.fireStrengthLimit;
     state.randomFreq = value.strengthChangeInterval;
-    state.bChannelEnabled = value.enableBChannel;
+    state.bChannelMode = value.bChannelMode;
     state.bChannelMultiple = value.bChannelStrengthMultiplier;
-    state.selectPulseIds = typeof value.pulseId === 'string' ? [value.pulseId] : value.pulseId || [''];
-    state.firePulseId = value.firePulseId || '';
-    state.pulseMode = value.pulseMode;
-    state.pulseChangeInterval = value.pulseChangeInterval;
+
+    state.pulseConfig.main.selectPulseIds = typeof value.pulse.main.pulseId === 'string' ?
+      [value.pulse.main.pulseId] :
+      value.pulse.main.pulseId || [''];
+    state.pulseConfig.main.firePulseId = value.pulse.main.firePulseId || '';
+    state.pulseConfig.main.pulseMode = value.pulse.main.pulseMode;
+    state.pulseConfig.main.pulseChangeInterval = value.pulse.main.pulseChangeInterval;
+
+    state.pulseConfig.channelB.selectPulseIds = typeof value.pulse.channelB.pulseId === 'string' ?
+      [value.pulse.channelB.pulseId] :
+      value.pulse.channelB.pulseId || [''];
+    state.pulseConfig.channelB.firePulseId = value.pulse.channelB.firePulseId || '';
+    state.pulseConfig.channelB.pulseMode = value.pulse.channelB.pulseMode;
+    state.pulseConfig.channelB.pulseChangeInterval = value.pulse.channelB.pulseChangeInterval;
   }
 });
 
@@ -141,20 +196,44 @@ let oldStrengthConfig: GameStrengthConfig | null = null;
 const strengthConfig = computed<GameStrengthConfig>({
   get: () => {
     return {
-      strength: state.strengthVal,
-      randomStrength: state.randomStrengthVal,
+      main: {
+        ...state.strength.main,
+      },
+      channelB: {
+        ...state.strength.channelB,
+      },
     } as GameStrengthConfig;
   },
   set: (value) => {
-    state.strengthVal = value.strength;
-    state.randomStrengthVal = value.randomStrength;
+    state.strength.main.strength = value.main.strength;
+    state.strength.main.randomStrength = value.main.randomStrength;
+
+    state.strength.channelB.strength = value.channelB.strength;
+    state.strength.channelB.randomStrength = value.channelB.randomStrength;
   }
 });
 
-const chartVal = computed(() => ({
-  valLow: Math.min(state.strengthVal + state.tempStrength, state.strengthLimit),
-  valHigh: Math.min(state.strengthVal + state.tempStrength + state.randomStrengthVal, state.strengthLimit),
-  valLimit: state.strengthLimit,
+const chartVal = computed<Channelify<{
+  valLow: number;
+  valHigh: number;
+  valLimit: number;
+  valTemp: number;
+  valCurrent: number;
+}>>(() => ({
+  main: {
+    valLow: Math.min(state.strength.main.strength + state.strengthInfo.main.tempStrength, state.strengthInfo.main.strengthLimit),
+    valHigh: Math.min(state.strength.main.strength + state.strengthInfo.main.tempStrength + state.strength.main.randomStrength, state.strengthInfo.main.strengthLimit),
+    valLimit: state.strengthInfo.main.strengthLimit,
+    valTemp: state.strengthInfo.main.tempStrength,
+    valCurrent: state.strengthInfo.main.currentStrength,
+  },
+  channelB: {
+    valLow: Math.min(state.strength.channelB.strength + state.strengthInfo.channelB.tempStrength, state.strengthInfo.channelB.strengthLimit),
+    valHigh: Math.min(state.strength.channelB.strength + state.strengthInfo.channelB.tempStrength + state.strength.channelB.randomStrength, state.strengthInfo.channelB.strengthLimit),
+    valLimit: state.strengthInfo.channelB.strengthLimit,
+    valTemp: state.strengthInfo.channelB.tempStrength,
+    valCurrent: state.strengthInfo.channelB.currentStrength,
+  }
 }));
 
 const toast = useToast();
@@ -233,8 +312,14 @@ const initWebSocket = async () => {
   });
 
   wsClient.on('strengthChanged', (strength) => {
-    state.strengthLimit = strength.limit;
-    state.tempStrength = strength.tempStrength;
+    state.strengthInfo.main.strengthLimit = strength.main.limit;
+    state.strengthInfo.main.tempStrength = strength.main.tempStrength;
+
+    state.strengthInfo.channelB.strengthLimit = strength.channelB.limit;
+    state.strengthInfo.channelB.tempStrength = strength.channelB.tempStrength;
+
+    state.strengthInfo.main.currentStrength = strength.main.strength;
+    state.strengthInfo.channelB.currentStrength = strength.channelB.strength;
   });
 
   wsClient.on('strengthConfigUpdated', (config) => {
@@ -247,10 +332,11 @@ const initWebSocket = async () => {
       oldStrengthConfig = config;
 
       // 屏蔽保存提示
-      receivedConfig = true;
-      nextTick(() => {
-        receivedConfig = false;
-      });
+      // 目前强度配置使用单独的控制面版，先移除保存提示，后续如果需要再调整
+      // receivedConfig = true;
+      // nextTick(() => {
+      //   receivedConfig = false;
+      // });
     }
   });
 
@@ -469,13 +555,19 @@ onMounted(async () => {
   await initWebSocket();
 });
 
-watch(() => state.pulseMode, (newVal) => {
-  if (newVal === 'single' && state.selectPulseIds.length > 1) { // 单波形模式下只保留第一个波形
-    state.selectPulseIds = [state.selectPulseIds[0]];
+watch(() => state.pulseConfig.main.pulseMode, (newVal) => {
+  if (newVal === 'single' && state.pulseConfig.main.selectPulseIds.length > 1) { // 单波形模式下只保留第一个波形
+    state.pulseConfig.main.selectPulseIds = [state.pulseConfig.main.selectPulseIds[0]];
   }
 });
 
-watch([gameConfig, strengthConfig], () => {
+watch(() => state.pulseConfig.channelB.pulseMode, (newVal) => {
+  if (newVal === 'single' && state.pulseConfig.channelB.selectPulseIds.length > 1) { // 单波形模式下只保留第一个波形
+    state.pulseConfig.channelB.selectPulseIds = [state.pulseConfig.channelB.selectPulseIds[0]];
+  }
+});
+
+watch(() => gameConfig, () => {
   if (receivedConfig) { // 收到服务器配置后不触发保存提示
     receivedConfig = false;
     return;
@@ -495,9 +587,14 @@ watch([gameConfig, strengthConfig], () => {
     <ConfirmDialog></ConfirmDialog>
     <CoyoteLocalConnectService :state="state" ref="coyoteLocalRef"></CoyoteLocalConnectService>
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
-      <div class="flex">
-        <StatusChart v-model:val-low="chartVal.valLow" v-model:val-high="chartVal.valHigh"
-          :val-limit="chartVal.valLimit" :running="state.gameStarted" readonly />
+      <div class="flex flex-col items-center gap-4 w-full lg:w-auto">
+        <StatusChart :val-low="chartVal.main.valLow" :val-high="chartVal.main.valHigh"
+          :val-limit="chartVal.main.valLimit" :val-temp="chartVal.main.valCurrent" :val-current="chartVal.main.valTemp"
+          :running="state.gameStarted" readonly />
+        <StatusChartMinimal v-if="state.bChannelMode !== 'off'" :val-low="chartVal.channelB.valLow"
+          :val-high="chartVal.channelB.valHigh" :val-limit="chartVal.channelB.valLimit"
+          :val-temp="chartVal.channelB.valCurrent" :val-current="chartVal.channelB.valTemp" :running="state.gameStarted"
+          readonly />
       </div>
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">
@@ -533,8 +630,8 @@ watch([gameConfig, strengthConfig], () => {
               </template>
             </Toolbar>
             <div class="w-full px-2 controller-page-tabs">
-              <SelectButton v-model="state.controllerPage" :options="controllerPageTabs" optionLabel="title" optionValue="id" dataKey="id"
-                :allowEmpty="false" aria-labelledby="custom">
+              <SelectButton v-model="state.controllerPage" :options="controllerPageTabs" optionLabel="title"
+                optionValue="id" dataKey="id" :allowEmpty="false" aria-labelledby="custom">
                 <template #option="slotProps">
                   <div class="flex flex-col items-center gap-2 px-2 py-1">
                     <i :class="slotProps.option.icon"></i>
@@ -560,10 +657,10 @@ watch([gameConfig, strengthConfig], () => {
 
     <ConnectToClientDialog v-model:visible="state.showConnectionDialog" :clientWsUrlList="state.clientWsUrlList"
       :client-id="state.clientId" @reset-client-id="handleResetClientId" @update:client-id="handleConnSetClientId"
-      @start-bluetooth-connect="handleStartBluetoothConnect"
-      @start-debug-connect="handleStartDebugConnect" />
+      @start-bluetooth-connect="handleStartBluetoothConnect" @start-debug-connect="handleStartDebugConnect" />
     <ClientInfoDialog v-model:visible="state.showClientInfoDialog" :client-id="state.clientId"
-      :controller-url="state.apiBaseHttpUrl" :connector-type="state.connectorType" />
+      :controller-url="state.apiBaseHttpUrl" :connector-type="state.connectorType"
+      :b-channel-is-discrete="state.bChannelMode === 'discrete'" />
     <GetLiveCompDialog v-model:visible="state.showLiveCompDialog" :client-id="state.clientId" />
     <ConfigSavePrompt :visible="state.showConfigSavePrompt" @save="handleSaveConfig" @cancel="handleCancelSaveConfig" />
     <ConnectToSavedClientsDialog v-model:visible="state.showConnectToSavedClientsDialog"
@@ -575,6 +672,8 @@ watch([gameConfig, strengthConfig], () => {
 </template>
 
 <style lang="scss">
+@use "sass:map";
+
 $container-max-widths: (
   md: 768px,
   lg: 960px,
@@ -607,13 +706,13 @@ body {
 
 @media (min-width: 768px) {
   .page-container {
-    max-width: map-get($container-max-widths, lg);
+    max-width: map.get($container-max-widths, lg);
   }
 }
 
 @media (min-width: 1024px) {
   .page-container {
-    max-width: map-get($container-max-widths, xl);
+    max-width: map.get($container-max-widths, xl);
   }
 }
 
@@ -622,15 +721,6 @@ body {
   border-radius: 0.8rem;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-
-  .input-small {
-    height: 32px;
-    --p-inputtext-padding-y: 0.25rem;
-  }
-
-  .input-text-center input {
-    text-align: center;
-  }
 
   .inner-tabs {
     --p-tabs-tablist-background: transparent;

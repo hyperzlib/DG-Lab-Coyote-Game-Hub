@@ -8,6 +8,7 @@ defineOptions({
 });
 
 const props = withDefaults(defineProps<{
+    channel?: 'A' | 'B';
     realStrength?: number;
     strengthLimit?: number;
     valLow?: number;
@@ -17,6 +18,7 @@ const props = withDefaults(defineProps<{
     hideText?: boolean;
     yellowBar?: boolean;
 }>(), {
+    channel: 'A',
     realStrength: 5,
     strengthLimit: 50,
     running: false,
@@ -76,6 +78,7 @@ const batteryBarBackground = computed(() => {
 
 <template>
     <div class="battery">
+        <div v-if="props.channel === 'B'" class="battery-channel-label">B通道</div>
         <div class="battery-bar" :style="{ backgroundImage: batteryBarBackground }"></div>
         <div class="battery-screw"></div>
         <div class="battery-cover"></div>
@@ -122,6 +125,18 @@ const batteryBarBackground = computed(() => {
     border-radius: 0.3333333;
 
     --progress-green: 10%;
+
+    > .battery-channel-label {
+        position: absolute;
+        z-index: 3;
+        top: 12px;
+        left: 22px;
+        color: rgba(235, 235, 235, 0.72);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-shadow: 1px 1px 2px black;
+    }
 
     > .battery-bar {
         position: absolute;

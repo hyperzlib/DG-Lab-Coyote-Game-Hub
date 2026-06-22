@@ -4,13 +4,31 @@ import { ServerInfoResData, webApi } from './apis/webApi';
 import { parseChartParams } from './utils/request';
 import { handleApiResponse } from './utils/response';
 
-const state = reactive({
-  strength: 0,
-  randomStrength: 0,
-  strengthLimit: 50,
+type ViewerChannelState = {
+  strength: number;
+  randomStrength: number;
+  strengthLimit: number;
+  tempStrength: number;
+  realStrength: number;
+};
 
-  tempStrength: 0,
-  realStrength: 0,
+const state = reactive({
+  channels: {
+    main: {
+      strength: 0,
+      randomStrength: 0,
+      strengthLimit: 50,
+      tempStrength: 0,
+      realStrength: 0,
+    },
+    channelB: {
+      strength: 0,
+      randomStrength: 0,
+      strengthLimit: 50,
+      tempStrength: 0,
+      realStrength: 0,
+    },
+  } as Record<'main' | 'channelB', ViewerChannelState>,
 
   clientId: '',
 
@@ -28,10 +46,17 @@ const chartParams = computed(() => {
   return parseChartParams(route);
 });
 
+const channel = computed<'A' | 'B'>(() => route.query.channel === 'B' ? 'B' : 'A');
+const channelKey = computed<'main' | 'channelB'>(() => channel.value === 'B' ? 'channelB' : 'main');
+const channelState = computed(() => state.channels[channelKey.value]);
+
 const chartVal = computed(() => ({
-  valLow: Math.min(state.strength + state.tempStrength, state.strengthLimit),
-  valHigh: Math.min(state.strength + state.tempStrength + state.randomStrength, state.strengthLimit),
-  valLimit: state.strengthLimit,
+  valLow: Math.min(channelState.value.strength + channelState.value.tempStrength, channelState.value.strengthLimit),
+  valHigh: Math.min(
+    channelState.value.strength + channelState.value.tempStrength + channelState.value.randomStrength,
+    channelState.value.strengthLimit,
+  ),
+  valLimit: channelState.value.strengthLimit,
 }));
 
 const initServerInfo = async () => {
@@ -57,16 +82,18 @@ const initWebSocket = async () => {
   });
 
   wsClient.on('strengthChanged', (strength) => {
-    state.strengthLimit = strength.limit;
-    state.tempStrength = strength.tempStrength;
-    state.realStrength = strength.strength;
+    for (const key of ['main', 'channelB'] as const) {
+      state.channels[key].strengthLimit = strength[key].limit;
+      state.channels[key].tempStrength = strength[key].tempStrength;
+      state.channels[key].realStrength = strength[key].strength;
+    }
   });
 
   wsClient.on('strengthConfigUpdated', (config) => {
-    state.strength = config.strength;
-    state.randomStrength = config.randomStrength;
-
-    state.strength = Math.min(state.strength, state.strengthLimit); // 限制当前值不超过上限
+    for (const key of ['main', 'channelB'] as const) {
+      state.channels[key].strength = Math.min(config[key].strength, state.channels[key].strengthLimit);
+      state.channels[key].randomStrength = config[key].randomStrength;
+    }
   });
 
   wsClient.on('gameStarted', () => {
@@ -113,9 +140,10 @@ onMounted(async () => {
     <RouterView>
       <template #default="{ Component }">
         <Component :is="Component" v-bind="chartParams" :valLimit="chartVal.valLimit" :valLow="chartVal.valLow"
-          :valHigh="chartVal.valHigh" :strength="state.strength" :randomStrength="state.randomStrength"
-          :tempStrength="state.tempStrength" :realStrength="state.realStrength" :strengthLimit="state.strengthLimit"
-          :running="state.gameStarted" />
+          :valHigh="chartVal.valHigh" :strength="channelState.strength"
+          :randomStrength="channelState.randomStrength" :tempStrength="channelState.tempStrength"
+          :realStrength="channelState.realStrength" :strengthLimit="channelState.strengthLimit"
+          :running="state.gameStarted" :channel="channel" />
       </template>
     </RouterView>
     <Transition name="fade">

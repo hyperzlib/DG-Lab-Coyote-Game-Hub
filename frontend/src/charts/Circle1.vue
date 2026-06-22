@@ -7,6 +7,7 @@ defineOptions({
 const strokeDasharray = 628;
 
 const props = withDefaults(defineProps<{
+    channel?: 'A' | 'B';
     valLow?: number;
     valHigh?: number;
     valLimit?: number;
@@ -14,6 +15,7 @@ const props = withDefaults(defineProps<{
     running?: boolean;
     darkMode?: boolean;
 }>(), {
+    channel: 'A',
     valLow: 5,
     valHigh: 10,
     valLimit: 50,
@@ -46,6 +48,7 @@ watch(() => [props.valLow, props.valHigh, props.valLimit, props.valCurrent], ([v
 
 <template>
     <div class="progress" :class="{ dark: props.darkMode }">
+        <div v-if="props.channel === 'B'" class="channel-label">B通道</div>
         <div class="progress__number">
             <span class="strength-num color-low">{{ state.valLow }}</span>
             <span>-</span>
@@ -120,10 +123,18 @@ watch(() => [props.valLow, props.valHigh, props.valLimit, props.valCurrent], ([v
 }
 
 .progress__number,
-.progress__icon {
+.progress__icon,
+.channel-label {
     font-size: var(--progress-font-size);
     font-weight: bold;
     z-index: 2;
+}
+
+.channel-label {
+    margin-bottom: -0.25rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    opacity: 0.48;
 }
 
 .progress__number {

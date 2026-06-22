@@ -21,6 +21,7 @@ const visible = defineModel('visible');
 
 const state = reactive({
   theme: 'default',
+  channel: 'A' as 'A' | 'B',
   chartParams: {} as Record<string, string>,
   themeLoading: false,
 });
@@ -68,9 +69,11 @@ const viewerUrl = computed(() => {
   if (props.clientId) {
     const theme = state.theme === 'default' ? '' : state.theme;
     let url = `${baseUrl}/viewer.html?clientId=${props.clientId}#/${theme}`;
-    if (Object.keys(state.chartParams).length) {
-      url += '?' + new URLSearchParams(buildChartParams(state.chartParams)).toString();
-    }
+    const params = buildChartParams({
+      channel: state.channel,
+      ...state.chartParams,
+    });
+    url += '?' + new URLSearchParams(params).toString();
     return url;
   } else {
     return '';
@@ -103,6 +106,19 @@ const copyUrl = () => {
             optionValue="value"
             :loading="state.themeLoading"
             placeholder="请选择主题"
+            class="w-full"
+          ></Select>
+        </div>
+        <div class="flex flex-col items-start mt-4">
+          <span class="block font-semibold mb-2">通道：</span>
+          <Select
+            v-model="state.channel"
+            :options="[
+              { value: 'A', label: 'A通道' },
+              { value: 'B', label: 'B通道' },
+            ]"
+            optionLabel="label"
+            optionValue="value"
             class="w-full"
           ></Select>
         </div>

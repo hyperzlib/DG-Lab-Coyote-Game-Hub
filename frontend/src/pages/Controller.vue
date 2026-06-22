@@ -3,7 +3,7 @@ import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import StatusChart from '../charts/Circle1.vue';
-import StatusChartMinimal from '../charts/Bar1.vue';
+import StatusChartChannelB from '../charts/Pannel1.vue';
 
 import SelectButton from 'primevue/selectbutton';
 
@@ -591,10 +591,9 @@ watch(() => gameConfig, () => {
         <StatusChart :val-low="chartVal.main.valLow" :val-high="chartVal.main.valHigh"
           :val-limit="chartVal.main.valLimit" :val-temp="chartVal.main.valCurrent" :val-current="chartVal.main.valTemp"
           :running="state.gameStarted" readonly />
-        <StatusChartMinimal v-if="state.bChannelMode !== 'off'" :val-low="chartVal.channelB.valLow"
+        <StatusChartChannelB v-if="state.bChannelMode !== 'off'" :val-low="chartVal.channelB.valLow"
           :val-high="chartVal.channelB.valHigh" :val-limit="chartVal.channelB.valLimit"
-          :val-temp="chartVal.channelB.valCurrent" :val-current="chartVal.channelB.valTemp" :running="state.gameStarted"
-          readonly />
+          :running="state.gameStarted" channel="B" />
       </div>
 
       <Card class="controller-panel flex-grow-1 flex-shrink-1 w-full">

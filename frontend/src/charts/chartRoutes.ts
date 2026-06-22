@@ -40,6 +40,20 @@ export const chartRoutes: RouteRecordRaw[] = [
         },
     },
     {
+        path: '/pannel1',
+        component: () => import('./Pannel1.vue'),
+        name: '经典折角面板',
+        meta: {
+            params: [
+                {
+                    prop: 'darkMode',
+                    type: 'boolean',
+                    name: '深色模式',
+                },
+            ],
+        },
+    },
+    {
         path: '/battery1',
         component: () => import('./Battery1.vue'), name: '拟物电池 (仅当前电量)',
         meta: {

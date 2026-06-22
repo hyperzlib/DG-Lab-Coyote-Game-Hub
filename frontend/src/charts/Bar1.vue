@@ -9,11 +9,13 @@ const pillWidth = 5;
 const pillOffset = 4;
 
 const props = withDefaults(defineProps<{
+    channel?: 'A' | 'B';
     valLow?: number;
     valHigh?: number;
     valLimit?: number;
     running?: boolean;
 }>(), {
+    channel: 'A',
     valLow: 5,
     valHigh: 10,
     valLimit: 50,
@@ -48,6 +50,7 @@ const progressWidth = computed(() => {
 
 <template>
     <div class="bar-chart">
+        <div v-if="props.channel === 'B'" class="channel-label">B通道</div>
         <div class="progress">
             <div
                 class="progress-bar progress-bar--low"
@@ -89,6 +92,14 @@ const progressWidth = computed(() => {
 .bar-chart {
     width: 400px;
     padding: 20px;
+}
+
+.channel-label {
+    margin: 0 0 0.35rem 0.1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    opacity: 0.55;
 }
 
 .progress {

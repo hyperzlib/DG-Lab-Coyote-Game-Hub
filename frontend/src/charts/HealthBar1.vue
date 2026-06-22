@@ -8,6 +8,7 @@ defineOptions({
 });
 
 const props = withDefaults(defineProps<{
+    channel?: 'A' | 'B';
     valLow?: number;
     valHigh?: number;
     valLimit?: number;
@@ -16,6 +17,7 @@ const props = withDefaults(defineProps<{
     textInverted?: boolean;
     hideText?: boolean;
 }>(), {
+    channel: 'A',
     valLow: 5,
     valHigh: 10,
     valLimit: 50,
@@ -48,6 +50,8 @@ const heartValueList = computed(() => { // 计算每个心心的红黄色值
 
 <template>
     <div class="bar-chart">
+        <div v-if="props.channel === 'B'" class="channel-label"
+            :class="{ 'text-inverted': props.textInverted }">CH. B</div>
         <div class="progress">
             <Heart class="heart-icon" v-for="val, i in heartValueList" :key="i" :valRed="val.valRed" :valYellow="val.valYellow" />
         </div>
@@ -77,6 +81,13 @@ const heartValueList = computed(() => { // 计算每个心心的红黄色值
 .heart-icon {
     display: inline-block;
     margin-right: 6px;
+}
+
+.channel-label {
+    margin-bottom: 0.4rem;
+    font-family: 'Joystix', monospace;
+    font-size: 0.9rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 @font-face {

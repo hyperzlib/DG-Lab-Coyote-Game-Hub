@@ -17,12 +17,12 @@ const props = defineProps<{
   clientId?: string;
 }>();
 
-const visible = defineModel('visible');
+const visible = defineModel<boolean>('visible');
 
 const state = reactive({
   theme: 'default',
   channel: 'A' as 'A' | 'B',
-  chartParams: {} as Record<string, string>,
+  chartParams: {} as Record<string, any>,
   themeLoading: false,
 });
 

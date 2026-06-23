@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
     allowEmpty: true,
 });
 
-const visible = defineModel('visible');
+const visible = defineModel<boolean>('visible');
 
 const emit = defineEmits<{
     confirm: [value: string];

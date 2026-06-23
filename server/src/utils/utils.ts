@@ -93,19 +93,23 @@ export const simpleObjDiff = (obj1: any, obj2: any, preciseDepth: number = 3, _p
  * @param source 源对象，属性会从这个对象合并到目标对象上
  * @returns 合并后的目标对象
  */
+export const deepClone = <T>(value: T): T => structuredClone(value);
+
 export const deepMerge = (target: any, source: any, copy: boolean = true) => {
     if (copy) {
-        target = { ...target };
+        target = deepClone(target);
     }
     for (const key in source) {
-        if (source[key] && typeof source[key] === 'object') {
+        if (Array.isArray(source[key])) {
+            target[key] = deepClone(source[key]);
+        } else if (source[key] && typeof source[key] === 'object') {
             if (!target[key] || typeof target[key] !== 'object') {
                 target[key] = {};
             }
             if (target[key]['_override'] === true) {
-                target[key] = source[key];
+                target[key] = deepClone(source[key]);
             } else {
-                deepMerge(target[key], source[key], copy);
+                target[key] = deepMerge(target[key], source[key], false);
             }
         } else {
             target[key] = source[key];
@@ -120,8 +124,8 @@ export const includesPrefix = (strList: string[], prefix: string) => {
 
 export const channelifyDefault = <T>(value: T): Channelify<T> => {
     return {
-        main: { ...value },
-        channelB: { ...value },
+        main: deepClone(value),
+        channelB: deepClone(value),
     };
 }
 

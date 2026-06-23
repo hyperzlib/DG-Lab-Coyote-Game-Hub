@@ -271,6 +271,10 @@ export class WebWSClient {
             this.gameInstance.updateStrengthConfig(newStrengthConfig.main, 'main'),
             this.gameInstance.updateStrengthConfig(newStrengthConfig.channelB, 'channelB'),
         ]);
+
+        await this.sendResponse(message.requestId, {
+            status: 1,
+        });
     }
 
     private async handleUpdateGameConfig(message: any) {
@@ -331,7 +335,11 @@ export class WebWSClient {
                 return;
         }
         
-        CoyoteGameConfigService.instance.set(this.clientId, message.type, message.config);
+        await CoyoteGameConfigService.instance.set(this.clientId, message.type, message.config);
+
+        await this.sendResponse(message.requestId, {
+            status: 1,
+        });
     }
 
     private async handleStartGame(message: any) {

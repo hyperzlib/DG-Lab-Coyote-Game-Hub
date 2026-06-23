@@ -871,6 +871,15 @@ export class LegacyGameApiController {
 
         let successClientIds = new Set<string>();
         for (const game of gameList) {
+            if (channel === 'channelB' && game.gameConfig.bChannelMode === 'sync' &&
+                !warnings.some(warning => warning.code === 'WARN::B_CHANNEL_SYNC_FIRE')) {
+                warnings.push({
+                    code: 'WARN::B_CHANNEL_SYNC_FIRE',
+                    message: 'B通道当前处于同步模式，无法单独发送一键开火。',
+                });
+                continue;
+            }
+
             let fireAction = new GameFireAction({
                 channel,
                 strength: req.strength,

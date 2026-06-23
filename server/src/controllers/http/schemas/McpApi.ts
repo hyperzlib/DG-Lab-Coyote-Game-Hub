@@ -165,7 +165,11 @@ export const SetPulseResultSchema = z.object({
 export const FireActionResultSchema = z.object({
     success: z.boolean().describe("操作是否成功"),
     fireActionId: z.string().describe("一键开火动作 ID"),
-    actualDuration: z.number().int().describe("实际持续时间")
+    actualDuration: z.number().int().describe("实际持续时间"),
+    warnings: z.array(z.object({
+        code: z.string().describe("警告代码"),
+        message: z.string().describe("警告信息"),
+    })).optional().describe("非阻断警告列表")
 }).describe("开火动作结果");
 
 export const GetPulseListResultSchema = z.object({

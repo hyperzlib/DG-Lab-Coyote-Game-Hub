@@ -7,7 +7,7 @@ import { GameCustomPulseConfigSchema, MainGameConfigSchema } from '#app/types/ga
 import type { GameCustomPulseConfig, GamePulseConfig, MainGameConfig } from '#app/types/game.js';
 import { DGLabPulseService } from './DGLabPulse.js';
 import { z } from 'zod';
-import { deepMerge } from '#app/utils/utils.js';
+import { channelifyDefault, deepMerge } from '#app/utils/utils.js';
 import type { DeepPartial } from '#app/types/common.js';
 
 export enum GameConfigType {
@@ -66,10 +66,7 @@ export class CoyoteGameConfigService {
                 strengthChangeInterval: [15, 30],
                 bChannelMode: 'off',
                 bChannelStrengthMultiplier: 1,
-                pulse: {
-                    main: defaultPulseConfig,
-                    channelB: defaultPulseConfig,
-                },
+                pulse: channelifyDefault(defaultPulseConfig),
                 fireStrengthLimit: {
                     main: 30,
                     channelB: 30,

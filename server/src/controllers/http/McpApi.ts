@@ -1160,6 +1160,14 @@ export class McpApiController {
             };
         }
 
+        const warnings: { code: string, message: string }[] = [];
+        if (internalChannel === 'channelB' && game.gameConfig.bChannelMode === 'sync') {
+            throw {
+                code: MCP_ERROR_CODES.OPERATION_FAILED,
+                message: 'B 通道当前处于同步模式，无法单独发送一键开火指令。'
+            };
+        }
+
         // 生成开火 ID
         const fireActionId = `fire_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -1184,6 +1192,7 @@ export class McpApiController {
                 success: true,
                 fireActionId,
                 actualDuration: duration,
+                warnings: warnings.length > 0 ? warnings : undefined,
                 message: `开火动作已启动！强度: ${strength}，持续时间: ${duration}ms。${this.getStrengthStatusMessage(game, "开火动作")}`
             };
         } catch (error) {

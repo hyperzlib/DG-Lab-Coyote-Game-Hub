@@ -120,8 +120,8 @@ export const includesPrefix = (strList: string[], prefix: string) => {
 
 export const channelifyDefault = <T>(value: T): Channelify<T> => {
     return {
-        main: value,
-        channelB: value,
+        main: { ...value },
+        channelB: { ...value },
     };
 }
 

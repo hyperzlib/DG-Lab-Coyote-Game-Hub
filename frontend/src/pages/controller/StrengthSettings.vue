@@ -42,39 +42,23 @@ const bChannelModeOptions = [
         </div>
       </div>
     </div>
-    <!--
-    <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-      <label class="font-semibold w-35">基础强度</label>
-      <InputNumber class="input-small" v-model="parentState.strengthVal" />
-      <div class="flex-grow flex-shrink"></div>
-    </div>
-    <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-      <label class="font-semibold w-35">随机强度</label>
-      <InputNumber class="input-small" v-model="parentState.randomStrengthVal" />
-      <div class="flex-grow flex-shrink"></div>
-    </div>
-    <div class="flex gap-8 mb-4 w-full">
-      <div class="w-35"></div>
-      <div class="opacity-60 text-right">
-        强度范围：{{ parentState.strengthVal }} - {{ parentState.strengthVal + parentState.randomStrengthVal
-        }}，强度上限请在DG-Lab中设置
-      </div>
-    </div>
-    <div class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
-      <label class="font-semibold w-35">一键开火强度限制</label>
-      <InputNumber class="input-small" v-model="parentState.fireStrengthLimit" />
-      <div class="flex-grow flex-shrink"></div>
-    </div>
-    -->
     <div class="w-full flex flex-col md:flex-row gap-2 lg:gap-8 mb-8 lg:mb-6">
-      <CoyoteStrengthPanel class="flex-1" v-model:strength="parentState.strength.main.strength"
-        v-model:randomStrength="parentState.strength.main.randomStrength"
-        v-model:fireStrengthLimit="parentState.fireStrengthLimit.main"
-        :strengthLimit="parentState.strengthInfo.main.strengthLimit" iconText="A" />
-      <CoyoteStrengthPanel class="flex-1" v-model:strength="parentState.strength.channelB.strength"
-        v-model:randomStrength="parentState.strength.channelB.randomStrength"
-        v-model:fireStrengthLimit="parentState.fireStrengthLimit.channelB"
-        :strengthLimit="parentState.strengthInfo.channelB.strengthLimit" iconText="B" />
+      <template v-if="parentState.bChannelMode === 'discrete'">
+        <CoyoteStrengthPanel class="flex-1" v-model:strength="parentState.strength.main.strength"
+          v-model:randomStrength="parentState.strength.main.randomStrength"
+          v-model:fireStrengthLimit="parentState.fireStrengthLimit.main"
+          :strengthLimit="parentState.strengthInfo.main.strengthLimit" iconText="A" />
+        <CoyoteStrengthPanel class="flex-1" v-model:strength="parentState.strength.channelB.strength"
+          v-model:randomStrength="parentState.strength.channelB.randomStrength"
+          v-model:fireStrengthLimit="parentState.fireStrengthLimit.channelB"
+          :strengthLimit="parentState.strengthInfo.channelB.strengthLimit" iconText="B" />
+      </template>
+      <template v-else>
+        <CoyoteStrengthPanel class="flex-1" v-model:strength="parentState.strength.main.strength"
+          v-model:randomStrength="parentState.strength.main.randomStrength"
+          v-model:fireStrengthLimit="parentState.fireStrengthLimit.main"
+          :strengthLimit="parentState.strengthInfo.main.strengthLimit" fluid />
+      </template>
     </div>
     <div class="flex items-center gap-2 lg:gap-8 mb-4 w-full">
       <label class="font-semibold w-35">B通道模式</label>
@@ -82,12 +66,12 @@ const bChannelModeOptions = [
         v-model="parentState.bChannelMode" :allowEmpty="false" aria-labelledby="basic" />
     </div>
     <div v-if="parentState.bChannelMode === 'sync'"
-      class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-8 lg:mb-4">
+      class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-4">
       <label class="font-semibold w-35">B通道强度倍数</label>
       <InputNumber class="input-small" v-model="parentState.bChannelMultiple" />
       <div class="flex-grow flex-shrink"></div>
     </div>
-    <div class="flex gap-8 w-full">
+    <div class="flex gap-2 lg:gap-8 w-full">
       <div class="w-35"></div>
       <div class="opacity-60 text-left flex-1">
         <span v-if="parentState.bChannelMode === 'off'">

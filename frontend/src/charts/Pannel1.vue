@@ -80,14 +80,14 @@ const progressOffset = computed(() => ({
             </defs>
 
             <path class="track-base track-base--high" pathLength="100"
-                d="M 28 98 H 232 A 10 10 0 0 0 242 88 V 28" />
+                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24" />
             <path class="track-base track-base--low" pathLength="100"
-                d="M 28 98 H 232 A 10 10 0 0 0 242 88 V 28" />
+                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24" />
             <path class="track-fill track-fill--high" pathLength="100"
-                d="M 28 98 H 232 A 10 10 0 0 0 242 88 V 28"
+                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24"
                 :stroke-dashoffset="progressOffset.valHigh" />
             <path class="track-fill track-fill--low" pathLength="100"
-                d="M 28 98 H 232 A 10 10 0 0 0 242 88 V 28"
+                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24"
                 :stroke-dashoffset="progressOffset.valLow" />
         </svg>
     </div>

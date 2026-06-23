@@ -16,31 +16,26 @@ const modelValue = defineModel<string[]>();
 
 const selectedPulseList = ref<{ id: string, name: string }[]>([]);
 
+const resolveSelectedPulseList = (pulseIds: string[] = []) => {
+  return pulseIds.flatMap((pulseId) => {
+    const pulse = props.pulseList.find((item) => item.id === pulseId);
+    return pulse ? [{ id: pulse.id, name: pulse.name }] : [];
+  });
+};
+
 const onConfirm = () => {
   modelValue.value = selectedPulseList.value.map((item) => item.id);
   visible.value = false;
 };
 
 const onCancel = () => {
-  selectedPulseList.value = modelValue.value?.map((pulseId) => {
-    const pulse = props.pulseList.find((item) => item.id === pulseId);
-    return {
-      id: pulse?.id ?? '',
-      name: pulse?.name ?? '',
-    };
-  }) ?? [];
+  selectedPulseList.value = resolveSelectedPulseList(modelValue.value);
   visible.value = false;
 };
 
 watch(() => visible.value, (newVal) => {
-  if (newVal && modelValue.value) { // visible
-    selectedPulseList.value = modelValue.value.map((pulseId) => {
-      const pulse = props.pulseList.find((item) => item.id === pulseId);
-      return {
-        id: pulse?.id ?? '',
-        name: pulse?.name ?? '',
-      };
-    });
+  if (newVal) {
+    selectedPulseList.value = resolveSelectedPulseList(modelValue.value);
   }
 });
 </script>

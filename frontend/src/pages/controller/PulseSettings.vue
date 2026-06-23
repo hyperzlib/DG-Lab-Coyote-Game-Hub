@@ -136,9 +136,17 @@ const handleDeletePulse = async (pulseId: string) => {
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
       parentState.customPulseList = parentState.customPulseList.filter((item) => item.id !== pulseId);
-      currentPulseConfig.value.selectPulseIds = currentPulseConfig.value.selectPulseIds.filter((id) => id !== pulseId);
-      if (currentPulseConfig.value.selectPulseIds.length === 0) {
-        currentPulseConfig.value.selectPulseIds = [fullPulseList.value[0].id];
+
+      const fallbackPulseId = fullPulseList.value[0]?.id ?? '';
+      for (const channel of ['main', 'channelB'] as const) {
+        const pulseConfig = parentState.pulseConfig[channel];
+        pulseConfig.selectPulseIds = pulseConfig.selectPulseIds.filter((id) => id !== pulseId);
+        if (pulseConfig.selectPulseIds.length === 0) {
+          pulseConfig.selectPulseIds = fallbackPulseId ? [fallbackPulseId] : [''];
+        }
+        if (pulseConfig.firePulseId === pulseId) {
+          pulseConfig.firePulseId = '';
+        }
       }
 
       postCustomPulseConfig?.();
@@ -174,7 +182,7 @@ const handleDeletePulse = async (pulseId: string) => {
     <div v-else class="flex justify-center py-4">
       <ProgressSpinner />
     </div>
-    <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="parentState.pulseList ?? []"
+    <SortPulseDialog v-model:visible="state.showSortPulseDialog" :pulse-list="fullPulseList"
       v-model:modelValue="currentPulseConfig.selectPulseIds" />
     <ImportPulseDialog v-model:visible="state.showImportPulseDialog" @on-pulse-imported="handlePulseImported" />
     <PromptDialog v-model:visible="state.showRenamePulseDialog" @confirm="handleRenamePulseConfirm" title="重命名波形"

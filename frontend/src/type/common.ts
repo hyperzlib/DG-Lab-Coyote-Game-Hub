@@ -15,7 +15,14 @@ export type Channelify<T> = {
     channelB: T;
 }
 
+const cloneChannelValue = <T>(value: T): T => {
+    if (value !== null && typeof value === 'object') {
+        return structuredClone(value);
+    }
+    return value;
+};
+
 export const channelifyDefault = <T>(defaultValue: T): Channelify<T> => ({
-    main: defaultValue,
-    channelB: defaultValue,
+    main: cloneChannelValue(defaultValue),
+    channelB: cloneChannelValue(defaultValue),
 });

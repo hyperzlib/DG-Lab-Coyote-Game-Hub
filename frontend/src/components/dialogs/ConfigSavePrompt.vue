@@ -21,7 +21,7 @@ const emit = defineEmits<{
         <p class="text-md text-white">是否保存当前配置？</p>
         <div>
           <Button size="small" severity="secondary" class="mr-4" @click="emit('save')">保存</Button>
-          <Button size="small" text severity="contrast" @click="emit('cancel')">取消</Button>
+          <Button size="small" text @click="emit('cancel')">取消</Button>
         </div>
       </div>
     </Transition>

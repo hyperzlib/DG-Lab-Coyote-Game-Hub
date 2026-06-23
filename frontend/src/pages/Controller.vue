@@ -136,7 +136,19 @@ watch(() => state.controllerPage, (newVal) => {
 });
 
 // 在收到服务器的配置后设置为true，防止触发watch
-let receivedConfig = false;
+let suppressConfigPrompt = false;
+
+const cloneConfig = <T>(config: T): T => {
+  return JSON.parse(JSON.stringify(config));
+};
+
+const applyConfigWithoutPrompt = (callback: () => void) => {
+  suppressConfigPrompt = true;
+  callback();
+  nextTick(() => {
+    suppressConfigPrompt = false;
+  });
+};
 
 let oldGameConfig: MainGameConfig | null = null;
 const gameConfig = computed<MainGameConfig>({
@@ -325,11 +337,13 @@ const initWebSocket = async () => {
   wsClient.on('strengthConfigUpdated', (config) => {
     if (state.showConfigSavePrompt) {
       // 当前有配置未保存，不更新配置，只替换旧配置
-      oldStrengthConfig = config;
+      oldStrengthConfig = cloneConfig(config);
     } else {
       // 覆盖本地配置
-      strengthConfig.value = config;
-      oldStrengthConfig = config;
+      applyConfigWithoutPrompt(() => {
+        strengthConfig.value = cloneConfig(config);
+        oldStrengthConfig = cloneConfig(config);
+      });
 
       // 屏蔽保存提示
       // 目前强度配置使用单独的控制面版，先移除保存提示，后续如果需要再调整
@@ -343,17 +357,15 @@ const initWebSocket = async () => {
   wsClient.on('mainGameConfigUpdated', (config) => {
     if (state.showConfigSavePrompt) {
       // 当前有配置未保存，不更新配置，只替换旧配置
-      oldGameConfig = config;
+      oldGameConfig = cloneConfig(config);
     } else {
       // 覆盖本地配置
-      gameConfig.value = config;
-      oldGameConfig = config;
+      applyConfigWithoutPrompt(() => {
+        gameConfig.value = cloneConfig(config);
+        oldGameConfig = cloneConfig(config);
+      });
 
       // 屏蔽保存提示
-      receivedConfig = true;
-      nextTick(() => {
-        receivedConfig = false;
-      });
     }
   });
 
@@ -461,18 +473,21 @@ const postConfig = async () => {
     if (simpleObjDiff(oldStrengthConfig, strengthConfig.value)) {
       let res = await wsClient.updateStrengthConfig(strengthConfig.value);
       handleApiResponse(res);
-      oldStrengthConfig = strengthConfig.value;
+      oldStrengthConfig = cloneConfig(strengthConfig.value);
     }
 
     if (simpleObjDiff(oldGameConfig, gameConfig.value)) {
       let res = await wsClient.updateConfig(GameConfigType.MainGame, gameConfig.value);
       handleApiResponse(res);
-      oldGameConfig = gameConfig.value;
+      oldGameConfig = cloneConfig(gameConfig.value);
     }
 
     toast.add({ severity: 'success', summary: '保存成功', detail: '游戏配置已保存', life: 3000 });
+    return true;
   } catch (error: any) {
     console.error('Cannot post config:', error);
+    toast.add({ severity: 'error', summary: '保存失败', detail: error.message, life: 5000 });
+    return false;
   }
 };
 
@@ -516,24 +531,21 @@ const handleStopGame = async () => {
   }
 };
 
-const handleSaveConfig = () => {
-  postConfig();
-  state.showConfigSavePrompt = false;
+const handleSaveConfig = async () => {
+  if (await postConfig()) {
+    state.showConfigSavePrompt = false;
+  }
 };
 
 const handleCancelSaveConfig = () => {
-  if (oldGameConfig) {
-    gameConfig.value = oldGameConfig;
-  }
-  if (oldStrengthConfig) {
-    strengthConfig.value = oldStrengthConfig;
-  }
-
-  state.showConfigSavePrompt = false;
-
-  receivedConfig = true;
-  nextTick(() => {
-    receivedConfig = false;
+  applyConfigWithoutPrompt(() => {
+    if (oldGameConfig) {
+      gameConfig.value = cloneConfig(oldGameConfig);
+    }
+    if (oldStrengthConfig) {
+      strengthConfig.value = cloneConfig(oldStrengthConfig);
+    }
+    state.showConfigSavePrompt = false;
   });
 };
 
@@ -567,13 +579,14 @@ watch(() => state.pulseConfig.channelB.pulseMode, (newVal) => {
   }
 });
 
-watch(() => gameConfig, () => {
-  if (receivedConfig) { // 收到服务器配置后不触发保存提示
-    receivedConfig = false;
+watch([gameConfig, strengthConfig], () => {
+  if (suppressConfigPrompt) {
     return;
   }
 
-  state.showConfigSavePrompt = true; // 显示保存提示
+  if (oldGameConfig || oldStrengthConfig) {
+    state.showConfigSavePrompt = true;
+  }
 }, { deep: true });
 </script>
 
@@ -589,10 +602,10 @@ watch(() => gameConfig, () => {
     <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
       <div class="flex flex-col items-center gap-4 w-full lg:w-auto">
         <StatusChart :val-low="chartVal.main.valLow" :val-high="chartVal.main.valHigh"
-          :val-limit="chartVal.main.valLimit" :val-temp="chartVal.main.valCurrent" :val-current="chartVal.main.valTemp"
+          :val-limit="chartVal.main.valLimit" :val-temp="chartVal.main.valTemp" :val-current="chartVal.main.valCurrent"
           :running="state.gameStarted" readonly />
         <StatusChartChannelB v-if="state.bChannelMode !== 'off'" :val-low="chartVal.channelB.valLow"
-          :val-high="chartVal.channelB.valHigh" :val-limit="chartVal.channelB.valLimit"
+          :val-high="chartVal.channelB.valHigh" :val-limit="chartVal.channelB.valLimit" :val-temp="chartVal.channelB.valTemp" :val-current="chartVal.channelB.valCurrent"
           :running="state.gameStarted" channel="B" />
       </div>
 

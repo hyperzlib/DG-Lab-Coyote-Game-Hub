@@ -19,6 +19,52 @@ const props = withDefaults(defineProps<{
     running: false,
 });
 
+const channelPanelRef = ref<HTMLElement | null>(null);
+const panelSize = reactive({
+    width: 256,
+    height: 112,
+});
+
+const channelTrackConfig = {
+    left: 24,
+    top: 24,
+    right: 16,
+    bottom: 16,
+    radius: 16,
+};
+
+let panelResizeObserver: ResizeObserver | undefined;
+
+onMounted(() => {
+    const panel = channelPanelRef.value;
+
+    if (!panel) {
+        return;
+    }
+
+    const updatePanelSize = (width: number, height: number) => {
+        if (width > 0 && height > 0) {
+            panelSize.width = width;
+            panelSize.height = height;
+        }
+    };
+
+    const initialRect = panel.getBoundingClientRect();
+    updatePanelSize(initialRect.width, initialRect.height);
+
+    panelResizeObserver = new ResizeObserver(([entry]) => {
+        if (entry) {
+            updatePanelSize(entry.contentRect.width, entry.contentRect.height);
+        }
+    });
+    panelResizeObserver.observe(panel);
+});
+
+onBeforeUnmount(() => {
+    panelResizeObserver?.disconnect();
+    panelResizeObserver = undefined;
+});
+
 const clampProgress = (value: number) => {
     if (props.valLimit <= 0) {
         return 0;
@@ -30,10 +76,30 @@ const progressOffset = computed(() => ({
     valLow: 100 - clampProgress(props.valLow),
     valHigh: 100 - clampProgress(props.valHigh),
 }));
+
+const channelTrackPath = computed(() => {
+    const width = panelSize.width;
+    const height = panelSize.height;
+    const left = Math.max(0, Math.min(channelTrackConfig.left, width));
+    const top = Math.max(0, Math.min(channelTrackConfig.top, height));
+    const right = Math.max(left, Math.min(width - channelTrackConfig.right, width));
+    const bottom = Math.max(top, Math.min(height - channelTrackConfig.bottom, height));
+    const radius = Math.min(
+        Math.max(channelTrackConfig.radius, 0),
+        right - left,
+        bottom - top,
+    );
+
+    if (radius === 0) {
+        return `M ${left} ${bottom} H ${right} V ${top}`;
+    }
+
+    return `M ${left} ${bottom} H ${right - radius} A ${radius} ${radius} 0 0 0 ${right} ${bottom - radius} V ${top}`;
+});
 </script>
 
 <template>
-    <div class="channel-panel" :class="{ dark: props.darkMode }">
+    <div ref="channelPanelRef" class="channel-panel" :class="{ dark: props.darkMode }">
         <div class="channel-panel__content" :class="{ 'channel-panel__content--with-label': props.channel === 'B' }">
             <span v-if="props.channel === 'B'" class="channel-panel__label">B通道</span>
             <div class="channel-panel__status">
@@ -67,7 +133,8 @@ const progressOffset = computed(() => ({
             </div>
         </div>
 
-        <svg class="channel-panel__track" viewBox="0 0 256 112" preserveAspectRatio="none" aria-hidden="true">
+        <svg class="channel-panel__track" :viewBox="`0 0 ${panelSize.width} ${panelSize.height}`"
+            preserveAspectRatio="none" aria-hidden="true">
             <defs>
                 <linearGradient id="channel-b-yellow" x1="0" y1="1" x2="1" y2="0">
                     <stop offset="0%" stop-color="hsl(23,90%,55%)" />
@@ -80,14 +147,14 @@ const progressOffset = computed(() => ({
             </defs>
 
             <path class="track-base track-base--high" pathLength="100"
-                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24" />
+                :d="channelTrackPath" />
             <path class="track-base track-base--low" pathLength="100"
-                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24" />
+                :d="channelTrackPath" />
             <path class="track-fill track-fill--high" pathLength="100"
-                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24"
+                :d="channelTrackPath"
                 :stroke-dashoffset="progressOffset.valHigh" />
             <path class="track-fill track-fill--low" pathLength="100"
-                d="M 24 98 H 232 A 10 10 0 0 0 242 88 V 24"
+                :d="channelTrackPath"
                 :stroke-dashoffset="progressOffset.valLow" />
         </svg>
     </div>
@@ -105,6 +172,13 @@ const progressOffset = computed(() => ({
     box-shadow:
         3px 3px 5px rgba(90, 90, 90, 0.5),
         -3px -3px 5px rgba(225, 225, 225, 0.5);
+}
+
+@supports (corner-shape: superellipse(1.5)) {
+    .channel-panel {
+        corner-shape: superellipse(1.5);
+        border-radius: 2rem;
+    }
 }
 
 .channel-panel__content {

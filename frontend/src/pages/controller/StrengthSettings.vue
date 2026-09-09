@@ -68,7 +68,7 @@ const bChannelModeOptions = [
     <div v-if="parentState.bChannelMode === 'sync'"
       class="w-full flex flex-col md:flex-row items-top lg:items-center gap-2 lg:gap-8 mb-4">
       <label class="font-semibold w-35">B通道强度倍数</label>
-      <InputNumber class="input-small" v-model="parentState.bChannelMultiple" />
+      <InputNumber class="input-small" v-model="parentState.bChannelMultiple" :min="0.01" :step="0.01" :maxFractionDigits="2" />
       <div class="flex-grow flex-shrink"></div>
     </div>
     <div class="flex gap-2 lg:gap-8 w-full">

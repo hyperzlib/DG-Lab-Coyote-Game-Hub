@@ -39,6 +39,8 @@ export enum GameConfigType {
     CustomPulse = 'custom-pulse',
 }
 
+export const CURRENT_GAME_CONFIG_SCHEMA_VERSION = 1 as const;
+
 export type PulsePlayMode = 'single' | 'sequence' | 'random';
 
 export type RemoteNotificationInfo = {
@@ -70,6 +72,7 @@ export interface ChannelPulseConfig {
 }
 
 export interface MainGameConfig {
+    schemaVersion: typeof CURRENT_GAME_CONFIG_SCHEMA_VERSION;
     fireStrengthLimit: Channelify<number>;
     strengthChangeInterval: [number, number];
     /** B通道模式：off=关闭，sync=同步A通道，discrete=独立控制 */
@@ -80,6 +83,7 @@ export interface MainGameConfig {
 }
 
 export interface GameCustomPulseConfig {
+    schemaVersion: typeof CURRENT_GAME_CONFIG_SCHEMA_VERSION;
     customPulseList: any[];
 }
 

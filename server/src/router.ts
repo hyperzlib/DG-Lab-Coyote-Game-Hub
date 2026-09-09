@@ -1,5 +1,5 @@
 import KoaRouter from '@koa/router';
-import { SwaggerRouter } from 'koa-swagger-decorator';
+import { SwaggerRouter } from '@hyperzlib/koa-swagger-decorator';
 import { WebSocketRouter } from './utils/WebSocketRouter.js';
 import { DGLabWSManager } from './managers/DGLabWSManager.js';
 import { WebController } from './controllers/http/Web.js';

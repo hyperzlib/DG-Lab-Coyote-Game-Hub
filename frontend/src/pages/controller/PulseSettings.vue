@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import Popover from 'primevue/popover';
+import { md5 } from 'js-md5';
 import { PulseItemInfo } from '../../type/pulse';
 import { ControllerPageState } from '../../pages/Controller.vue';
 import { Reactive } from 'vue';
@@ -29,7 +30,15 @@ const customPulseList = computed(() => {
 });
 
 const fullPulseList = computed(() => {
-  return parentState.pulseList ? [...customPulseList.value, ...parentState.pulseList] : customPulseList.value;
+  const pulseList = parentState.pulseList ? [...parentState.pulseList, ...customPulseList.value] : customPulseList.value;
+  const pulseIds = new Set<string>();
+  return pulseList.filter((pulse) => {
+    if (pulseIds.has(pulse.id)) {
+      return false;
+    }
+    pulseIds.add(pulse.id);
+    return true;
+  });
 });
 
 const currentPulseConfig = computed(() => parentState.pulseConfig[state.pulseChannel]);
@@ -72,13 +81,23 @@ const presetPulseTimeOptions = [
 ];
 
 const handlePulseImported = async (pulseInfo: PulseItemInfo) => {
-  let duplicate = parentState.customPulseList.find((item) => item.id === pulseInfo.id);
-  if (duplicate) {
-    toast?.add({ severity: 'warn', summary: '导入失败', detail: '相同波形已存在', life: 3000 });
-    return;
+  const usedPulseIds = new Set([
+    ...(parentState.pulseList ?? []).map((item) => item.id),
+    ...parentState.customPulseList.map((item) => item.id),
+  ]);
+
+  let importedPulse = { ...pulseInfo };
+  if (usedPulseIds.has(importedPulse.id)) {
+    let attempt = 0;
+    do {
+      attempt += 1;
+      importedPulse.id = md5(`${pulseInfo.pulseData.join('')}:${Date.now()}:${Math.random()}:${attempt}`).substring(0, 8);
+    } while (usedPulseIds.has(importedPulse.id));
+
+    toast?.add({ severity: 'info', summary: '波形 ID 已调整', detail: `检测到重复 ID，已生成新 ID：${importedPulse.id}`, life: 4000 });
   }
 
-  parentState.customPulseList.push(pulseInfo);
+  parentState.customPulseList.push(importedPulse);
   toast?.add({ severity: 'success', summary: '导入成功', detail: '波形已导入', life: 3000 });
 
   postCustomPulseConfig?.();

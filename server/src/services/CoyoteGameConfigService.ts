@@ -3,9 +3,9 @@ import path from 'path';
 import { LRUCache } from "lru-cache";
 
 import { ExEventEmitter } from "#app/utils/ExEventEmitter.js";
-import { GameCustomPulseConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
+import { CURRENT_GAME_CONFIG_SCHEMA_VERSION, GameCustomPulseConfigSchema, MainGameConfigSchema } from '#app/types/game.js';
 import type { GameCustomPulseConfig, GamePulseConfig, MainGameConfig } from '#app/types/game.js';
-import { DGLabPulseService } from './DGLabPulse.js';
+import { DGLabPulseService, validateCustomPulseIds } from './DGLabPulse.js';
 import { z } from 'zod';
 import { channelifyDefault, deepMerge } from '#app/utils/utils.js';
 import type { DeepPartial } from '#app/types/common.js';
@@ -63,6 +63,7 @@ export class CoyoteGameConfigService {
             }
 
             return {
+                schemaVersion: CURRENT_GAME_CONFIG_SCHEMA_VERSION,
                 strengthChangeInterval: [15, 30],
                 bChannelMode: 'off',
                 bChannelStrengthMultiplier: 1,
@@ -74,19 +75,30 @@ export class CoyoteGameConfigService {
             } as MainGameConfig;
         } else if (type === GameConfigType.CustomPulse) {
             return {
+                schemaVersion: CURRENT_GAME_CONFIG_SCHEMA_VERSION,
                 customPulseList: [],
             } as GameCustomPulseConfig;
         }
     }
 
     public async set<TKey extends keyof GameConfigTypeMap>(clientId: string, type: GameConfigType, newConfig: GameConfigTypeMap[TKey]) {
+        const validatedConfig = type === GameConfigType.MainGame
+            ? MainGameConfigSchema.parse(newConfig)
+            : GameCustomPulseConfigSchema.parse(newConfig);
+
+        if (type === GameConfigType.CustomPulse) {
+            validateCustomPulseIds(
+                (validatedConfig as GameCustomPulseConfig).customPulseList,
+                DGLabPulseService.instance.pulseList,
+            );
+        }
         const cacheKey = `${clientId}/${type}`;
-        this.configCache.set(cacheKey, newConfig);
+        this.configCache.set(cacheKey, validatedConfig);
 
-        await fs.promises.writeFile(path.join(this.gameConfigDir, `${clientId}.${type}.json`), JSON.stringify(newConfig, null, 4), { encoding: 'utf-8' });
+        await fs.promises.writeFile(path.join(this.gameConfigDir, `${clientId}.${type}.json`), JSON.stringify(validatedConfig, null, 4), { encoding: 'utf-8' });
 
-        this.events.emitSub('configUpdated', cacheKey, type, newConfig);
-        this.events.emitSub('configUpdated', clientId, type, newConfig);
+        this.events.emitSub('configUpdated', cacheKey, type, validatedConfig);
+        this.events.emitSub('configUpdated', clientId, type, validatedConfig);
     }
 
     public async get<TKey extends keyof GameConfigTypeMap>(clientId: string, type: TKey, useDefault?: true): Promise<GameConfigTypeMap[TKey]>
@@ -100,9 +112,10 @@ export class CoyoteGameConfigService {
         const configPath = path.join(this.gameConfigDir, `${clientId}.${type}.json`);
         if (fs.existsSync(configPath)) {
             const fileContent = await fs.promises.readFile(configPath, { encoding: 'utf-8' });
-            let config = JSON.parse(fileContent);
+            let config: any;
 
             try {
+                config = JSON.parse(fileContent);
                 switch (type) {
                     case GameConfigType.MainGame:
                         config = MainGameConfigSchema.parse(config);

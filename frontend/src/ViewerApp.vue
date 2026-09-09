@@ -32,6 +32,9 @@ const state = reactive({
 
   clientId: '',
 
+  bChannelMode: 'off' as 'off' | 'sync' | 'discrete',
+  bChannelMultiple: 1,
+
   gameStarted: false,
 
   error: null as string | null,
@@ -49,14 +52,31 @@ const chartParams = computed(() => {
 const channel = computed<'A' | 'B'>(() => route.query.channel === 'B' ? 'B' : 'A');
 const channelKey = computed<'main' | 'channelB'>(() => channel.value === 'B' ? 'channelB' : 'main');
 const channelState = computed(() => state.channels[channelKey.value]);
+const displayStrengthConfig = computed(() => {
+  const main = state.channels.main;
+
+  return {
+    main,
+    channelB: state.bChannelMode === 'sync'
+      ? {
+        strength: Math.floor(main.strength * state.bChannelMultiple),
+        randomStrength: Math.floor(main.randomStrength * state.bChannelMultiple),
+      }
+      : state.channels.channelB,
+  };
+});
+const displayChannelState = computed(() => ({
+  ...channelState.value,
+  ...displayStrengthConfig.value[channelKey.value],
+}));
 
 const chartVal = computed(() => ({
-  valLow: Math.min(channelState.value.strength + channelState.value.tempStrength, channelState.value.strengthLimit),
+  valLow: Math.min(displayChannelState.value.strength + displayChannelState.value.tempStrength, displayChannelState.value.strengthLimit),
   valHigh: Math.min(
-    channelState.value.strength + channelState.value.tempStrength + channelState.value.randomStrength,
-    channelState.value.strengthLimit,
+    displayChannelState.value.strength + displayChannelState.value.tempStrength + displayChannelState.value.randomStrength,
+    displayChannelState.value.strengthLimit,
   ),
-  valLimit: channelState.value.strengthLimit,
+  valLimit: displayChannelState.value.strengthLimit,
 }));
 
 const initServerInfo = async () => {
@@ -94,6 +114,11 @@ const initWebSocket = async () => {
       state.channels[key].strength = Math.min(config[key].strength, state.channels[key].strengthLimit);
       state.channels[key].randomStrength = config[key].randomStrength;
     }
+  });
+
+  wsClient.on('mainGameConfigUpdated', (config) => {
+    state.bChannelMode = config.bChannelMode;
+    state.bChannelMultiple = config.bChannelStrengthMultiplier;
   });
 
   wsClient.on('gameStarted', () => {
@@ -140,9 +165,9 @@ onMounted(async () => {
     <RouterView>
       <template #default="{ Component }">
         <Component :is="Component" v-bind="chartParams" :valLimit="chartVal.valLimit" :valLow="chartVal.valLow"
-          :valHigh="chartVal.valHigh" :strength="channelState.strength"
-          :randomStrength="channelState.randomStrength" :tempStrength="channelState.tempStrength"
-          :realStrength="channelState.realStrength" :strengthLimit="channelState.strengthLimit"
+          :valHigh="chartVal.valHigh" :strength="displayChannelState.strength"
+          :randomStrength="displayChannelState.randomStrength" :tempStrength="displayChannelState.tempStrength"
+          :realStrength="displayChannelState.realStrength" :strengthLimit="displayChannelState.strengthLimit"
           :running="state.gameStarted" :channel="channel" />
       </template>
     </RouterView>

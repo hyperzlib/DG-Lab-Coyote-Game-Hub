@@ -233,6 +233,62 @@ export class CoyoteGameController {
     }
 
     /**
+     * 返回当前通道实际使用的基础强度配置。
+     * 同步模式下 B 通道配置由 A 通道配置派生。
+     */
+    public getEffectiveStrengthConfig(channel: ChannelEnum): ChannelGameStrengthConfig {
+        const limit = this.clientStrength[channel].limit;
+
+        if (channel === 'channelB' && this.gameConfig.bChannelMode === 'sync') {
+            const strength = Math.min(
+                Math.floor(this.strengthConfig.main.strength * this.gameConfig.bChannelStrengthMultiplier),
+                limit,
+            );
+            const randomStrength = Math.min(
+                Math.floor(this.strengthConfig.main.randomStrength * this.gameConfig.bChannelStrengthMultiplier),
+                Math.max(0, limit - strength),
+            );
+
+            return { strength, randomStrength };
+        }
+
+        return {
+            strength: Math.min(this.strengthConfig[channel].strength, limit),
+            randomStrength: Math.min(
+                this.strengthConfig[channel].randomStrength,
+                Math.max(0, limit - Math.min(this.strengthConfig[channel].strength, limit)),
+            ),
+        };
+    }
+
+    /**
+     * 计算一键开火的实际设备强度。
+     * 同步模式下 B 通道对 A 基础强度和临时开火强度的总和应用倍率。
+     */
+    public getFireOutputStrength(channel: ChannelEnum, temporaryStrength: number): number {
+        const limit = this.clientStrength[channel].limit;
+        let strength: number;
+
+        if (channel === 'channelB' && this.gameConfig.bChannelMode === 'sync') {
+            strength = Math.floor(
+                (this.strengthConfig.main.strength + temporaryStrength) * this.gameConfig.bChannelStrengthMultiplier,
+            );
+        } else {
+            strength = this.strengthConfig[channel].strength + temporaryStrength;
+        }
+
+        return Math.min(Math.max(0, strength), limit);
+    }
+
+    /** 返回一键开火临时强度在目标通道上的实际增量。 */
+    public getFireTemporaryStrength(channel: ChannelEnum, temporaryStrength: number): number {
+        return Math.max(
+            0,
+            this.getFireOutputStrength(channel, temporaryStrength) - this.getEffectiveStrengthConfig(channel).strength,
+        );
+    }
+
+    /**
      * 更新游戏强度配置
      * @param config 
      */
@@ -254,15 +310,27 @@ export class CoyoteGameController {
             this.events.emit('strengthConfigUpdated', this.strengthConfig);
 
             if (this.client) { // 客户端已连接时才更新强度
+                if (channel === 'channelB' && this.gameConfig.bChannelMode === 'sync') {
+                    // 同步模式下仍保存 B 配置，但设备强度由 B 输出循环使用 A 配置派生。
+                    return;
+                }
+
                 deltaStrength = config.strength - this.clientStrength[channel].strength;
+                const shouldReloadSyncChannelB = channel === 'main' && this.gameConfig.bChannelMode === 'sync';
 
                 if (deltaStrength <= 5) {
                     // 如果强度增加不超过5，则直接设置强度
                     // 在GameApi连续加减时，这么做可以防止波形大量中断
                     await this.setClientStrength(config.strength, channel);
+                    if (shouldReloadSyncChannelB) {
+                        await this.reloadGameTask('channelB');
+                    }
                 } else {
                     // 重启波形输出
                     await this.reloadGameTask(channel);
+                    if (shouldReloadSyncChannelB) {
+                        await this.reloadGameTask('channelB');
+                    }
                 }
             }
         }
@@ -278,7 +346,7 @@ export class CoyoteGameController {
         let existsIndex = this.actionList.findIndex((a) => a.constructor === action.constructor);
         if (existsIndex >= 0) {
             const oldAction = this.actionList[existsIndex]!;
-            oldAction.updateConfig(action.config);
+            await oldAction.updateConfig(action.config);
             oldAction.priority = action.priority;
         } else {
             action._initialize(this);
@@ -401,18 +469,9 @@ export class CoyoteGameController {
                 } catch (error) {
                     console.error('Failed to set main channel strength:', error);
                 }
-                if (this.gameConfig.bChannelMode === 'sync') {
-                    // 如果B通道与A通道同步，则B通道强度也随之调整
-                    let bStrength = Math.min(strength * this.gameConfig.bChannelStrengthMultiplier, this.clientStrength.channelB.limit);
-                    try {
-                        await this.client.setStrength(Channel.B, bStrength);
-                    } catch (error) {
-                        console.error('Failed to set B channel strength:', error);
-                    }
-                }
                 break;
             case 'channelB':
-                if (this.gameConfig.bChannelMode === 'discrete') {
+                if (this.gameConfig.bChannelMode !== 'off') {
                     try {
                         await this.client.setStrength(Channel.B, strength);
                     } catch (error) {
@@ -512,16 +571,9 @@ export class CoyoteGameController {
         let targetStrength = 0;
         
         // 计算目标强度
-        if (channel === 'main') {
-            targetStrength = this.strengthConfig.main.strength + randomInt(0, this.strengthConfig.main.randomStrength);
-        } else if (channel === 'channelB') {
-            if (this.gameConfig.bChannelMode === 'sync') {
-                // 如果B通道与A通道同步，则B通道强度基于A通道强度计算
-                const mainTargetStrength = this.strengthConfig.main.strength + randomInt(0, this.strengthConfig.main.randomStrength);
-                targetStrength = mainTargetStrength * this.gameConfig.bChannelStrengthMultiplier;
-            } else {
-                targetStrength = this.strengthConfig.channelB.strength + randomInt(0, this.strengthConfig.channelB.randomStrength);
-            }
+        if (channel === 'main' || channel === 'channelB') {
+            const effectiveConfig = this.getEffectiveStrengthConfig(channel);
+            targetStrength = effectiveConfig.strength + randomInt(0, effectiveConfig.randomStrength);
         }
         targetStrength = Math.min(targetStrength, this.clientStrength[channel].limit);
 

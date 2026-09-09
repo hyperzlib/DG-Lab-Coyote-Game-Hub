@@ -5,11 +5,11 @@ import { ChannelEnumSchema } from '#app/types/game.js';
 import type { ChannelEnum, ChannelGameStrengthConfig, GameStrengthConfig, MainGameConfig } from '#app/types/game.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
 import { MainConfig } from '#app/config.js';
-import { DGLabPulseService } from '#app/services/DGLabPulse.js';
 import { asleep } from '#app/utils/utils.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
-import { FIRE_MAX_DURATION, FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction.js';
-import { body, responses, routeConfig } from 'koa-swagger-decorator';
+import { getAvailableGamePulses, getFireChannelRestriction, normalizeFireAction, setGamePulse } from '#app/services/GameApiShared.js';
+import { FIRE_MAX_STRENGTH, GameFireAction } from '../game/actions/GameFireAction.js';
+import { body, responses, routeConfig } from '@hyperzlib/koa-swagger-decorator';
 import {
     ClientIdSchema,
     convertMainGameConfigV3ToV2,
@@ -664,13 +664,7 @@ export class LegacyGameApiController {
         
         let successClientIds = new Set<string>();
         for (const clientId of clientIdList) {
-            await CoyoteGameConfigService.instance.update(clientId, GameConfigType.MainGame, {
-                pulse: {
-                    [channel]: {
-                        pulseId: postBody.pulseId,
-                    },
-                },
-            });
+            await setGamePulse(clientId, channel, postBody.pulseId);
 
             successClientIds.add(clientId);
         }
@@ -720,15 +714,8 @@ export class LegacyGameApiController {
     })
     @responses(GetPulseListResponseSchema)
     public async getPulseList(ctx: RouterContext): Promise<void> {
-        let pulseList: any[] = DGLabPulseService.instance.pulseList;
-
         let { clientId } = this.getClientIdAndChannel(ctx);
-        if (clientId && clientId !== 'all') {
-            const customPulseList = await CoyoteGameConfigService.instance.get(clientId, GameConfigType.CustomPulse, false);
-            if (customPulseList) {
-                pulseList.push(...customPulseList.customPulseList);
-            }
-        }
+        let pulseList: any[] = await getAvailableGamePulses(clientId !== 'all' ? clientId : undefined);
         
         // 是否获取完整的波形信息
         let isFullMode = ctx.request.query?.type === 'full';
@@ -831,15 +818,10 @@ export class LegacyGameApiController {
 
         const fireTime = req.time ?? 5000;
 
-        if (fireTime > FIRE_MAX_DURATION) {
-            warnings.push({
-                code: 'WARN::INVALID_TIME',
-                message: `一键开火时间不能超过 ${FIRE_MAX_DURATION}ms`,
-            });
-        }
-
         const pulseId = req.pulseId ?? undefined;
         const overrideTime = req.override ?? false;
+        const fireParams = normalizeFireAction(fireTime, overrideTime);
+        warnings.push(...fireParams.warnings);
 
         let gameList: Iterable<CoyoteGameController> = [];
 
@@ -870,22 +852,30 @@ export class LegacyGameApiController {
         }
 
         let successClientIds = new Set<string>();
-        for (const game of gameList) {
-            if (channel === 'channelB' && game.gameConfig.bChannelMode === 'sync' &&
-                !warnings.some(warning => warning.code === 'WARN::B_CHANNEL_SYNC_FIRE')) {
-                warnings.push({
-                    code: 'WARN::B_CHANNEL_SYNC_FIRE',
-                    message: 'B通道当前处于同步模式，无法单独发送一键开火。',
+        const targetGames = Array.from(gameList);
+        if (channel === 'channelB') {
+            const restrictedGame = targetGames.find((game) =>
+                getFireChannelRestriction(channel, game.gameConfig.bChannelMode),
+            );
+            if (restrictedGame) {
+                const fireRestriction = getFireChannelRestriction(channel, restrictedGame.gameConfig.bChannelMode)!;
+                apiResponse(ctx, {
+                    status: 0,
+                    code: fireRestriction.code,
+                    message: fireRestriction.message,
                 });
-                continue;
+                return;
             }
+        }
+
+        for (const game of targetGames) {
 
             let fireAction = new GameFireAction({
                 channel,
                 strength: req.strength,
-                time: fireTime,
+                time: fireParams.actualDuration,
                 pulseId: pulseId,
-                updateMode: overrideTime ? 'replace' : 'append',
+                updateMode: fireParams.updateMode,
             })
             await game.startAction(fireAction);
 

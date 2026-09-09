@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import Koa from 'koa';
 import type { Context } from 'koa';
-import { responses, routeConfig } from 'koa-swagger-decorator';
+import { responses, routeConfig } from '@hyperzlib/koa-swagger-decorator';
 import { DGLabWSManager } from '../../managers/DGLabWSManager.js';
 import { MainConfig } from '../../config.js';
 import { LocalIPAddress } from '../../utils/utils.js';

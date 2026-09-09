@@ -14,7 +14,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="fixed bottom-0 left-0 w-full">
+  <div class="fixed bottom-0 left-0 w-full z-index-100">
     <Transition name="slide-up">
       <div class="toast-prompt flex items-center justify-between gap-8 rounded-lg p-4 mb-8 mx-4 md:mx-auto w-full md:w-[40rem] lg:w-[60rem]"
           v-if="props.visible">

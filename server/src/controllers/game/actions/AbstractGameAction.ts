@@ -37,7 +37,7 @@ export abstract class AbstractGameAction<ActionConfig = any> {
     public abstract execute(channel: ChannelEnum, ab: AbortController, harvest: () => void): Promise<void>;
 
     /** 更新游戏动作的配置 */
-    public abstract updateConfig(config: ActionConfig): void;
+    public abstract updateConfig(config: ActionConfig): Promise<void> | void;
 
     /** 判断游戏动作是否适用于指定通道 */
     public abstract isApplicableToChannel(channel: ChannelEnum): boolean;

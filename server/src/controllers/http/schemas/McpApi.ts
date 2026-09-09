@@ -112,14 +112,19 @@ export const GameStatusSchema = z.object({
     gameId: z.string().describe("游戏 ID"),
     aChannel: z.object({
         currentStrength: z.number().int().min(0).max(200).describe("当前电击强度"),
+        configuredStrength: z.number().int().min(0).max(200).describe("配置的基础强度"),
         randomStrengthRange: z.number().int().min(0).max(200).describe("随机电击强度范围"),
         strengthLimit: z.number().int().min(0).max(200).describe("电击强度限制"),
+        currentPulseId: z.string().optional().describe("当前波形 ID"),
     }).describe("A通道状态"),
     bChannel: z.object({
-        mode: z.string().describe("B通道模式"),
+        mode: z.enum(["off", "sync", "discrete"]).describe("B通道模式"),
         currentStrength: z.number().int().min(0).max(200).optional().describe("当前电击强度"),
+        configuredStrength: z.number().int().min(0).max(200).optional().describe("配置的基础强度"),
         randomStrengthRange: z.number().int().min(0).max(200).optional().describe("随机电击强度范围"),
         strengthLimit: z.number().int().min(0).max(200).optional().describe("电击强度限制"),
+        currentPulseId: z.string().optional().describe("当前波形 ID"),
+        strengthMultiplier: z.number().min(0.01).optional().describe("B通道强度倍率"),
     }).describe("B通道状态"),
     isConnected: z.boolean().describe("是否有玩家连接"),
     isStarted: z.boolean().describe("电击是否已启动"),
@@ -139,13 +144,14 @@ export const SetStrengthParamsSchema = z.object({
 
 export const SetPulseParamsSchema = z.object({
     channel: McpDeviceChannelEnumSchema.describe("要设置波形的通道"),
-    pulseId: z.string().describe("波形 ID")
+    pulseId: z.union([z.string(), z.array(z.string()).min(1)]).describe("波形 ID 或 ID 列表")
 }).describe("设置波形参数");
 
 export const FireActionParamsSchema = z.object({
     channel: z.enum(["aChannel", "bChannel", "all"]).describe("要执行一键开火的通道"),
     strength: z.number().int().min(0).max(200).describe("一键开火强度"),
-    duration: z.number().int().min(100).max(30000).optional().default(5000).describe("持续时间（毫秒）"),
+    duration: z.number().int().min(1).optional().default(5000).describe("持续时间（毫秒）"),
+    override: z.boolean().optional().default(false).describe("是否覆盖当前开火剩余时间"),
     pulseId: z.string().optional().describe("指定波形 ID")
 }).describe("一键开火动作参数");
 
@@ -159,7 +165,7 @@ export const SetStrengthResultSchema = z.object({
 
 export const SetPulseResultSchema = z.object({
     success: z.boolean().describe("操作是否成功"),
-    newPulseId: z.string().describe("新的波形 ID")
+    newPulseId: z.union([z.string(), z.array(z.string())]).describe("新的波形 ID 或 ID 列表")
 }).describe("设置波形结果");
 
 export const FireActionResultSchema = z.object({

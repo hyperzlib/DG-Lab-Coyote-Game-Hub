@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const CURRENT_GAME_CONFIG_SCHEMA_VERSION = 1 as const;
+
 export type Channelify<T> = {
     main: T;
     channelB: T;
@@ -39,17 +41,19 @@ export const GamePulseConfigSchema = z.object({
         .describe('一键开火波形ID，如果不设置则使用当前波形'),
     pulseMode: PulsePlayModeSchema.default('single')
         .describe('波形播放模式'),
-    pulseChangeInterval: z.number().int().min(1).default(60)
+    pulseChangeInterval: z.number().int().min(5).default(60)
         .describe('波形切换间隔，单位秒'),
 }).describe('波形配置');
 export type GamePulseConfig = z.infer<typeof GamePulseConfigSchema>;
 
 export const MainGameConfigSchema = z.object({
+    schemaVersion: z.literal(CURRENT_GAME_CONFIG_SCHEMA_VERSION)
+        .describe('游戏配置 schema 版本'),
     strengthChangeInterval: z.tuple([z.number().int().min(10), z.number().int().min(30)])
         .describe('强度变化间隔，单位秒'),
     bChannelMode: z.enum(['off', 'sync', 'discrete']).default('off')
         .describe('B通道模式，默认off，sync表示与A通道同步，discrete表示独立控制'),
-    bChannelStrengthMultiplier: z.number().int().min(1).default(1)
+    bChannelStrengthMultiplier: z.number().min(0.01).default(1)
         .describe('B通道相对于A通道的强度倍率，默认1'),
     pulse: z.object({
         main: GamePulseConfigSchema.describe('A通道波形配置'),
@@ -76,6 +80,8 @@ export const PulseDataSchema = z.object({
 export type PulseData = z.infer<typeof PulseDataSchema>;
 
 export const GameCustomPulseConfigSchema = z.object({
+    schemaVersion: z.literal(CURRENT_GAME_CONFIG_SCHEMA_VERSION)
+        .describe('游戏配置 schema 版本'),
     customPulseList: z.array(PulseDataSchema).describe('自定义波形列表'),
 }).describe('游戏自定义波形配置');
 export type GameCustomPulseConfig = z.infer<typeof GameCustomPulseConfigSchema>;

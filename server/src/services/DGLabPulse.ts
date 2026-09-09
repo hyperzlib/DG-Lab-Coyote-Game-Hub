@@ -81,14 +81,12 @@ export class DGLabPulseService {
     }
 
     public getPulse(pulseId: string, customPulseList?: DGLabPulseInfo[]): DGLabPulseInfo | null {
-        if (customPulseList) {
-            const customPulse = customPulseList.find(pulse => pulse.id === pulseId);
-            if (customPulse) {
-                return customPulse;
-            }
+        const defaultPulse = this.pulseList.find(pulse => pulse.id === pulseId);
+        if (defaultPulse) {
+            return defaultPulse;
         }
 
-        return this.pulseList.find(pulse => pulse.id === pulseId) ?? null;
+        return customPulseList?.find(pulse => pulse.id === pulseId) ?? null;
     }
 
     public getPulseHexData(pulse: DGLabPulseInfo): [string[], number] {
@@ -100,4 +98,25 @@ export class DGLabPulseService {
     public once = this.events.once.bind(this.events);
     public off = this.events.off.bind(this.events);
     public removeAllListeners = this.events.removeAllListeners.bind(this.events);
+}
+
+/**
+ * 校验自定义波形 ID，避免自定义波形覆盖内置波形或相互覆盖。
+ */
+export function validateCustomPulseIds(
+    customPulseList: Pick<DGLabPulseInfo, 'id'>[],
+    defaultPulseList: Pick<DGLabPulseInfo, 'id'>[] = DGLabPulseService.instance.pulseList,
+): void {
+    const defaultIds = new Set(defaultPulseList.map((pulse) => pulse.id));
+    const customIds = new Set<string>();
+
+    for (const pulse of customPulseList) {
+        if (defaultIds.has(pulse.id)) {
+            throw new Error(`Custom pulse ID conflicts with a default pulse: ${pulse.id}`);
+        }
+        if (customIds.has(pulse.id)) {
+            throw new Error(`Duplicate custom pulse ID: ${pulse.id}`);
+        }
+        customIds.add(pulse.id);
+    }
 }

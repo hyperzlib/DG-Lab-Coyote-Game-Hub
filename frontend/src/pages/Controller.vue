@@ -7,7 +7,7 @@ import StatusChartChannelB from '../charts/Pannel1.vue';
 
 import SelectButton from 'primevue/selectbutton';
 
-import { GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, PulsePlayMode, SocketApi } from '../apis/socketApi';
+import { CURRENT_GAME_CONFIG_SCHEMA_VERSION, GameConfigType, GameStrengthConfig, MainGameConfig, PulseItemResponse, PulsePlayMode, SocketApi } from '../apis/socketApi';
 import { ClientConnectUrlInfo, ServerInfoResData, webApi } from '../apis/webApi';
 import { handleApiResponse } from '../utils/response';
 import { simpleObjDiff } from '../utils/utils';
@@ -154,6 +154,7 @@ let oldGameConfig: MainGameConfig | null = null;
 const gameConfig = computed<MainGameConfig>({
   get: () => {
     return {
+      schemaVersion: CURRENT_GAME_CONFIG_SCHEMA_VERSION,
       fireStrengthLimit: state.fireStrengthLimit,
       strengthChangeInterval: state.randomFreq,
       bChannelMode: state.bChannelMode,
@@ -225,6 +226,20 @@ const strengthConfig = computed<GameStrengthConfig>({
   }
 });
 
+const displayStrengthConfig = computed(() => {
+  const main = state.strength.main;
+
+  return {
+    main,
+    channelB: state.bChannelMode === 'sync'
+      ? {
+        strength: Math.floor(main.strength * state.bChannelMultiple),
+        randomStrength: Math.floor(main.randomStrength * state.bChannelMultiple),
+      }
+      : state.strength.channelB,
+  };
+});
+
 const chartVal = computed<Channelify<{
   valLow: number;
   valHigh: number;
@@ -240,8 +255,8 @@ const chartVal = computed<Channelify<{
     valCurrent: state.strengthInfo.main.currentStrength,
   },
   channelB: {
-    valLow: Math.min(state.strength.channelB.strength + state.strengthInfo.channelB.tempStrength, state.strengthInfo.channelB.strengthLimit),
-    valHigh: Math.min(state.strength.channelB.strength + state.strengthInfo.channelB.tempStrength + state.strength.channelB.randomStrength, state.strengthInfo.channelB.strengthLimit),
+    valLow: Math.min(displayStrengthConfig.value.channelB.strength + state.strengthInfo.channelB.tempStrength, state.strengthInfo.channelB.strengthLimit),
+    valHigh: Math.min(displayStrengthConfig.value.channelB.strength + state.strengthInfo.channelB.tempStrength + displayStrengthConfig.value.channelB.randomStrength, state.strengthInfo.channelB.strengthLimit),
     valLimit: state.strengthInfo.channelB.strengthLimit,
     valTemp: state.strengthInfo.channelB.tempStrength,
     valCurrent: state.strengthInfo.channelB.currentStrength,
@@ -494,6 +509,7 @@ const postConfig = async () => {
 const postCustomPulseConfig = async () => {
   try {
     let res = await wsClient.updateConfig(GameConfigType.CustomPulse, {
+      schemaVersion: CURRENT_GAME_CONFIG_SCHEMA_VERSION,
       customPulseList: state.customPulseList,
     });
     handleApiResponse(res);

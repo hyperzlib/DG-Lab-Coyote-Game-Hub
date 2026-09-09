@@ -53,7 +53,7 @@ export const MainGameConfigV2Schema = z.object({
     strengthChangeInterval: z.tuple([z.number().int().min(10), z.number().int().min(30)])
         .describe('强度变化间隔，单位秒'),
     enableBChannel: z.boolean().default(false).describe('是否启用B通道'),
-    bChannelStrengthMultiplier: z.number().int().min(1).default(1)
+    bChannelStrengthMultiplier: z.number().min(0.01).default(1)
         .describe('B通道相对于A通道的强度倍率，默认1'),
     pulseId: z.union([z.string(), z.array(z.string())])
         .describe('波形ID或ID列表'),

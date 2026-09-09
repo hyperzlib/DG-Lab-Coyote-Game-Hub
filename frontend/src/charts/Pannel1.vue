@@ -24,6 +24,7 @@ const panelSize = reactive({
     width: 256,
     height: 112,
 });
+const chartFontSize = ref('md');
 
 const channelTrackConfig = {
     left: 24,
@@ -96,6 +97,16 @@ const channelTrackPath = computed(() => {
 
     return `M ${left} ${bottom} H ${right - radius} A ${radius} ${radius} 0 0 0 ${right} ${bottom - radius} V ${top}`;
 });
+
+// 计算文字缩放
+watch(() => [props.valLow, props.valHigh], () => {
+    const totalStrLen = props.valLow.toString().length + props.valHigh.toString().length;
+    if (totalStrLen > 4) {
+        chartFontSize.value = 'sm';
+    } else {
+        chartFontSize.value = 'md';
+    }
+});
 </script>
 
 <template>
@@ -103,7 +114,7 @@ const channelTrackPath = computed(() => {
         <div class="channel-panel__content" :class="{ 'channel-panel__content--with-label': props.channel === 'B' }">
             <span v-if="props.channel === 'B'" class="channel-panel__label">B通道</span>
             <div class="channel-panel__status">
-                <div class="channel-panel__values">
+                <div class="channel-panel__values" :class="`channel-panel__values-${chartFontSize}`">
                     <span class="strength-num color-low">{{ props.valLow }}</span>
                     <span class="value-separator">-</span>
                     <span class="strength-num color-high">{{ props.valHigh }}</span>
@@ -182,11 +193,8 @@ const channelTrackPath = computed(() => {
 }
 
 .channel-panel__content {
-    position: relative;
+    position: static;
     z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
     padding: 1.55rem 2.35rem 1.4rem 1.4rem;
 }
 
@@ -204,9 +212,17 @@ const channelTrackPath = computed(() => {
 .channel-panel__status {
     display: flex;
     align-items: baseline;
-    width: 100%;
-    margin-top: 0.15rem;
+    justify-content: space-between;
+    padding: 0 2rem 0 1.2rem;
+    width: auto;
     font-weight: bold;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    margin-top: 0;
+    transform: translateY(-50%);
 }
 
 .channel-panel__values {
@@ -214,6 +230,10 @@ const channelTrackPath = computed(() => {
     flex-shrink: 0;
     align-items: baseline;
     font-size: 1.65rem;
+
+    &-sm {
+        font-size: 1.2rem;
+    }
 }
 
 .strength-num {
@@ -239,7 +259,7 @@ const channelTrackPath = computed(() => {
     flex: 0 0 2rem;
     width: 2rem;
     height: 2rem;
-    margin-left: auto;
+    margin-left: 0.7rem;
     align-self: center;
 }
 

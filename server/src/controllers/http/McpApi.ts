@@ -1,6 +1,6 @@
 import type { RouterContext } from '@koa/router';
 import { v4 as uuid } from 'uuid';
-import { routeConfig, responses, body } from 'koa-swagger-decorator';
+import { routeConfig, responses, body } from '@hyperzlib/koa-swagger-decorator';
 import { PassThrough } from 'stream';
 import { z } from 'zod';
 
@@ -25,8 +25,9 @@ import {
 import { ConnectGameRequestSchema } from './schemas/LegacyGameApi.js';
 import { CoyoteGameManager } from '#app/managers/CoyoteGameManager.js';
 import { CoyoteGameConfigService, GameConfigType } from '#app/services/CoyoteGameConfigService.js';
-import { DGLabPulseService } from '#app/services/DGLabPulse.js';
+import { getAvailableGamePulses, getFireChannelRestriction, normalizeFireAction, setGamePulse } from '#app/services/GameApiShared.js';
 import { CoyoteGameController } from '../game/CoyoteGameController.js';
+import { GameFireAction } from '../game/actions/GameFireAction.js';
 
 export class SSESession {
     private controller: typeof McpApiController;
@@ -73,6 +74,7 @@ export class SSESession {
         this.controller.gameEventListeners.set(gameId, connections);
 
         this.gameId = gameId;
+        this.controller.observeGame(this.controller.getGameForObservation(gameId));
     }
 
     public unbindGame() {
@@ -92,6 +94,7 @@ export class SSESession {
     }
 
     public subscribeResource(resourceUri: string) {
+        resourceUri = this.controller.normalizeResourceUri(resourceUri);
         if (this.subscribedResources.has(resourceUri)) {
             return;
         }
@@ -104,6 +107,7 @@ export class SSESession {
     }
 
     public unsubscribeResource(resourceUri: string) {
+        resourceUri = this.controller.normalizeResourceUri(resourceUri);
         if (!this.subscribedResources.has(resourceUri)) {
             return;
         }
@@ -163,6 +167,34 @@ export class McpApiController {
     public static sseConnections = new Map<string, SSESession>();
     public static gameEventListeners = new Map<string, Set<string>>();
     public static resourceEventListeners = new Map<string, Set<string>>();
+    private static observedGames = new Set<string>();
+
+    public static getGameForObservation(gameId: string): CoyoteGameController | undefined {
+        return CoyoteGameManager.instance.getGame(gameId);
+    }
+
+    public static observeGame(game: CoyoteGameController | undefined) {
+        if (!game || this.observedGames.has(game.clientId)) {
+            return;
+        }
+
+        this.observedGames.add(game.clientId);
+        const notify = () => {
+            this.notifyResourceUpdate(game.clientId).catch(error => {
+                console.error('Failed to notify MCP resource update:', error);
+            });
+        };
+        game.on('strengthChanged', notify);
+        game.on('clientConnected', notify);
+        game.on('clientDisconnected', notify);
+        game.on('gameStarted', notify);
+        game.on('gameStopped', notify);
+        game.once('close', () => {
+            this.observedGames.delete(game.clientId);
+            CoyoteGameConfigService.instance.off('configUpdated', game.clientId, notify);
+        });
+        CoyoteGameConfigService.instance.on('configUpdated', game.clientId, notify);
+    }
 
     /**
      * 添加SSE连接
@@ -232,25 +264,30 @@ export class McpApiController {
      * 发送资源更新通知
      */
     private static async notifyResourceUpdate(gameId: string) {
-        const resourceUri = `game://${gameId}/strength`;
-
-        // 向所有关注此游戏的连接发送资源更新事件
-        const listeners = this.resourceEventListeners.get(resourceUri);
-        if (listeners) {
-            for (const connectionId of listeners) {
-                this.sendSSEEvent(connectionId, {
-                    event: 'message',
-                    data: {
-                        method: 'notifications/resources/updated',
-                        params: {
-                            uri: resourceUri,
-                        }
+        for (const resourceUri of ['game://strength.json', 'game://strength.md']) {
+            const listeners = this.resourceEventListeners.get(resourceUri);
+            if (listeners) {
+                for (const connectionId of listeners) {
+                    const session = this.sseConnections.get(connectionId);
+                    if (session?.gameId !== gameId) {
+                        continue;
                     }
-                });
+                    this.sendSSEEvent(connectionId, {
+                        event: 'message',
+                        data: {
+                            method: 'notifications/resources/updated',
+                            params: { uri: resourceUri }
+                        }
+                    });
+                }
             }
         }
 
-        console.log(`Resource updated: ${resourceUri}`);
+        console.log(`Resources updated for game: ${gameId}`);
+    }
+
+    public static normalizeResourceUri(uri: string): string {
+        return uri === 'game://strength' ? 'game://strength.json' : uri;
     }
 
     /**
@@ -314,12 +351,12 @@ export class McpApiController {
             instructions: `这是用于控制 DG-Lab 郊狼电击设备的 MCP 服务器。
 
 **推荐工作流：**
-1. 订阅资源 \`\`\`game://{gameId}/strength.md\`\`\` 或 \`\`\`game://{gameId}/strength\`\`\` 了解当前状态，包括：通道是否连接、各通道强度和上限、B 通道模式。如果没有订阅资源功能，则在每次回复前调用 get_game_status 获取状态。
+1. 订阅资源 \`\`\`game://strength.md\`\`\` 或 \`\`\`game://strength.json\`\`\` 了解当前绑定游戏的状态，包括：通道是否连接、实际强度、配置强度、各通道上限、当前波形和 B 通道模式。如果没有订阅资源功能，则在每次回复前调用 get_game_status 获取状态。
 2. 根据需要调用强度/波形/开火工具
 
 **关键约束：**
 - 设备可用强度范围 0-200，但实际上限由用户设备的 strengthLimit 决定，A通道和B通道有各自独立的强度和上限
-- B 通道仅在 bChannel.mode 为 'enabled' 时可用，且有独立的强度和上限；在其他模式下，无法直接控制 B 通道强度，此时仅关注 A 通道的状态
+- B 通道仅在 bChannel.mode 为 'discrete' 时可独立设置强度；'off' 表示关闭，'sync' 表示跟随 A 通道
 - fire_action 是在当前强度基础上叠加临时提升，而非设置绝对值`
         };
     }
@@ -441,8 +478,11 @@ export class McpApiController {
                             description: "要设置波形的通道，aChannel 表示 A 通道，bChannel 表示 B 通道"
                         },
                         pulseId: {
-                            type: "string",
-                            description: "波形ID"
+                            oneOf: [
+                                { type: "string" },
+                                { type: "array", items: { type: "string" }, minItems: 1 }
+                            ],
+                            description: "波形ID或波形ID列表"
                         }
                     },
                     required: ["channel", "pulseId"]
@@ -450,7 +490,7 @@ export class McpApiController {
             },
             {
                 name: "fire_action",
-                description: "对指定通道执行一键开火动作，在当前强度基础上叠加临时提升，持续一段时间后恢复到原强度。一般不建议超过30，但以用户要求为准",
+                description: "对指定通道执行一键开火动作，在当前强度基础上叠加临时提升，持续一段时间后恢复到原强度。B通道只有在discrete独立模式下允许单独开火；sync和off模式请使用all或aChannel。一般不建议超过30，但以用户要求为准",
                 inputSchema: {
                     type: "object" as const,
                     properties: {
@@ -468,9 +508,13 @@ export class McpApiController {
                         duration: {
                             type: "number",
                             description: "持续时间(毫秒)",
-                            minimum: 100,
-                            maximum: 30000,
+                            minimum: 1,
                             default: 5000
+                        },
+                        override: {
+                            type: "boolean",
+                            description: "是否覆盖当前开火剩余时间",
+                            default: false
                         },
                         pulseId: {
                             type: "string",
@@ -554,6 +598,7 @@ export class McpApiController {
                         channel: args.channel,
                         strength: args.strength,
                         duration: args.duration,
+                        override: args.override,
                         pulseId: args.pulseId
                     });
                     break;
@@ -610,10 +655,6 @@ export class McpApiController {
             };
         }
 
-        if (gameId === 'all') {
-            return { valid: true };
-        }
-
         const game = CoyoteGameManager.instance.getGame(gameId);
         if (!game) {
             return {
@@ -654,94 +695,42 @@ export class McpApiController {
      * 处理资源读取请求
      */
     private static async handleResourcesRead(session: SSESession, params: any) {
-        const { uri } = ResourcesReadParamsSchema.parse(params);
+        const { uri: requestedUri } = ResourcesReadParamsSchema.parse(params);
+        const uri = this.normalizeResourceUri(requestedUri);
+        const validation = this.validateGame(session.gameId);
+        if (!validation.valid) {
+            throw validation.error;
+        }
 
-        if (uri === `game://strength.json`) {
-            const validation = this.validateGame(session.gameId!);
-            if (!validation.valid) {
-                throw validation.error;
-            }
+        const game = validation.game!;
+        const status = await this.getGameStatusSnapshot(session.gameId!, game);
 
-            const game = validation.game;
-            let strengthInfo = {
-                gameId: session.gameId!,
-                aChannel: {
-                    currentStrength: game?.strengthConfig?.main?.strength || 0,
-                    strengthLimit: game?.clientStrength?.main?.limit || 0,
-                    randomStrength: game?.strengthConfig?.main?.randomStrength || 0,
-                },
-                bChannel: {},
-                isConnected: !!game?.client,
-                isStarted: !!game?.running,
-                lastUpdated: new Date().toISOString()
-            };
-
-            switch (game?.gameConfig?.bChannelMode) {
-                case 'discrete':
-                    strengthInfo.bChannel = {
-                        mode: 'enabled',
-                        currentStrength: game?.strengthConfig?.channelB?.strength || 0,
-                        strengthLimit: game?.clientStrength?.channelB?.limit || 0,
-                        randomStrength: game?.strengthConfig?.channelB?.randomStrength || 0,
-                    };
-                    break;
-                case 'off':
-                    strengthInfo.bChannel = {
-                        mode: 'disabled'
-                    };
-                    break;
-                case 'sync':
-                    strengthInfo.bChannel = {
-                        mode: 'sync from a channel',
-                    };
-                    break;
-            }
-
+        if (uri === 'game://strength.json') {
             return {
-                contents: [
-                    {
-                        uri,
-                        mimeType: "application/json",
-                        text: JSON.stringify(strengthInfo, null, 2)
-                    }
-                ]
+                contents: [{
+                    uri,
+                    mimeType: 'application/json',
+                    text: JSON.stringify({ ...status, lastUpdated: new Date().toISOString() }, null, 2)
+                }]
             };
-        } else if (uri === `game://strength.md`) {
-            const validation = this.validateGame(session.gameId!);
-            if (!validation.valid) {
-                throw validation.error;
-            }
+        }
 
-            const game = validation.game;
-            let markdownStrengthInfo =
-                `**游戏ID (gameId)**: ${session.gameId}\n` +
-                `**A通道 (aChannel)**: 当前强度 ${game?.strengthConfig?.main?.strength || 0} / 上限 ${game?.clientStrength?.main?.limit || 0} (随机范围 ±${game?.strengthConfig?.main?.randomStrength || 0})\n`;
-
-            switch (game?.gameConfig?.bChannelMode) {
-                case 'discrete':
-                    markdownStrengthInfo += `**B通道 (bChannel)**: 当前强度 ${game?.strengthConfig?.channelB?.strength || 0} / 上限 ${game?.clientStrength?.channelB?.limit || 0} (随机范围 ±${game?.strengthConfig?.channelB?.randomStrength || 0})\n`;
-                    break;
-                case 'sync':
-                    markdownStrengthInfo += `**B通道 (bChannel)**: 同步 A 通道\n`;
-                    break;
-                case 'off':
-                    markdownStrengthInfo += `**B通道 (bChannel)**: 已关闭\n`;
-                    break;
-            }
-
-            markdownStrengthInfo +=
-                `**连接状态 (isConnected)**: ${game?.client ? "已连接" : "未连接"}\n` +
-                `**游戏状态 (isStarted)**: ${game?.running ? "已启动" : "未启动"}\n` +
+        if (uri === 'game://strength.md') {
+            const bStatus = status.bChannel.mode === 'off'
+                ? '已关闭'
+                : status.bChannel.mode === 'sync'
+                    ? '同步 A 通道'
+                    : `当前强度 ${status.bChannel.currentStrength ?? 0} / 配置强度 ${status.bChannel.configuredStrength ?? 0} / 上限 ${status.bChannel.strengthLimit ?? 0}`;
+            const markdownStrengthInfo =
+                `**游戏ID (gameId)**: ${status.gameId}\n` +
+                `**A通道 (aChannel)**: 实际强度 ${status.aChannel.currentStrength} / 配置强度 ${status.aChannel.configuredStrength} / 上限 ${status.aChannel.strengthLimit} (随机范围 ±${status.aChannel.randomStrengthRange})，当前波形 ${status.aChannel.currentPulseId || '未知'}\n` +
+                `**B通道 (bChannel)**: ${bStatus}，模式 ${status.bChannel.mode}，当前波形 ${status.bChannel.currentPulseId || '未知'}\n` +
+                `**连接状态 (isConnected)**: ${status.isConnected ? '已连接' : '未连接'}\n` +
+                `**游戏状态 (isStarted)**: ${status.isStarted ? '已启动' : '未启动'}\n` +
                 `**最后更新时间 (lastUpdated)**: ${new Date().toISOString()}`;
 
             return {
-                contents: [
-                    {
-                        uri,
-                        mimeType: "text/markdown",
-                        text: markdownStrengthInfo
-                    }
-                ]
+                contents: [{ uri, mimeType: 'text/markdown', text: markdownStrengthInfo }]
             };
         }
 
@@ -765,9 +754,10 @@ export class McpApiController {
      * 处理资源订阅请求
      */
     private static async handleResourcesSubscribe(session: SSESession, params: any) {
-        const { uri } = z.object({
+        let { uri } = z.object({
             uri: z.string().url()
         }).parse(params);
+        uri = this.normalizeResourceUri(uri);
 
         // 订阅资源
         session.subscribeResource(uri);
@@ -782,9 +772,10 @@ export class McpApiController {
      * 处理资源取消订阅请求
      */
     private static async handleResourcesUnsubscribe(session: SSESession, params: any) {
-        const { uri } = z.object({
+        let { uri } = z.object({
             uri: z.string().url()
         }).parse(params);
+        uri = this.normalizeResourceUri(uri);
 
         // 取消订阅资源
         session.unsubscribeResource(uri);
@@ -890,62 +881,55 @@ export class McpApiController {
     /**
      * 获取游戏状态
      */
+    private static async getGameStatusSnapshot(gameId: string, game: CoyoteGameController): Promise<GameStatus> {
+        const gameConfig = game.gameConfig;
+        const currentPulseId = (channel: 'main' | 'channelB') =>
+            game.pulsePlayList[channel]?.getCurrentPulseId() ||
+            (typeof gameConfig.pulse[channel].pulseId === 'string' ? gameConfig.pulse[channel].pulseId : gameConfig.pulse[channel].pulseId[0]) ||
+            undefined;
+        let hints: string[] = [];
+        if (!game.client) hints.push("设备未连接，强度操作无效。");
+        if (!game.running) hints.push("电击未启动。");
+        if (gameConfig.bChannelMode !== 'discrete') {
+            hints.push(`B 通道模式为 '${gameConfig.bChannelMode}'，无法独立调整 B 通道强度。`);
+        }
+        const aLimit = game.clientStrength.main.limit || 0;
+        hints.push(`A 通道强度上限为 ${aLimit}，set_strength 的有效范围是 0-${aLimit}。`);
+
+        const status: GameStatus = {
+            gameId,
+            isConnected: !!game.client,
+            isStarted: !!game.running,
+            aChannel: {
+                currentStrength: game.clientStrength.main.strength || 0,
+                configuredStrength: game.strengthConfig.main.strength || 0,
+                randomStrengthRange: game.strengthConfig.main.randomStrength || 0,
+                strengthLimit: game.clientStrength.main.limit || 0,
+                currentPulseId: currentPulseId('main'),
+            },
+            bChannel: {
+                mode: gameConfig.bChannelMode,
+                currentStrength: game.clientStrength.channelB.strength || 0,
+                configuredStrength: game.strengthConfig.channelB.strength || 0,
+                randomStrengthRange: game.strengthConfig.channelB.randomStrength || 0,
+                strengthLimit: game.clientStrength.channelB.limit || 0,
+                currentPulseId: currentPulseId('channelB'),
+                strengthMultiplier: gameConfig.bChannelStrengthMultiplier,
+            },
+            currentPulseId: currentPulseId('main'),
+            message: '获取游戏状态成功。' + hints.join(' '),
+        };
+
+        return status;
+    }
+
     private static async handleGetGameStatus(session: SSESession, params: any): Promise<GameStatus> {
         const validation = this.validateGame(session.gameId);
         if (!validation.valid) {
             throw validation.error;
         }
 
-        const game = validation.game;
-        const gameConfig = await CoyoteGameConfigService.instance.get(session.gameId!, GameConfigType.MainGame);
-
-        let hints: string[] = [];
-        if (!game?.client) hints.push("设备未连接，强度操作无效。");
-        if (!game?.running) hints.push("电击未启动。");
-        if (gameConfig?.bChannelMode !== 'discrete') {
-            hints.push(`B 通道模式为 '${gameConfig?.bChannelMode}'，无法独立调整 B 通道强度。`);
-        }
-        const aLimit = game?.clientStrength?.main?.limit || 0;
-        hints.push(`A 通道强度上限为 ${aLimit}，set_strength 的有效范围是 0-${aLimit}。`);
-
-        const status: GameStatus = {
-            gameId: session.gameId!,
-            isConnected: !!game?.client,
-            isStarted: game?.running || false,
-            aChannel: {
-                currentStrength: game?.strengthConfig?.main?.strength || 0,
-                randomStrengthRange: game?.strengthConfig?.main?.randomStrength || 0,
-                strengthLimit: game?.clientStrength?.main?.limit || 0,
-            },
-            bChannel: {
-                mode: 'disabled',
-            },
-            currentPulseId: Array.isArray(gameConfig?.pulse?.main?.pulseId) ? gameConfig.pulse.main.pulseId[0] : (gameConfig?.pulse?.main?.pulseId || 'default'),
-            message: game ? '获取游戏状态成功。' + hints.join(' ') : '未连接到游戏（控制器）',
-        };
-
-        switch (gameConfig?.bChannelMode) {
-            case 'discrete':
-                status.bChannel = {
-                    mode: 'enabled',
-                    currentStrength: game?.strengthConfig?.channelB?.strength || 0,
-                    randomStrengthRange: game?.strengthConfig?.channelB?.randomStrength || 0,
-                    strengthLimit: game?.clientStrength?.channelB?.limit || 0,
-                };
-                break;
-            case 'sync':
-                status.bChannel = {
-                    mode: 'sync from a channel',
-                };
-                break;
-            case 'off':
-                status.bChannel = {
-                    mode: 'disabled',
-                };
-                break;
-        }
-
-        return status;
+        return this.getGameStatusSnapshot(session.gameId!, validation.game!);
     }
 
     /**
@@ -1110,27 +1094,20 @@ export class McpApiController {
         const { channel, pulseId } = SetPulseParamsSchema.parse(params);
         const internalChannel = this.mcpChannelToInternal(channel);
 
-        if (channel === 'bChannel') {
-            await this.validateBChannelControllable(session.gameId!);
-        }
+        const pulseList = await getAvailableGamePulses(session.gameId!);
+        const pulseIds = Array.isArray(pulseId) ? pulseId : [pulseId];
+        const missingPulseId = pulseIds.find((id: string) => !pulseList.some(pulse => pulse.id === id));
 
-        // 验证波形是否存在
-        const pulseList = DGLabPulseService.instance.pulseList;
-        const pulseExists = pulseList.some((pulse: any) => pulse.id === pulseId);
-
-        if (!pulseExists) {
+        if (missingPulseId) {
             throw {
                 code: MCP_ERROR_CODES.INVALID_PULSE_ID,
-                message: `波形 ${pulseId} 不存在`
+                message: `波形 ${missingPulseId} 不存在`
             };
         }
 
         // 更新游戏配置（通道特定的波形配置）
-        await CoyoteGameConfigService.instance.update(session.gameId!, GameConfigType.MainGame, {
-            pulse: {
-                [internalChannel]: { pulseId }
-            }
-        });
+        await setGamePulse(session.gameId!, internalChannel, pulseId);
+        await this.notifyResourceUpdate(session.gameId!);
 
         return {
             success: true,
@@ -1148,7 +1125,7 @@ export class McpApiController {
             throw validation.error;
         }
 
-        const { channel, strength, duration = 5000, pulseId } = FireActionParamsSchema.parse(params);
+        const { channel, strength, duration = 5000, override = false, pulseId } = FireActionParamsSchema.parse(params);
         // 映射 MCP 通道到内部通道枚举
         const internalChannel = channel === 'aChannel' ? 'main' : channel === 'bChannel' ? 'channelB' : 'all';
 
@@ -1160,27 +1137,29 @@ export class McpApiController {
             };
         }
 
-        const warnings: { code: string, message: string }[] = [];
-        if (internalChannel === 'channelB' && game.gameConfig.bChannelMode === 'sync') {
+        const fireRestriction = getFireChannelRestriction(internalChannel, game.gameConfig.bChannelMode);
+        if (fireRestriction) {
             throw {
                 code: MCP_ERROR_CODES.OPERATION_FAILED,
-                message: 'B 通道当前处于同步模式，无法单独发送一键开火指令。'
+                message: fireRestriction.message,
             };
         }
+
+        const fireParams = normalizeFireAction(duration, override);
+        const actualDuration = fireParams.actualDuration;
+        const warnings: { code: string, message: string }[] = [...fireParams.warnings];
 
         // 生成开火 ID
         const fireActionId = `fire_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         try {
             // 创建开火动作
-            const { GameFireAction } = await import('#app/controllers/game/actions/GameFireAction.js');
-
             const fireAction = new GameFireAction({
                 channel: internalChannel,
                 strength,
-                time: duration,
+                time: actualDuration,
                 pulseId: pulseId,
-                updateMode: 'append',
+                updateMode: fireParams.updateMode,
             });
 
             await game.startAction(fireAction);
@@ -1191,9 +1170,9 @@ export class McpApiController {
             return {
                 success: true,
                 fireActionId,
-                actualDuration: duration,
+                actualDuration,
                 warnings: warnings.length > 0 ? warnings : undefined,
-                message: `开火动作已启动！强度: ${strength}，持续时间: ${duration}ms。${this.getStrengthStatusMessage(game, "开火动作")}`
+                message: `开火动作已启动！强度: ${strength}，持续时间: ${actualDuration}ms。${this.getStrengthStatusMessage(game, "开火动作", internalChannel === 'all' ? 'main' : internalChannel)}`
             };
         } catch (error) {
             throw {
@@ -1207,7 +1186,11 @@ export class McpApiController {
      * 获取波形列表
      */
     private static async handleGetPulseList(session: SSESession, params: any) {
-        const pulseList = DGLabPulseService.instance.pulseList;
+        const validation = this.validateGame(session.gameId);
+        if (!validation.valid) {
+            throw validation.error;
+        }
+        const pulseList = await getAvailableGamePulses(session.gameId!);
 
         return {
             pulses: pulseList.map((pulse: any) => ({
